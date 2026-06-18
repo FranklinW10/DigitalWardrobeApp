@@ -7,9 +7,9 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -23,6 +23,7 @@ export default function Haul() {
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const { createPost } = usePosts();
+  const [selectedImages, setSelectedImages] = useState<string[]>([]);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -34,15 +35,15 @@ export default function Haul() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
+      allowsMultipleSelection: true,
+      selectionLimit: 10,
       aspect: [1, 1],
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      setPreviewImage(result.assets[0].uri);
-      setShowPreview(true);
-      setDescription("");
+      const uris = result.assets.map((a) => a.uri);
+      setSelectedImages(uris);
+      setPreviewImage(uris[0]); // show first image in preview
     }
   };
 
@@ -103,16 +104,32 @@ export default function Haul() {
       </TouchableOpacity>
 
       <View style={styles.modalContent}>
-        <Text style={styles.modalTitle}> {"Post your outfit of the day"}</Text>
-        {previewImage ? (
-          <TouchableOpacity onPress={showImagePicker}>
-            <Image
-              cachePolicy={"none"}
-              source={{ uri: previewImage }}
-              style={styles.previewImage}
-              contentFit="cover"
-            />
-          </TouchableOpacity>
+        <Text style={styles.modalTitle}> {"Select Images form your haul"}</Text>
+        {selectedImages.length > 0 ? (
+          <View style={{ height: 300, marginBottom: 16 }}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              style={styles.previewScrollView}
+              contentContainerStyle={{ flexGrow: 0 }}
+            >
+              {selectedImages.map((uri, index) => (
+                <Image
+                  key={index}
+                  source={{ uri }}
+                  style={styles.previewImage}
+                  contentFit="cover"
+                />
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={styles.addMoreButton} onPress={pickImage}>
+              <Text style={styles.addMoreText}>
+                {selectedImages.length} photo
+                {selectedImages.length > 1 ? "s" : ""} selected · tap to change
+              </Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <TouchableOpacity
             style={styles.imagePlaceholder}
@@ -121,24 +138,16 @@ export default function Haul() {
             <Text style={styles.photoPlaceholderText}>+</Text>
           </TouchableOpacity>
         )}
-
-        <TextInput
-          style={styles.descriptionInput}
-          placeholder="Add a description (optional)"
-          placeholderTextColor="#999"
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          maxLength={500}
-          textAlignVertical="top"
-        />
         <View style={styles.modalButtons}>
           <TouchableOpacity
             style={[styles.modalButton, styles.postButton]}
             onPress={() => {
               router.push({
-                pathname: "/preview",
-                params: { imageUri: previewImage, description: description },
+                pathname: "/previewHaul",
+                params: {
+                  imageUris: JSON.stringify(selectedImages), // 👈 all images
+                  type: "haul",
+                },
               });
             }}
             disabled={isUploading}
@@ -215,12 +224,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  previewImage: {
-    width: "100%",
-    aspectRatio: 1,
-    marginBottom: 16,
-    borderRadius: 0,
-  },
+
   imagePlaceholder: {
     width: "100%",
     aspectRatio: 1,
@@ -238,5 +242,30 @@ const styles = StyleSheet.create({
     fontSize: 64,
     fontWeight: "300",
     lineHeight: 70,
+  },
+
+  previewScrollView: {
+    width: 300,
+    height: 300,
+    overflow: "hidden",
+    marginBottom: -100,
+  },
+  previewImage: {
+    width: 300,
+    height: 300,
+  },
+  addMoreButton: {
+    alignSelf: "center",
+    marginTop: 8,
+    marginBottom: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  addMoreText: {
+    fontSize: 13,
+    color: "#666",
   },
 });

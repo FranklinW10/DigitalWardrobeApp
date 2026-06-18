@@ -10,3 +10,95 @@ export const formatTimeAgo = (createdAt: string): string => {
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
 };
+
+export const daysAgo = (timestamp: string): string => {
+  const now = new Date();
+
+  // Get today's date at midnight Central time
+  const centralFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  const toMidnightCentral = (date: Date): Date => {
+    const parts = centralFormatter.formatToParts(date);
+    const y = parts.find((p) => p.type === "year")!.value;
+    const m = parts.find((p) => p.type === "month")!.value;
+    const d = parts.find((p) => p.type === "day")!.value;
+    // Midnight Central = start of that day in Chicago
+    return new Date(`${y}-${m}-${d}T00:00:00-05:00`); // CST; CDT is -06:00
+  };
+
+  const todayMidnight = toMidnightCentral(now);
+  const postMidnight = toMidnightCentral(new Date(timestamp));
+
+  const days = Math.round(
+    (todayMidnight.getTime() - postMidnight.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days === 2) {
+    const date = new Date(timestamp);
+    const formatted = date.toLocaleDateString("en-US", {
+      timeZone: "America/Chicago",
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+    return `${formatted} (2 days ago)`;
+  }
+  if (days === 3) {
+    const date = new Date(timestamp);
+    const formatted = date.toLocaleDateString("en-US", {
+      timeZone: "America/Chicago",
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+    return `${formatted} (3 days ago)`;
+  }
+  if (days === 4) {
+    const date = new Date(timestamp);
+    const formatted = date.toLocaleDateString("en-US", {
+      timeZone: "America/Chicago",
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+    return `${formatted} (4 days ago)`;
+  }
+  if (days === 5) {
+    const date = new Date(timestamp);
+    const formatted = date.toLocaleDateString("en-US", {
+      timeZone: "America/Chicago",
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+    return `${formatted} (5 days ago)`;
+  }
+  if (days === 6) {
+    const date = new Date(timestamp);
+    const formatted = date.toLocaleDateString("en-US", {
+      timeZone: "America/Chicago",
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+    return `${formatted} (6 days ago)`;
+  }
+  if (days === 7) {
+    const date = new Date(timestamp);
+    const formatted = date.toLocaleDateString("en-US", {
+      timeZone: "America/Chicago",
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    });
+    return `${formatted} (7 days ago)`;
+  }
+  return `expired`;
+};

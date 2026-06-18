@@ -1,11 +1,28 @@
 import { useAuth } from "@/context/AuthContext";
 import { Post, usePosts } from "@/hooks/usePosts";
 import { formatTimeAgo } from "@/lib/date-helper";
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import {
+  Animated,
+  Dimensions,
+  FlatList,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  RefreshControl,
+  ScrollView,
+  SectionList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+import { daysAgo } from "@/lib/date-helper";
 import { SafeAreaView } from "react-native-safe-area-context";
+
 interface PostCardProps {
   post: Post;
   currentUserId?: string;
@@ -14,6 +31,7 @@ interface PostCardProps {
 const PostCard = ({ post, currentUserId }: PostCardProps) => {
   const postUser = post.profiles;
   const isOwnPost = post.user_id === currentUserId;
+
   return (
     <View style={styles.postContainer}>
       <View style={styles.postHeader}>
@@ -39,6 +57,7 @@ const PostCard = ({ post, currentUserId }: PostCardProps) => {
             <Text style={styles.timeAgo}>{formatTimeAgo(post.created_at)}</Text>
           </View>
         </View>
+
         {/*Post content*/}
       </View>
       <Image
@@ -57,6 +76,104 @@ const PostCard = ({ post, currentUserId }: PostCardProps) => {
           {formatTimeAgo(post.created_at)}
         </Text>
       </View>
+      {/* <View style={styles.headerBorder} /> */}
+    </View>
+  );
+};
+
+interface HaulPostCardProps {
+  post: Post;
+  currentUserId?: string;
+}
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
+  if (post.isoutfit_post) {
+    return;
+  }
+  const postUser = post.profiles;
+  const isOwnPost = post.user_id === currentUserId;
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  const images = [...(post.images ?? [])].sort(
+    (a, b) => a.order_index - b.order_index,
+  );
+
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+    setActiveIndex(index);
+  };
+
+  return (
+    <View style={styles.postContainer}>
+      <View style={styles.postHeader}>
+        <View style={styles.userInfo}>
+          {postUser?.profile_image_url ? (
+            <Image
+              cachePolicy="none"
+              source={{ uri: postUser.profile_image_url }}
+              style={styles.avatar}
+            />
+          ) : (
+            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+              <Text style={styles.avatarText}>
+                {postUser?.name?.[0]?.toUpperCase() || "U"}
+              </Text>
+            </View>
+          )}
+          <View>
+            <Text style={styles.username}>
+              {isOwnPost ? "You" : `@${postUser?.username}`}
+            </Text>
+            <Text style={styles.timeAgo}>{formatTimeAgo(post.created_at)}</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Scrollable images */}
+      <View>
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={handleScroll}
+        >
+          {images.map((img, index) => (
+            <Image
+              key={index}
+              cachePolicy="none"
+              source={{ uri: img.image_url }}
+              style={[styles.postImage, { width: SCREEN_WIDTH }]}
+              contentFit="cover"
+            />
+          ))}
+        </ScrollView>
+
+        {images.length > 1 && (
+          <View style={styles.dotsContainer}>
+            {images.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.dot,
+                  index === activeIndex ? styles.dotActive : styles.dotInactive,
+                ]}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+
+      <View style={styles.postFooter}>
+        {post.description && (
+          <Text style={styles.postDescription}>{post.description}</Text>
+        )}
+        <Text style={styles.postInfo}>
+          {isOwnPost ? "Your Post" : `${postUser?.name}'s post`} -{" "}
+          {formatTimeAgo(post.created_at)}
+        </Text>
+      </View>
     </View>
   );
 };
@@ -70,13 +187,34 @@ export default function Index() {
   const { posts, refreshPosts } = usePosts();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
-
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const lastScrollY = useRef(0);
+  const headerVisible = useRef(new Animated.Value(1)).current;
+  const [activeTab, setActiveTab] = useState<"fits" | "hauls">("fits");
   // Check if user has an active post
   const userActivePost = (posts ?? []).find(
     (post) => post.user_id === user?.id && post.is_active && post.is_post_today,
   );
 
   const hasActivePost = !!userActivePost;
+
+  const groupedPosts = (posts ?? [])
+    .filter((post) => daysAgo(post.created_at) !== "expired")
+    .filter((post) => post.isoutfit_post)
+    .reduce((groups: Record<string, Post[]>, post) => {
+      const key = daysAgo(post.created_at);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(post);
+      return groups;
+    }, {});
+
+  const sections = Object.entries(groupedPosts)
+    .map(([title, data]) => ({ title, data }))
+    .sort(
+      (a, b) =>
+        new Date(b.data[0].created_at).getTime() -
+        new Date(a.data[0].created_at).getTime(),
+    );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -88,27 +226,151 @@ export default function Index() {
       setRefreshing(false);
     }
   };
-
   const renderPost = ({ item }: { item: Post }) => (
     <PostCard post={item} currentUserId={user?.id} />
   );
 
+  const renderHaulPost = ({ item }: { item: Post }) => (
+    <HaulPostCard post={item} currentUserId={user?.id} />
+  );
+
+  const handleScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+    {
+      useNativeDriver: false,
+      listener: (event: any) => {
+        const currentY = event.nativeEvent.contentOffset.y;
+        if (currentY > lastScrollY.current && currentY > 50) {
+          // scrolling down — hide header
+          Animated.timing(headerVisible, {
+            toValue: 0,
+            duration: 50,
+            useNativeDriver: false,
+          }).start();
+        } else {
+          // scrolling up — show header
+          Animated.timing(headerVisible, {
+            toValue: 1,
+            duration: 50,
+            useNativeDriver: false,
+          }).start();
+        }
+        lastScrollY.current = currentY;
+      },
+    },
+  );
+
+  const headerHeight = headerVisible.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 60],
+  });
+
+  const tabSwitcher = (
+    <View style={styles.tabSwitcher}>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === "fits" && styles.activeTab]}
+        onPress={() => setActiveTab("fits")}
+      >
+        <Text
+          style={[styles.tabText, activeTab === "fits" && styles.activeTabText]}
+        >
+          Fits
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === "hauls" && styles.activeTab]}
+        onPress={() => setActiveTab("hauls")}
+      >
+        <Text
+          style={[
+            styles.tabText,
+            activeTab === "hauls" && styles.activeTabText,
+          ]}
+        >
+          Hauls
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
-    <SafeAreaView style={styles.container} edges={["bottom", "top"]}>
-      {/*List*/}
-      <FlatList
-        data={posts}
-        renderItem={renderPost}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={
-          posts.length === 0 ? styles.emptyContent : styles.content
-        }
-        ListEmptyComponent={<Text>No posts found</Text>}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      />
-    </SafeAreaView>
+    <>
+      <SafeAreaView style={{ backgroundColor: "#f5f5f5" }} edges={["top"]} />
+      <View style={{ flex: 1, backgroundColor: "#fff" }}>
+        <Animated.View
+          style={[styles.header, { height: headerHeight, overflow: "hidden" }]}
+        >
+          <TouchableOpacity>
+            <Ionicons name="menu-outline" size={24} color="#000" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Fit Check</Text>
+          <TouchableOpacity>
+            <Ionicons name="notifications-outline" size={24} color="#000" />
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/*List*/}
+
+        {activeTab === "fits" ? (
+          <SectionList
+            sections={sections}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <PostCard post={item} currentUserId={user?.id} />
+            )}
+            // stickySectionHeadersEnabled={false} This makes the headers nt move
+            renderSectionHeader={({ section: { title } }) => (
+              <Text style={styles.sectionHeader}>{title}</Text>
+            )}
+            onScroll={handleScroll}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            ListEmptyComponent={<View>{tabSwitcher}</View>}
+            contentContainerStyle={
+              sections.length === 0 ? styles.emptyContent : styles.content
+            }
+            ListHeaderComponent={<View>{tabSwitcher}</View>}
+          />
+        ) : (
+          <FlatList
+            data={posts}
+            style={{ width: "100%" }}
+            renderItem={renderHaulPost}
+            keyExtractor={(item) => item.id}
+            onScroll={handleScroll}
+            contentContainerStyle={
+              posts.length === 0 ? styles.emptyContent : styles.content
+            }
+            ListEmptyComponent={
+              <View>
+                {tabSwitcher} <Text>No posts found</Text>{" "}
+              </View>
+            }
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            ListHeaderComponent={<View>{tabSwitcher}</View>}
+            // ListHeaderComponent={
+            //   <View style={styles.headerContainer}>
+            //     <Text
+            //       style={{
+            //         fontSize: 30,
+            //         fontWeight: "600",
+            //         marginBottom: 16,
+            //         fontFamily: "Times New Roman",
+            //         color: "#000",
+            //       }}
+            //     >
+            //       Today's Fits
+            //     </Text>
+            //     <View style={styles.headerBorder} />
+            //   </View>
+            // }
+          />
+        )}
+      </View>
+    </>
   );
 }
 
@@ -117,96 +379,28 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-  },
-  fab: {
-    position: "absolute",
-    bottom: 104,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#000",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  fabtext: {
-    color: "#fff",
-    fontSize: 32,
-    fontWeight: "300",
-    lineHeight: 32,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 24,
-    width: "100%",
-    maxWidth: 400,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  previewImage: {
-    width: "100%",
-    aspectRatio: 1,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  descriptionInput: {
-    width: "100%",
-    minHeight: 80,
-    maxHeight: 120,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 16,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    color: "#000",
-  },
-  modalButtons: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  cancelButton: {
     backgroundColor: "#f5f5f5",
   },
-  cancelButtonText: {
-    color: "#000",
-    fontSize: 16,
-    fontWeight: "600",
+  headerContainer: {
+    padding: 15,
+    marginBottom: -15,
   },
-  postButton: {
-    backgroundColor: "#000",
+  headerBorder: {
+    width: "100%",
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+
+    marginTop: -2,
   },
-  postButtonText: {
-    color: "#fff",
-    fontSize: 16,
+
+  sectionHeader: {
+    fontSize: 30,
     fontWeight: "600",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    color: "#333",
   },
   content: {
-    padding: 16,
     paddingBottom: 100,
   },
   emptyContent: {
@@ -217,7 +411,7 @@ const styles = StyleSheet.create({
   },
   postContainer: {
     backgroundColor: "#fff",
-    borderRadius: 16,
+
     overflow: "hidden",
     marginBottom: 16,
     shadowColor: "#000",
@@ -289,5 +483,75 @@ const styles = StyleSheet.create({
   postInfo: {
     fontSize: 14,
     color: "#666",
+  },
+  header: {
+    backgroundColor: "#f5f5f5",
+
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+    paddingTop: -120,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  headerTitle: {
+    fontSize: 30,
+    fontWeight: "bold",
+    color: "#000",
+  },
+  headerIcon: {
+    fontSize: 22,
+  },
+
+  tabSwitcher: {
+    flexDirection: "row",
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderBottomColor: "#e0e0e0",
+
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderRadius: 8,
+  },
+  activeTab: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#000",
+    marginBottom: -1,
+  },
+  tabText: {
+    fontSize: 20,
+    fontWeight: "500",
+    color: "#888",
+  },
+  activeTabText: {
+    color: "#000",
+    fontWeight: "600",
+  },
+
+  dotsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  dotActive: {
+    backgroundColor: "#000",
+  },
+  dotInactive: {
+    backgroundColor: "#ccc",
   },
 });

@@ -14,7 +14,11 @@ export default function TabsLayout() {
   const { user } = useAuth();
 
   const userActivePost = (posts ?? []).find(
-    (post) => post.user_id === user?.id && post.is_active && post.is_post_today,
+    (post) =>
+      post.user_id === user?.id &&
+      post.is_active &&
+      post.is_post_today &&
+      post.isoutfit_post,
   );
 
   const hasActivePost = !!userActivePost;

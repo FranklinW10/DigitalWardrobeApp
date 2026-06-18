@@ -1,12 +1,18 @@
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase/client";
-import { uploadPostImage } from "@/lib/supabase/storage";
+import { uploadHaulImages, uploadPostImage } from "@/lib/supabase/storage";
 import { useEffect, useState } from "react";
 export interface PostUser {
   id: string;
   name: string;
   username: string;
   profile_image_url?: string;
+}
+export interface PostImage {
+  id: string;
+  post_id: string;
+  image_url: string;
+  order_index: number;
 }
 
 export interface Post {
@@ -20,6 +26,7 @@ export interface Post {
   isoutfit_post: boolean;
   is_post_today: boolean;
   profiles?: PostUser;
+  images?: PostImage[];
 }
 
 export const usePosts = () => {
@@ -41,7 +48,8 @@ export const usePosts = () => {
         .select(
           `
                     *,
-                    profiles(id,name,username,profile_image_url)
+                    profiles(id,name,username,profile_image_url),
+                    images(id,post_id,image_url,order_index)
                     `,
         )
         .eq("is_active", true)
@@ -113,57 +121,123 @@ export const usePosts = () => {
   };
 
   const createPost = async (
-    imageUri: string,
+    imageUri?: string,
     description?: string,
     isPublic?: boolean,
     isOutfitPost?: boolean,
+    imageUris?: string[],
   ) => {
     if (!user) {
       throw new Error("User Not Authenticated");
     }
     try {
       //deactivate any existing posts today
-      const { error: deactivateError } = await supabase
-        .from("posts")
-        .update({ is_post_today: false, is_active: false })
-        .eq("is_post_today", true)
-        .eq("user_id", user.id)
-        .eq("is_active", true);
-      if (deactivateError) {
-        console.error("Error deactivating old posts:", deactivateError);
+      if (isOutfitPost) {
+        const { error: deactivateError } = await supabase
+          .from("posts")
+          .update({ is_post_today: false, is_active: false })
+          .eq("is_post_today", true)
+          .eq("user_id", user.id)
+          .eq("is_active", true)
+          .eq("isoutfit_post", true);
+        if (deactivateError) {
+          console.error("Error deactivating old posts:", deactivateError);
+        }
       }
-      // calculating expire time
-      const imageUrl = await uploadPostImage(user.id, imageUri);
-      const now = new Date();
       //adding to the table
-      const { error } = await supabase
+      const { error } = await supabase.from("posts").insert({
+        user_id: user.id,
+        image_url: null,
+        description: description || null,
+        is_active: true,
+        is_public: isPublic,
+        isoutfit_post: isOutfitPost || false,
+        is_post_today: true,
+      });
+
+      const { data: post, error: fetchError } = await supabase
         .from("posts")
-        .insert({
-          user_id: user.id,
-          image_url: imageUrl,
-          description: description || null,
-          is_active: true,
-          is_public: isPublic,
-          isoutfit_post: isOutfitPost || false,
-          is_post_today: true,
-        })
         .select()
+        .eq("user_id", user.id)
+        .eq("is_post_today", true)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
         .single();
+
+      if (fetchError) {
+        console.error("Error fetching created post:", fetchError);
+        throw fetchError;
+      }
+
+      console.log("Created post:", post);
+      console.log("Post id:", post?.id);
       if (error) {
         console.error("Error creating post:", error);
         throw error;
       }
+
+      if (imageUris && imageUris.length > 0) {
+        // haul post — upload to post_images table
+        await uploadHaulImages(user.id, post.id, imageUris);
+      }
       //Refresh posts
+      else if (imageUri) {
+        // fit post — upload single image and update image_url
+        const imageUrl = await uploadPostImage(user.id, imageUri, post.id);
+        await supabase
+          .from("posts")
+          .update({ image_url: imageUrl })
+          .eq("id", post.id);
+      }
     } catch (error) {
       console.error("Error in createPost:", error);
       throw error;
     }
   };
+
+  // const createHaulPost = async (
+  //   imageUris: string[],
+  //   description?: string,
+  //   isPublic?: boolean,
+  //   isOutfitPost?: boolean,
+  // ) => {
+  //   if (!user) {
+  //     throw new Error("User Not Authenticated");
+  //   }
+  //   try {
+  //     const imageUrl = await uploadPostImage(user.id, imageUri);
+  //     const now = new Date();
+  //     //adding to the table
+  //     const { error } = await supabase
+  //       .from("posts")
+  //       .insert({
+  //         user_id: user.id,
+  //         image_url: imageUrl,
+  //         description: description || null,
+  //         is_active: true,
+  //         is_public: isPublic,
+  //         isoutfit_post: isOutfitPost || false,
+  //         is_post_today: true,
+  //       })
+  //       .select()
+  //       .single();
+  //     if (error) {
+  //       console.error("Error creating post:", error);
+  //       throw error;
+  //     }
+  //     //Refresh posts
+  //   } catch (error) {
+  //     console.error("Error in createPost:", error);
+  //     throw error;
+  //   }
+  // };
   const refreshPosts = async () => {
     await loadPosts();
   };
   const refreshOwnPosts = async () => {
     await loadOwnPosts();
   };
+
   return { createPost, refreshPosts, posts, refreshOwnPosts };
 };
