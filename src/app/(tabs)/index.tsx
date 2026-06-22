@@ -3,7 +3,7 @@ import { Post, usePosts } from "@/hooks/usePosts";
 import { formatTimeAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import { useRouter } from "expo-router";
+import { router, useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import {
   Animated,
@@ -35,29 +35,34 @@ const PostCard = ({ post, currentUserId }: PostCardProps) => {
   return (
     <View style={styles.postContainer}>
       <View style={styles.postHeader}>
-        <View style={styles.userInfo}>
-          {postUser?.profile_image_url ? (
-            <Image
-              cachePolicy={"none"}
-              source={{ uri: postUser.profile_image_url }}
-              style={styles.avatar}
-            />
-          ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Text style={styles.avatarText}>
-                {postUser?.name?.[0]?.toUpperCase() || "U"}
+        <TouchableOpacity
+          onPress={() => router.push(`/(profile)/${post.user_id}`)}
+        >
+          <View style={styles.userInfo}>
+            {postUser?.profile_image_url ? (
+              <Image
+                cachePolicy={"none"}
+                source={{ uri: postUser.profile_image_url }}
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                <Text style={styles.avatarText}>
+                  {postUser?.name?.[0]?.toUpperCase() || "U"}
+                </Text>
+              </View>
+            )}
+
+            <View>
+              <Text style={styles.username}>
+                {isOwnPost ? "You" : `@${postUser?.username}`}
+              </Text>
+              <Text style={styles.timeAgo}>
+                {formatTimeAgo(post.created_at)}
               </Text>
             </View>
-          )}
-
-          <View>
-            <Text style={styles.username}>
-              {isOwnPost ? "You" : `@${postUser?.username}`}
-            </Text>
-            <Text style={styles.timeAgo}>{formatTimeAgo(post.created_at)}</Text>
           </View>
-        </View>
-
+        </TouchableOpacity>
         {/*Post content*/}
       </View>
       <Image
@@ -108,27 +113,33 @@ const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
   return (
     <View style={styles.postContainer}>
       <View style={styles.postHeader}>
-        <View style={styles.userInfo}>
-          {postUser?.profile_image_url ? (
-            <Image
-              cachePolicy="none"
-              source={{ uri: postUser.profile_image_url }}
-              style={styles.avatar}
-            />
-          ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Text style={styles.avatarText}>
-                {postUser?.name?.[0]?.toUpperCase() || "U"}
+        <TouchableOpacity
+          onPress={() => router.push(`/(profile)/${post.user_id}`)}
+        >
+          <View style={styles.userInfo}>
+            {postUser?.profile_image_url ? (
+              <Image
+                cachePolicy="none"
+                source={{ uri: postUser.profile_image_url }}
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                <Text style={styles.avatarText}>
+                  {postUser?.name?.[0]?.toUpperCase() || "U"}
+                </Text>
+              </View>
+            )}
+            <View>
+              <Text style={styles.username}>
+                {isOwnPost ? "You" : `@${postUser?.username}`}
+              </Text>
+              <Text style={styles.timeAgo}>
+                {formatTimeAgo(post.created_at)}
               </Text>
             </View>
-          )}
-          <View>
-            <Text style={styles.username}>
-              {isOwnPost ? "You" : `@${postUser?.username}`}
-            </Text>
-            <Text style={styles.timeAgo}>{formatTimeAgo(post.created_at)}</Text>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
 
       {/* Scrollable images */}
