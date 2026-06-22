@@ -321,10 +321,11 @@ export default function SearchScreen() {
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
         )}
+
         <TextInput
           ref={inputRef}
           style={[styles.searchInput, isFocused && { width: "90%" }]}
-          placeholder="Search by name or username..."
+          placeholder={"🔎 Search by name or username..."}
           value={query}
           onChangeText={handleSearch}
           onFocus={() => setIsFocused(true)}
@@ -341,6 +342,7 @@ export default function SearchScreen() {
             data={results}
             keyExtractor={(item) => item.id}
             renderItem={renderUser}
+            style={{ paddingLeft: 10, paddingRight: 10 }}
             ListEmptyComponent={
               query.length > 0 ? (
                 <Text style={styles.emptyText}>No users found</Text>
