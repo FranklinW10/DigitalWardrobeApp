@@ -36,7 +36,11 @@ const PostCard = ({ post, currentUserId }: PostCardProps) => {
     <View style={styles.postContainer}>
       <View style={styles.postHeader}>
         <TouchableOpacity
-          onPress={() => router.push(`/(profile)/${post.user_id}`)}
+          onPress={() =>
+            isOwnPost
+              ? router.push("/profile")
+              : router.push(`/(profile)/${post.user_id}`)
+          }
         >
           <View style={styles.userInfo}>
             {postUser?.profile_image_url ? (
@@ -306,7 +310,7 @@ export default function Index() {
 
   return (
     <>
-      <SafeAreaView style={{ backgroundColor: "#f5f5f5" }} edges={["top"]} />
+      <SafeAreaView style={{ backgroundColor: "#fff" }} edges={["top"]} />
       <View style={{ flex: 1, backgroundColor: "#fff" }}>
         <Animated.View
           style={[styles.header, { height: headerHeight, overflow: "hidden" }]}
@@ -390,7 +394,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#fff",
   },
   headerContainer: {
     padding: 15,
@@ -496,7 +500,7 @@ const styles = StyleSheet.create({
     color: "#666",
   },
   header: {
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#fff",
 
     flexDirection: "row",
     justifyContent: "space-between",

@@ -1,17 +1,21 @@
 import { useFollows } from "@/hooks/useFollows";
 import { Post } from "@/hooks/usePosts";
 import { supabase } from "@/lib/supabase/client";
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
+
 import {
-    ActivityIndicator,
-    FlatList,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface ProfileUser {
   id: string;
@@ -19,6 +23,48 @@ interface ProfileUser {
   username: string;
   profile_image_url?: string;
 }
+
+interface ProfileUser {
+  id: string;
+  name: string;
+  username: string;
+  profile_image_url?: string;
+}
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+const ITEM_SIZE = SCREEN_WIDTH / 3;
+
+interface HaulPostCardProps {
+  post: Post;
+  currentUserId?: string;
+}
+
+const ExplorePostCard = ({
+  post,
+  currentUserId,
+  onPress,
+}: HaulPostCardProps & { onPress: () => void }) => {
+  const postUser = post.profiles;
+  const isOwnPost = post.user_id === currentUserId;
+  const [activeIndex, setActiveIndex] = useState(0);
+  const firstImage = post.images?.[0]?.image_url ?? post.image_url;
+
+  return (
+    <View style={styles.postContainer}>
+      <View>
+        <TouchableOpacity onPress={onPress}>
+          <Image
+            cachePolicy="none"
+            source={{ uri: firstImage }}
+            style={{ width: ITEM_SIZE, height: ITEM_SIZE }}
+            contentFit="cover"
+          />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
 
 export default function UserProfileScreen() {
   const { user_id } = useLocalSearchParams<{ user_id: string }>();
@@ -28,10 +74,23 @@ export default function UserProfileScreen() {
   const [followingCount, setFollowingCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const { addFollow, unfollowUser, isFollowing } = useFollows();
+  const [activeTab, setActiveTab] = useState<"fits" | "hauls">("fits");
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
+  const filteredPosts = posts.filter((post) =>
+    activeTab === "fits" ? post.isoutfit_post : !post.isoutfit_post,
+  );
   useEffect(() => {
     loadProfile();
   }, [user_id]);
+
+  const renderExplorePost = ({ item }: { item: Post }) => (
+    <ExplorePostCard
+      post={item}
+      currentUserId={profileUser?.id}
+      onPress={() => setSelectedPost(item)}
+    />
+  );
 
   const loadProfile = async () => {
     setIsLoading(true);
@@ -80,103 +139,142 @@ export default function UserProfileScreen() {
     return <ActivityIndicator style={{ flex: 1 }} />;
   }
 
+  const tabSwitcher = (
+    <View style={styles.tabSwitcher}>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === "fits" && styles.activeTab]}
+        onPress={() => setActiveTab("fits")}
+      >
+        <Text
+          style={[styles.tabText, activeTab === "fits" && styles.activeTabText]}
+        >
+          Fits
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === "hauls" && styles.activeTab]}
+        onPress={() => setActiveTab("hauls")}
+      >
+        <Text
+          style={[
+            styles.tabText,
+            activeTab === "hauls" && styles.activeTabText,
+          ]}
+        >
+          Hauls
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
   return (
-    <FlatList
-      data={posts}
-      keyExtractor={(item) => item.id}
-      ListHeaderComponent={
-        <View style={styles.header}>
-          {/* Back button */}
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={styles.backButton}
-          >
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={styles.topHeader}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.closeButton}
+        >
+          <Text style={styles.closeButtonText}>←</Text>
+        </TouchableOpacity>
+        <Text style={styles.topHeaderUsername}>@{profileUser?.username}</Text>
+        <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
+          <Ionicons name="menu" size={26} color="#000" />
+        </TouchableOpacity>
+      </View>
+      <FlatList
+        key={activeTab}
+        numColumns={3}
+        data={filteredPosts}
+        keyExtractor={(item) => item.id}
+        columnWrapperStyle={{ gap: 2 }}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            {/* Avatar */}
+            {profileUser?.profile_image_url ? (
+              <Image
+                source={{ uri: profileUser.profile_image_url }}
+                style={styles.avatar}
+              />
+            ) : (
+              <View style={[styles.profileImage, styles.avatarPlaceholder]}>
+                <Text style={styles.avatarText}>
+                  {profileUser?.name?.[0]?.toUpperCase() || "U"}
+                </Text>
+              </View>
+            )}
 
-          {/* Avatar */}
-          {profileUser?.profile_image_url ? (
-            <Image
-              source={{ uri: profileUser.profile_image_url }}
-              style={styles.avatar}
-            />
-          ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Text style={styles.avatarText}>
-                {profileUser?.name?.[0]?.toUpperCase() || "U"}
-              </Text>
-            </View>
-          )}
+            {/* Name + username */}
+            <Text style={styles.name}>{profileUser?.name}</Text>
+            <Text style={styles.username}>@{profileUser?.username}</Text>
 
-          {/* Name + username */}
-          <Text style={styles.name}>{profileUser?.name}</Text>
-          <Text style={styles.username}>@{profileUser?.username}</Text>
+            {/* Follower counts */}
+            <View style={styles.statsRow}>
+              <View style={styles.stat}>
+                <Text style={styles.statNumber}>{followerCount}</Text>
+                <Text style={styles.statLabel}>Followers</Text>
+              </View>
+              <View style={styles.stat}>
+                <Text style={styles.statNumber}>{followingCount}</Text>
+                <Text style={styles.statLabel}>Following</Text>
+              </View>
+              <View style={styles.stat}>
+                <Text style={styles.statNumber}>{posts.length}</Text>
+                <Text style={styles.statLabel}>Posts</Text>
+              </View>
+            </View>
 
-          {/* Follower counts */}
-          <View style={styles.statsRow}>
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{followerCount}</Text>
-              <Text style={styles.statLabel}>Followers</Text>
-            </View>
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{followingCount}</Text>
-              <Text style={styles.statLabel}>Following</Text>
-            </View>
-            <View style={styles.stat}>
-              <Text style={styles.statNumber}>{posts.length}</Text>
-              <Text style={styles.statLabel}>Posts</Text>
-            </View>
-          </View>
-
-          {/* Follow button */}
-          <TouchableOpacity
-            style={[
-              styles.followButton,
-              isFollowing(user_id) && styles.followingButton,
-            ]}
-            onPress={() =>
-              isFollowing(user_id) ? unfollowUser(user_id) : addFollow(user_id)
-            }
-          >
-            <Text
+            {/* Follow button */}
+            <TouchableOpacity
               style={[
-                styles.followButtonText,
-                isFollowing(user_id) && styles.followingButtonText,
+                styles.followButton,
+                isFollowing(user_id) && styles.followingButton,
               ]}
+              onPress={() =>
+                isFollowing(user_id)
+                  ? unfollowUser(user_id)
+                  : addFollow(user_id)
+              }
             >
-              {isFollowing(user_id) ? "Following" : "Follow"}
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.followButtonText,
+                  isFollowing(user_id) && styles.followingButtonText,
+                ]}
+              >
+                {isFollowing(user_id) ? "Following" : "Follow"}
+              </Text>
+            </TouchableOpacity>
 
-          <Text style={styles.postsHeader}>Posts</Text>
-        </View>
-      }
-      renderItem={({ item }) => (
-        <View style={styles.postImage}>
-          <Image
-            source={{ uri: item.image_url }}
-            style={styles.postImage}
-            contentFit="cover"
-          />
-        </View>
-      )}
-      ListEmptyComponent={<Text style={styles.emptyText}>No posts yet</Text>}
-    />
+            {tabSwitcher}
+          </View>
+        }
+        renderItem={renderExplorePost}
+        ListEmptyComponent={<Text style={styles.emptyText}>No posts yet</Text>}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
   header: {
     alignItems: "center",
     padding: 20,
+    marginBottom: -30,
   },
-  backButton: {
-    alignSelf: "flex-start",
+  profileImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
     marginBottom: 16,
   },
-  backText: {
-    fontSize: 16,
+  closeButton: {},
+  closeButtonText: {
+    fontSize: 22,
     color: "#000",
+    fontWeight: "400",
   },
   avatar: {
     width: 90,
@@ -251,5 +349,56 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#888",
     marginTop: 40,
+  },
+  topHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  topHeaderUsername: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+
+  tabSwitcher: {
+    flexDirection: "row",
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderBottomColor: "#e0e0e0",
+
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderRadius: 8,
+  },
+  activeTab: {
+    marginBottom: -1,
+  },
+  tabText: {
+    fontSize: 20,
+    fontWeight: "500",
+    color: "#888",
+  },
+  activeTabText: {
+    color: "#000",
+    fontWeight: "600",
+  },
+  postContainer: {
+    backgroundColor: "#fff",
+
+    overflow: "hidden",
+    marginBottom: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
 });
