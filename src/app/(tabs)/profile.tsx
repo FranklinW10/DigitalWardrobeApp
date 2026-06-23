@@ -1,23 +1,96 @@
 import { useAuth } from "@/context/AuthContext";
+import { Post } from "@/hooks/usePosts";
+import { supabase } from "@/lib/supabase/client";
 import { uploadProfileImage } from "@/lib/supabase/storage";
+import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
 import {
+  ActivityIndicator,
   Alert,
-  ScrollView,
+  Dimensions,
+  FlatList,
+  Modal,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+interface ProfileUser {
+  id: string;
+  name: string;
+  username: string;
+  profile_image_url?: string;
+}
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+const ITEM_SIZE = SCREEN_WIDTH / 3;
+
+interface HaulPostCardProps {
+  post: Post;
+  currentUserId?: string;
+}
+
+const ExplorePostCard = ({
+  post,
+  currentUserId,
+  onPress,
+}: HaulPostCardProps & { onPress: () => void }) => {
+  const postUser = post.profiles;
+  const isOwnPost = post.user_id === currentUserId;
+  const [activeIndex, setActiveIndex] = useState(0);
+  const firstImage = post.images?.[0]?.image_url ?? post.image_url;
+
+  return (
+    <View style={styles.postContainer}>
+      <View>
+        <TouchableOpacity onPress={onPress}>
+          <Image
+            cachePolicy="none"
+            source={{ uri: firstImage }}
+            style={{ width: ITEM_SIZE, height: ITEM_SIZE }}
+            contentFit="cover"
+          />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+};
+
 export default function Profile() {
+  const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const { user, updateUser, signOut } = useAuth();
   const [isUpdating, setIsUpdating] = useState(false);
   const router = useRouter();
+  const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [followerCount, setFollowerCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"fits" | "hauls">("fits");
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [showModal, setShowModal] = useState(false);
+  // Separate loading state for the form submit
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const filteredPosts = posts.filter((post) =>
+    activeTab === "fits" ? post.isoutfit_post : !post.isoutfit_post,
+  );
+
+  const renderExplorePost = ({ item }: { item: Post }) => (
+    <ExplorePostCard
+      post={item}
+      currentUserId={user?.id}
+      onPress={() => setSelectedPost(item)}
+    />
+  );
 
   const handleUpdateProfileImage = async () => {
     if (!user) return;
@@ -56,104 +129,290 @@ export default function Profile() {
     }
   };
 
-  const handleSignOut = async () => {
-    Alert.alert("Sign Out", "Are you sure you want to sign out?", [
-      {
-        text: "Cancel",
-        style: "cancel",
-      },
-      {
-        text: "Sign Out",
-        style: "destructive",
-        onPress: async () => {
-          await signOut();
-          router.replace("/(auth)/login");
-        },
-      },
-    ]);
-  };
-  return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.profileSection}>
-          <TouchableOpacity
-            onPress={handleUpdateProfileImage}
-            disabled={isUpdating}
-          >
-            <View>
-              {user?.profileImage ? (
-                <Image
-                  source={{ uri: user.profileImage }}
-                  style={styles.profileImage}
-                  cachePolicy={"none"}
-                />
-              ) : (
-                <View
-                  style={[styles.profileImage, styles.profileImagePlaceholder]}
-                >
-                  <Text style={styles.profileImageText}>
-                    {user?.name?.[0]?.toUpperCase() || "U"}
-                  </Text>
-                </View>
-              )}
+  useEffect(() => {
+    if (user?.id) {
+      loadProfile();
+    }
+  }, [user?.id]);
 
-              <View style={styles.editBadge}>
-                <Text style={styles.editBadgeText}>Edit</Text>
+  const loadProfile = async () => {
+    if (!user?.id) return;
+    setIsLoading(true);
+    try {
+      // Load profile
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, name, username, profile_image_url")
+        .eq("id", user?.id)
+        .single();
+      if (profileError) throw profileError;
+      setProfileUser(profile);
+
+      // Load posts
+      const { data: postsData, error: postsError } = await supabase
+        .from("posts")
+        .select("*, profiles(*), images(*)")
+        .eq("user_id", user?.id)
+        .eq("is_active", true)
+        .eq("is_public", true)
+        .order("created_at", { ascending: false });
+      if (postsError) throw postsError;
+      setPosts(postsData ?? []);
+
+      // Load follower count
+      const { count: followers } = await supabase
+        .from("follows")
+        .select("*", { count: "exact", head: true })
+        .eq("following_id", user?.id);
+      setFollowerCount(followers ?? 0);
+
+      // Load following count
+      const { count: following } = await supabase
+        .from("follows")
+        .select("*", { count: "exact", head: true })
+        .eq("follower_id", user?.id);
+      setFollowingCount(following ?? 0);
+    } catch (error) {
+      console.error("Error loading profile:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return <ActivityIndicator style={{ flex: 1 }} />;
+  }
+
+  const tabSwitcher = (
+    <View style={styles.tabSwitcher}>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === "fits" && styles.activeTab]}
+        onPress={() => setActiveTab("fits")}
+      >
+        <Text
+          style={[styles.tabText, activeTab === "fits" && styles.activeTabText]}
+        >
+          Fits
+        </Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.tab, activeTab === "hauls" && styles.activeTab]}
+        onPress={() => setActiveTab("hauls")}
+      >
+        <Text
+          style={[
+            styles.tabText,
+            activeTab === "hauls" && styles.activeTabText,
+          ]}
+        >
+          Hauls
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const handleComplete = async () => {
+    if (!name || !username) {
+      Alert.alert("Error", "Please fill in all fields");
+      return; // ← was missing
+    }
+    if (username.length < 3) {
+      Alert.alert("Error", "Username must be at least 3 characters");
+      return; // ← was missing
+    }
+
+    setIsSubmitting(true);
+    try {
+      if (!user) throw new Error("User not authenticated");
+
+      const { data: existingUser } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("username", username)
+        .neq("id", user.id)
+        .single();
+
+      if (existingUser) {
+        Alert.alert(
+          "Error",
+          "This username is taken, please choose another one.",
+        );
+        return;
+      }
+
+      await updateUser({
+        name,
+        username,
+      });
+      setProfileUser((prev) => (prev ? { ...prev, name, username } : prev));
+      setShowModal(false); // ← close modal on success
+    } catch (error) {
+      Alert.alert("Error", "Failed to complete setup. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={styles.topHeader}>
+        <Text style={styles.topHeaderUsername}>@{user?.username}</Text>
+        <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
+          <Ionicons name="menu" size={26} color="#000" />
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        key={activeTab}
+        numColumns={3}
+        data={filteredPosts}
+        keyExtractor={(item) => item.id}
+        columnWrapperStyle={{ gap: 2 }}
+        ListHeaderComponent={
+          <View style={styles.header}>
+            <TouchableOpacity
+              onPress={handleUpdateProfileImage}
+              disabled={isUpdating}
+            >
+              <View>
+                {user?.profileImage ? (
+                  <Image
+                    source={{ uri: user.profileImage }}
+                    style={styles.profileImage}
+                    cachePolicy={"none"}
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.profileImage,
+                      styles.profileImagePlaceholder,
+                    ]}
+                  >
+                    <Text style={styles.profileImageText}>
+                      {user?.name?.[0]?.toUpperCase() || "U"}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.editBadge}>
+                  <Text style={styles.editBadgeText}>Edit</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            {/* Name + username */}
+            <Text style={styles.name}>{profileUser?.name}</Text>
+            <Text style={styles.username}>@{profileUser?.username}</Text>
+
+            {/* Follower counts */}
+            <View style={styles.statsRow}>
+              <View style={styles.stat}>
+                <Text style={styles.statNumber}>{followerCount}</Text>
+                <Text style={styles.statLabel}>Followers</Text>
+              </View>
+              <View style={styles.stat}>
+                <Text style={styles.statNumber}>{followingCount}</Text>
+                <Text style={styles.statLabel}>Following</Text>
+              </View>
+              <View style={styles.stat}>
+                <Text style={styles.statNumber}>{posts.length}</Text>
+                <Text style={styles.statLabel}>Posts</Text>
               </View>
             </View>
-          </TouchableOpacity>
-          <Text style={styles.name}>{user?.name || "No Name"}</Text>
-          <Text style={styles.username}>{user?.username || "user"}</Text>
-          <Text style={styles.email}>{user?.email}</Text>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <TouchableOpacity style={styles.settingItem}>
-            <Text style={styles.settingLabel}> Edit Profile</Text>
-            <Text style={styles.settingValue}>➔</Text>
-          </TouchableOpacity>
+            {/* Follow button */}
 
-          <TouchableOpacity style={styles.settingItem}>
-            <Text style={styles.settingLabel}> Notifacations</Text>
-            <Text style={styles.settingValue}>➔</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.followButton}
+              onPress={() => {
+                setName(profileUser?.name ?? "");
+                setUsername(profileUser?.username ?? "");
+                setShowModal(true);
+              }}
+            >
+              <Text style={styles.followButtonText}>{"Edit Profile"}</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
-            <Text style={styles.settingLabel}>Privacy</Text>
-            <Text style={styles.settingValue}>➔</Text>
-          </TouchableOpacity>
-        </View>
+            {tabSwitcher}
+          </View>
+        }
+        renderItem={renderExplorePost}
+        ListEmptyComponent={
+          <View>
+            <Text style={styles.emptyText}>No posts yet</Text>
+          </View>
+        }
+      />
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About</Text>
-          <TouchableOpacity style={styles.settingItem}>
-            <Text style={styles.settingLabel}>Help & Support</Text>
-            <Text style={styles.settingValue}>➔</Text>
-          </TouchableOpacity>
+      <Modal visible={showModal} transparent animationType="slide">
+        {/* ← Backdrop — closes modal on press */}
+        <TouchableOpacity
+          style={styles.modalBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowModal(false)}
+        >
+          {/* ← Stop press from bubbling up and closing when tapping inside */}
+          <TouchableOpacity activeOpacity={1} style={styles.modalContent}>
+            <Text style={styles.title}>Edit Profile</Text>
+            <Text style={styles.subtitle}>Update your information</Text>
 
-          <TouchableOpacity style={styles.settingItem}>
-            <Text style={styles.settingLabel}>Terms of Service</Text>
-            <Text style={styles.settingValue}>➔</Text>
-          </TouchableOpacity>
+            <View style={styles.form}>
+              <TouchableOpacity
+                style={styles.imagecontainer}
+                onPress={handleUpdateProfileImage}
+              >
+                {user?.profileImage ? (
+                  <Image
+                    cachePolicy="none"
+                    source={{ uri: user.profileImage }}
+                    style={styles.profileImage}
+                  />
+                ) : (
+                  <View style={styles.placeholderimage}>
+                    <Text style={styles.placeholderText}>+</Text>
+                  </View>
+                )}
+                <View style={styles.editEditBadge}>
+                  <Text style={styles.editBadgeText}>Edit</Text>
+                </View>
+              </TouchableOpacity>
 
-          <TouchableOpacity style={styles.settingItem}>
-            <Text style={styles.settingLabel}>Privacy Policy</Text>
-            <Text style={styles.settingValue}>➔</Text>
+              <TextInput
+                placeholder="Full Name"
+                placeholderTextColor="#999"
+                value={name}
+                onChangeText={setName}
+                style={styles.input}
+                autoCapitalize="words"
+              />
+              <TextInput
+                placeholder="Username"
+                placeholderTextColor="#999"
+                autoCapitalize="none"
+                value={username}
+                onChangeText={setUsername}
+                style={styles.input}
+              />
+
+              <TouchableOpacity style={styles.button} onPress={handleComplete}>
+                {isSubmitting ? (
+                  <ActivityIndicator size={24} color="#fff" />
+                ) : (
+                  <Text style={styles.buttontext}>Save Changes</Text>
+                )}
+              </TouchableOpacity>
+
+              {/* Cancel button */}
+              <TouchableOpacity
+                style={styles.cancelModalButton}
+                onPress={() => setShowModal(false)}
+              >
+                <Text style={styles.cancelModalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
-        </View>
-        <View style={styles.section}>
-          <TouchableOpacity
-            style={[styles.settingItem, styles.signOutButton]}
-            onPress={handleSignOut}
-          >
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.settingItem, styles.deleteButton]}>
-            <Text style={styles.deleteText}>Delete Account</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -193,6 +452,16 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 10,
     left: "50%",
+    transform: [{ translateX: -22 }],
+    backgroundColor: "#000",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  editEditBadge: {
+    position: "absolute",
+    bottom: 10,
+    left: "15%",
     transform: [{ translateX: -22 }],
     backgroundColor: "#000",
     paddingHorizontal: 12,
@@ -264,5 +533,266 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#ff3b30",
     fontWeight: "500",
+  },
+
+  header: {
+    alignItems: "center",
+    padding: 20,
+    marginBottom: -30,
+  },
+  backButton: {
+    alignSelf: "flex-start",
+    marginBottom: 16,
+  },
+  backText: {
+    fontSize: 16,
+    color: "#000",
+  },
+  avatar: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    marginBottom: 12,
+  },
+  avatarPlaceholder: {
+    backgroundColor: "#e0e0e0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: {
+    fontSize: 36,
+    fontWeight: "600",
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: 32,
+    marginBottom: 16,
+  },
+  stat: {
+    alignItems: "center",
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  statLabel: {
+    fontSize: 12,
+    color: "#888",
+  },
+  followButton: {
+    paddingHorizontal: 32,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#000",
+    marginBottom: 24,
+  },
+  followingButton: {
+    backgroundColor: "#000",
+  },
+  followButtonText: {
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  followingButtonText: {
+    color: "#fff",
+  },
+  postsHeader: {
+    alignSelf: "flex-start",
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+  postImage: {
+    width: "100%",
+    height: 300,
+    marginBottom: 8,
+  },
+  emptyText: {
+    textAlign: "center",
+    color: "#888",
+    marginTop: 40,
+  },
+  topHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  topHeaderUsername: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+
+  tabSwitcher: {
+    flexDirection: "row",
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderBottomColor: "#e0e0e0",
+
+    padding: 4,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
+    borderRadius: 8,
+  },
+  activeTab: {
+    marginBottom: -1,
+  },
+  tabText: {
+    fontSize: 20,
+    fontWeight: "500",
+    color: "#888",
+  },
+  activeTabText: {
+    color: "#000",
+    fontWeight: "600",
+  },
+  postContainer: {
+    backgroundColor: "#fff",
+
+    overflow: "hidden",
+    marginBottom: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#000",
+    textAlign: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+  },
+  modalButtons: {
+    marginTop: 8,
+  },
+  modalButton: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+
+  helloworldTitle: {
+    color: "red",
+  },
+  image: {
+    width: 200,
+    height: 200,
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  subtitle: {
+    fontSize: 16,
+    marginBottom: 32,
+    color: "#666",
+  },
+  form: {
+    width: "100%",
+    alignItems: "center",
+  },
+  imagecontainer: {
+    marginBottom: 32,
+    position: "relative",
+  },
+
+  placeholderimage: {
+    width: 120,
+    height: 120,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 60,
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+    borderWidth: 2,
+    borderColor: "#e0e0e0",
+    borderStyle: "dashed",
+  },
+  placeholderText: {
+    fontSize: 48,
+    color: "#999",
+  },
+
+  editText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  input: {
+    backgroundColor: "#f5f5f5",
+    width: "100%",
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#e0e0e0",
+  },
+  button: {
+    backgroundColor: "#000",
+    width: "100%",
+
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+  },
+  linkbutton: {
+    marginTop: 24,
+    alignItems: "center",
+  },
+  linkbuttontext: {
+    color: "#666",
+    fontSize: 14,
+  },
+  linkbuttontextbold: {
+    fontWeight: "600",
+    color: "#000",
+  },
+  buttontext: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 32,
+    paddingBottom: 48,
+  },
+  cancelModalButton: {
+    marginTop: 12,
+    width: "100%",
+    padding: 16,
+    alignItems: "center",
+  },
+  cancelModalButtonText: {
+    fontSize: 16,
+    color: "#666",
   },
 });

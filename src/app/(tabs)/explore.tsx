@@ -4,8 +4,8 @@ import { Post, usePosts } from "@/hooks/usePosts";
 import { SearchUser, useSearch } from "@/hooks/useSearch";
 import { formatTimeAgo } from "@/lib/date-helper";
 import { Image } from "expo-image";
-import { router } from "expo-router";
-import { useRef, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -167,6 +167,12 @@ export default function SearchScreen() {
     searchUsers(text);
   };
 
+  useFocusEffect(
+    useCallback(() => {
+      refreshPosts();
+    }, []),
+  );
+
   const onRefresh = async () => {
     setRefreshing(true);
     try {
@@ -252,7 +258,7 @@ export default function SearchScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       <Modal
         visible={selectedPost !== null}
         transparent

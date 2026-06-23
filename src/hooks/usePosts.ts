@@ -35,8 +35,10 @@ export const usePosts = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    loadPosts();
-  }, []);
+    if (user) {
+      loadPosts();
+    }
+  }, [user]);
 
   const loadPosts = async () => {
     if (!user) return;

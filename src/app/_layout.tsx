@@ -11,6 +11,7 @@ export default function RootLayout() {
       router.replace("/login");
     }
   });
+
   return (
     <AuthProvider>
       <Stack screenOptions={{ headerShown: false }}>
