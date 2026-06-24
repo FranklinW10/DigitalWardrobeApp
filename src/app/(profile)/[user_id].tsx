@@ -1,3 +1,8 @@
+import {
+  ExplorePostCard,
+  ModalHaulPostCard,
+  ModalPostCard,
+} from "@/components/PostCard";
 import { useFollows } from "@/hooks/useFollows";
 import { Post } from "@/hooks/usePosts";
 import { supabase } from "@/lib/supabase/client";
@@ -5,11 +10,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-
 import {
   ActivityIndicator,
-  Dimensions,
   FlatList,
+  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -30,41 +34,6 @@ interface ProfileUser {
   username: string;
   profile_image_url?: string;
 }
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-const ITEM_SIZE = SCREEN_WIDTH / 3;
-
-interface HaulPostCardProps {
-  post: Post;
-  currentUserId?: string;
-}
-
-const ExplorePostCard = ({
-  post,
-  currentUserId,
-  onPress,
-}: HaulPostCardProps & { onPress: () => void }) => {
-  const postUser = post.profiles;
-  const isOwnPost = post.user_id === currentUserId;
-  const [activeIndex, setActiveIndex] = useState(0);
-  const firstImage = post.images?.[0]?.image_url ?? post.image_url;
-
-  return (
-    <View style={styles.postContainer}>
-      <View>
-        <TouchableOpacity onPress={onPress}>
-          <Image
-            cachePolicy="none"
-            source={{ uri: firstImage }}
-            style={{ width: ITEM_SIZE, height: ITEM_SIZE }}
-            contentFit="cover"
-          />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
 
 export default function UserProfileScreen() {
   const { user_id } = useLocalSearchParams<{ user_id: string }>();
@@ -168,6 +137,45 @@ export default function UserProfileScreen() {
   );
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
+      <Modal
+        visible={selectedPost !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedPost(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalPostContent}>
+            {/* Close button */}
+            <TouchableOpacity
+              style={styles.closeModalButton}
+              onPress={() => setSelectedPost(null)}
+            >
+              <Text style={styles.closeText}>✕</Text>
+            </TouchableOpacity>
+
+            {selectedPost && (
+              <>
+                {/* Header */}
+
+                {/* Images */}
+                {selectedPost.isoutfit_post ? (
+                  <ModalPostCard
+                    post={selectedPost}
+                    currentUserId={user_id}
+                    onNavigateAway={() => setSelectedPost(null)}
+                  />
+                ) : (
+                  <ModalHaulPostCard
+                    post={selectedPost}
+                    currentUserId={user_id}
+                    onNavigateAway={() => setSelectedPost(null)}
+                  />
+                )}
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
       <View style={styles.topHeader}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -400,5 +408,35 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 3,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  closeModalButton: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    borderRadius: 20,
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  closeText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  modalPostContent: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    width: "95%",
+    maxHeight: "85%",
+    overflow: "hidden",
   },
 });

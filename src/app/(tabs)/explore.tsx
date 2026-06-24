@@ -1,21 +1,22 @@
+import {
+  ExplorePostCard,
+  ModalHaulPostCard,
+  ModalPostCard,
+} from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
+
 import { useFollows } from "@/hooks/useFollows";
 import { Post, usePosts } from "@/hooks/usePosts";
 import { SearchUser, useSearch } from "@/hooks/useSearch";
-import { formatTimeAgo } from "@/lib/date-helper";
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
-  Dimensions,
   FlatList,
   Modal,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -23,131 +24,6 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-interface HaulPostCardProps {
-  post: Post;
-  currentUserId?: string;
-}
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
-  if (post.isoutfit_post) {
-    return;
-  }
-  const postUser = post.profiles;
-  const isOwnPost = post.user_id === currentUserId;
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  const images = [...(post.images ?? [])].sort(
-    (a, b) => a.order_index - b.order_index,
-  );
-
-  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-    setActiveIndex(index);
-  };
-
-  return (
-    <View style={styles.postContainer}>
-      <View style={styles.postHeader}>
-        <View style={styles.userInfo}>
-          {postUser?.profile_image_url ? (
-            <Image
-              cachePolicy="none"
-              source={{ uri: postUser.profile_image_url }}
-              style={styles.avatar}
-            />
-          ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Text style={styles.avatarText}>
-                {postUser?.name?.[0]?.toUpperCase() || "U"}
-              </Text>
-            </View>
-          )}
-          <View>
-            <Text style={styles.username}>
-              {isOwnPost ? "You" : `@${postUser?.username}`}
-            </Text>
-            <Text style={styles.timeAgo}>{formatTimeAgo(post.created_at)}</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Scrollable images */}
-      <View>
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={handleScroll}
-        >
-          {images.map((img, index) => (
-            <Image
-              key={index}
-              cachePolicy="none"
-              source={{ uri: img.image_url }}
-              style={[styles.postImage, { width: SCREEN_WIDTH }]}
-              contentFit="cover"
-            />
-          ))}
-        </ScrollView>
-
-        {images.length > 1 && (
-          <View style={styles.dotsContainer}>
-            {images.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.dot,
-                  index === activeIndex ? styles.dotActive : styles.dotInactive,
-                ]}
-              />
-            ))}
-          </View>
-        )}
-      </View>
-
-      <View style={styles.postFooter}>
-        {post.description && (
-          <Text style={styles.postDescription}>{post.description}</Text>
-        )}
-        <Text style={styles.postInfo}>
-          {isOwnPost ? "Your Post" : `${postUser?.name}'s post`} -{" "}
-          {formatTimeAgo(post.created_at)}
-        </Text>
-      </View>
-    </View>
-  );
-};
-
-const ITEM_SIZE = SCREEN_WIDTH / 3;
-
-const ExplorePostCard = ({
-  post,
-  currentUserId,
-  onPress,
-}: HaulPostCardProps & { onPress: () => void }) => {
-  const postUser = post.profiles;
-  const isOwnPost = post.user_id === currentUserId;
-  const [activeIndex, setActiveIndex] = useState(0);
-  const firstImage = post.images?.[0]?.image_url ?? post.image_url;
-
-  return (
-    <View style={styles.postContainer}>
-      <View>
-        <TouchableOpacity onPress={onPress}>
-          <Image
-            cachePolicy="none"
-            source={{ uri: firstImage }}
-            style={{ width: ITEM_SIZE, height: ITEM_SIZE }}
-            contentFit="cover"
-          />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-};
 
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
@@ -162,6 +38,8 @@ export default function SearchScreen() {
   const lastScrollY = useRef(0);
   const headerVisible = useRef(new Animated.Value(1)).current;
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [commentPost, setCommentPost] = useState<Post | null>(null);
+
   const handleSearch = (text: string) => {
     setQuery(text);
     searchUsers(text);
@@ -278,38 +156,21 @@ export default function SearchScreen() {
             {selectedPost && (
               <>
                 {/* Header */}
-                <View style={styles.postHeader}>
-                  <View style={styles.userInfo}>
-                    {selectedPost.profiles?.profile_image_url ? (
-                      <Image
-                        source={{
-                          uri: selectedPost.profiles.profile_image_url,
-                        }}
-                        style={styles.avatar}
-                      />
-                    ) : (
-                      <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                        <Text style={styles.avatarText}>
-                          {selectedPost.profiles?.name?.[0]?.toUpperCase() ||
-                            "U"}
-                        </Text>
-                      </View>
-                    )}
-                    <View>
-                      <Text style={styles.username}>
-                        {selectedPost.user_id === user?.id
-                          ? "You"
-                          : `@${selectedPost.profiles?.username}`}
-                      </Text>
-                      <Text style={styles.timeAgo}>
-                        {formatTimeAgo(selectedPost.created_at)}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
 
                 {/* Images */}
-                <HaulPostCard post={selectedPost} currentUserId={user?.id} />
+                {selectedPost.isoutfit_post ? (
+                  <ModalPostCard
+                    post={selectedPost}
+                    currentUserId={user?.id}
+                    onNavigateAway={() => setSelectedPost(null)}
+                  />
+                ) : (
+                  <ModalHaulPostCard
+                    post={selectedPost}
+                    currentUserId={user?.id}
+                    onNavigateAway={() => setSelectedPost(null)}
+                  />
+                )}
               </>
             )}
           </View>
