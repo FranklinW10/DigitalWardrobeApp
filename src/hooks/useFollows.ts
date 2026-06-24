@@ -15,6 +15,13 @@ export const useFollows = () => {
       });
       if (error) throw error;
       setFollowing((prev) => [...prev, targetUserId]);
+
+      await supabase.from("notifications").insert({
+        recipient_id: targetUserId,
+        actor_id: user.id,
+        type: "follow",
+        post_id: null,
+      });
     } catch (error) {
       console.error("Error following user:", error);
     }

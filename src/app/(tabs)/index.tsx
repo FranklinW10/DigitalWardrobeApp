@@ -1,197 +1,21 @@
+import { HaulPostCard, PostCard } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
 import { Post, usePosts } from "@/hooks/usePosts";
-import { formatTimeAgo } from "@/lib/date-helper";
+import { daysAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
-import { router, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import {
   Animated,
-  Dimensions,
   FlatList,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
   RefreshControl,
-  ScrollView,
   SectionList,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-
-import { daysAgo } from "@/lib/date-helper";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-interface PostCardProps {
-  post: Post;
-  currentUserId?: string;
-}
-
-const PostCard = ({ post, currentUserId }: PostCardProps) => {
-  const postUser = post.profiles;
-  const isOwnPost = post.user_id === currentUserId;
-
-  return (
-    <View style={styles.postContainer}>
-      <View style={styles.postHeader}>
-        <TouchableOpacity
-          onPress={() =>
-            isOwnPost
-              ? router.push("/profile")
-              : router.push(`/(profile)/${post.user_id}`)
-          }
-        >
-          <View style={styles.userInfo}>
-            {postUser?.profile_image_url ? (
-              <Image
-                cachePolicy={"none"}
-                source={{ uri: postUser.profile_image_url }}
-                style={styles.avatar}
-              />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Text style={styles.avatarText}>
-                  {postUser?.name?.[0]?.toUpperCase() || "U"}
-                </Text>
-              </View>
-            )}
-
-            <View>
-              <Text style={styles.username}>
-                {isOwnPost ? "You" : `@${postUser?.username}`}
-              </Text>
-              <Text style={styles.timeAgo}>
-                {formatTimeAgo(post.created_at)}
-              </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-        {/*Post content*/}
-      </View>
-      <Image
-        cachePolicy={"none"}
-        source={{ uri: post.image_url }}
-        style={styles.postImage}
-        contentFit="cover"
-      />
-
-      <View style={styles.postFooter}>
-        {post.description && (
-          <Text style={styles.postDescription}>{post.description}</Text>
-        )}
-        <Text style={styles.postInfo}>
-          {isOwnPost ? "Your Post" : `${postUser?.name}'post`} -{" "}
-          {formatTimeAgo(post.created_at)}
-        </Text>
-      </View>
-      {/* <View style={styles.headerBorder} /> */}
-    </View>
-  );
-};
-
-interface HaulPostCardProps {
-  post: Post;
-  currentUserId?: string;
-}
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-
-const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
-  if (post.isoutfit_post) {
-    return;
-  }
-  const postUser = post.profiles;
-  const isOwnPost = post.user_id === currentUserId;
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  const images = [...(post.images ?? [])].sort(
-    (a, b) => a.order_index - b.order_index,
-  );
-
-  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-    setActiveIndex(index);
-  };
-
-  return (
-    <View style={styles.postContainer}>
-      <View style={styles.postHeader}>
-        <TouchableOpacity
-          onPress={() => router.push(`/(profile)/${post.user_id}`)}
-        >
-          <View style={styles.userInfo}>
-            {postUser?.profile_image_url ? (
-              <Image
-                cachePolicy="none"
-                source={{ uri: postUser.profile_image_url }}
-                style={styles.avatar}
-              />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Text style={styles.avatarText}>
-                  {postUser?.name?.[0]?.toUpperCase() || "U"}
-                </Text>
-              </View>
-            )}
-            <View>
-              <Text style={styles.username}>
-                {isOwnPost ? "You" : `@${postUser?.username}`}
-              </Text>
-              <Text style={styles.timeAgo}>
-                {formatTimeAgo(post.created_at)}
-              </Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      </View>
-
-      {/* Scrollable images */}
-      <View>
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={handleScroll}
-        >
-          {images.map((img, index) => (
-            <Image
-              key={index}
-              cachePolicy="none"
-              source={{ uri: img.image_url }}
-              style={[styles.postImage, { width: SCREEN_WIDTH }]}
-              contentFit="cover"
-            />
-          ))}
-        </ScrollView>
-
-        {images.length > 1 && (
-          <View style={styles.dotsContainer}>
-            {images.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  styles.dot,
-                  index === activeIndex ? styles.dotActive : styles.dotInactive,
-                ]}
-              />
-            ))}
-          </View>
-        )}
-      </View>
-
-      <View style={styles.postFooter}>
-        {post.description && (
-          <Text style={styles.postDescription}>{post.description}</Text>
-        )}
-        <Text style={styles.postInfo}>
-          {isOwnPost ? "Your Post" : `${postUser?.name}'s post`} -{" "}
-          {formatTimeAgo(post.created_at)}
-        </Text>
-      </View>
-    </View>
-  );
-};
 
 export default function Index() {
   const [showPreview, setShowPreview] = useState(false);
@@ -315,11 +139,13 @@ export default function Index() {
         <Animated.View
           style={[styles.header, { height: headerHeight, overflow: "hidden" }]}
         >
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
             <Ionicons name="menu-outline" size={24} color="#000" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Fit Check</Text>
-          <TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push("/(profile)/notifications")}
+          >
             <Ionicons name="notifications-outline" size={24} color="#000" />
           </TouchableOpacity>
         </Animated.View>
@@ -330,9 +156,7 @@ export default function Index() {
           <SectionList
             sections={sections}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <PostCard post={item} currentUserId={user?.id} />
-            )}
+            renderItem={renderPost}
             // stickySectionHeadersEnabled={false} This makes the headers nt move
             renderSectionHeader={({ section: { title } }) => (
               <Text style={styles.sectionHeader}>{title}</Text>
