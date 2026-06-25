@@ -2,16 +2,19 @@ import { useAuth } from "@/context/AuthContext";
 import { useNotifications } from "@/hooks/useNotifications";
 import { formatTimeAgo } from "@/lib/date-helper";
 import { Image } from "expo-image";
+import { useRouter } from "expo-router";
 import { useEffect } from "react";
 import {
-    FlatList,
-    StyleSheet,
-    Text,
-    View
+  FlatList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function NotificationsScreen() {
+  const router = useRouter();
   const { user } = useAuth();
   const { notifications, markAllRead } = useNotifications(user?.id);
 
@@ -35,7 +38,14 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.closeButton}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.closeButtonText}>←</Text>
+        </TouchableOpacity>
         <Text style={styles.title}>Notifications</Text>
+        <View style={{ width: 22 }} />
       </View>
 
       <FlatList
@@ -95,6 +105,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
@@ -160,5 +173,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#999",
     marginTop: 60,
+  },
+  closeButton: {},
+  closeButtonText: {
+    fontSize: 22,
+    color: "#000",
+    fontWeight: "400",
   },
 });

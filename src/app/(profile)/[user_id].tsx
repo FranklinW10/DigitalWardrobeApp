@@ -42,7 +42,7 @@ export default function UserProfileScreen() {
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const { addFollow, unfollowUser, isFollowing } = useFollows();
+  const { addFollow, unfollowUser, isFollowing, loadFollowing } = useFollows();
   const [activeTab, setActiveTab] = useState<"fits" | "hauls">("fits");
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
@@ -51,6 +51,10 @@ export default function UserProfileScreen() {
   );
   useEffect(() => {
     loadProfile();
+  }, [user_id]);
+
+  useEffect(() => {
+    loadFollowing();
   }, [user_id]);
 
   const renderExplorePost = ({ item }: { item: Post }) => (
