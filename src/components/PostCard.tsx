@@ -1,12 +1,12 @@
 import { CommentsSheet } from "@/components/CommentSheet";
+import { useComments } from "@/hooks/useComments";
 import { useLikes } from "@/hooks/useLikes";
 import { Post } from "@/hooks/usePosts";
 import { formatTimeAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
-
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Dimensions,
   NativeScrollEvent,
@@ -21,6 +21,29 @@ import {
 interface PostCardProps {
   post: Post;
   currentUserId?: string;
+}
+
+const DOUBLE_PRESS_DELAY = 250;
+
+export function DoubleTapButton({ onDoubleTap, children }: any) {
+  const lastTap = useRef(0);
+
+  const handlePress = () => {
+    const now = Date.now();
+
+    if (now - lastTap.current < DOUBLE_PRESS_DELAY) {
+      lastTap.current = 0;
+      onDoubleTap?.();
+    } else {
+      lastTap.current = now;
+    }
+  };
+
+  return (
+    <TouchableOpacity activeOpacity={1} onPress={handlePress}>
+      {children}
+    </TouchableOpacity>
+  );
 }
 
 const LikeButton = ({
@@ -49,10 +72,12 @@ const LikeButton = ({
 const PostActions = ({
   post,
   currentUserId,
+  commentCount,
   onCommentPress,
 }: {
   post: Post;
   currentUserId?: string;
+  commentCount: number;
   onCommentPress: () => void;
 }) => (
   <View style={styles.actions}>
@@ -69,15 +94,18 @@ const PostActions = ({
       }}
     >
       <Ionicons name="chatbubble-outline" size={22} color="#000" />
+      <Text style={styles.actionCount}>{commentCount}</Text>
     </TouchableOpacity>
   </View>
 );
 
 export const PostCard = ({ post, currentUserId }: PostCardProps) => {
+  const { comments } = useComments(post.id);
   const postUser = post.profiles;
   const isOwnPost = post.user_id === currentUserId;
   const [showComments, setShowComments] = useState(false);
 
+  const { likeCount, isLiked, toggleLike } = useLikes(post.id, currentUserId);
   return (
     <>
       <View style={styles.postContainer}>
@@ -116,17 +144,19 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
           </TouchableOpacity>
           {/*Post content*/}
         </View>
-        <Image
-          cachePolicy={"none"}
-          source={{ uri: post.image_url }}
-          style={styles.postImage}
-          contentFit="cover"
-        />
+        <DoubleTapButton onDoubleTap={toggleLike}>
+          <Image
+            cachePolicy={"none"}
+            source={{ uri: post.image_url }}
+            style={styles.postImage}
+            contentFit="cover"
+          />
+        </DoubleTapButton>
         <PostActions
           post={post}
           currentUserId={currentUserId}
+          commentCount={comments.length}
           onCommentPress={() => {
-            console.log("setShowComments called, current value:", showComments);
             setShowComments(true);
           }}
         />
@@ -165,6 +195,7 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
   const isOwnPost = post.user_id === currentUserId;
   const [activeIndex, setActiveIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
+  const { comments } = useComments(post.id);
 
   const images = [...(post.images ?? [])].sort(
     (a, b) => a.order_index - b.order_index,
@@ -243,6 +274,7 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
 
       <PostActions
         post={post}
+        commentCount={comments.length}
         currentUserId={currentUserId}
         onCommentPress={() => setShowComments(true)}
       />
@@ -297,10 +329,15 @@ export const ModalPostCard = ({
   post,
   currentUserId,
   onNavigateAway,
-}: PostCardProps & { onNavigateAway: () => void }) => {
+  onOpenComments,
+}: PostCardProps & {
+  onNavigateAway: () => void;
+  onOpenComments: (postId: string, postOwnerId: string) => void;
+}) => {
   const postUser = post.profiles;
   const isOwnPost = post.user_id === currentUserId;
   const [showComments, setShowComments] = useState(false);
+  const { comments } = useComments(post.id);
 
   return (
     <>
@@ -350,10 +387,8 @@ export const ModalPostCard = ({
         <PostActions
           post={post}
           currentUserId={currentUserId}
-          onCommentPress={() => {
-            console.log("setShowComments called, current value:", showComments);
-            setShowComments(true);
-          }}
+          commentCount={comments.length}
+          onCommentPress={() => onOpenComments(post.id, post.user_id)}
         />
       </View>
       <View style={styles.postFooter}>
@@ -365,12 +400,6 @@ export const ModalPostCard = ({
           {formatTimeAgo(post.created_at)}
         </Text>
       </View>
-      <CommentsSheet
-        postId={post.id}
-        postOwnerId={post.user_id}
-        visible={showComments}
-        onClose={() => setShowComments(false)}
-      />
     </>
   );
 };
@@ -379,7 +408,11 @@ export const ModalHaulPostCard = ({
   post,
   currentUserId,
   onNavigateAway,
-}: HaulPostCardProps & { onNavigateAway: () => void }) => {
+  onOpenComments,
+}: HaulPostCardProps & {
+  onNavigateAway: () => void;
+  onOpenComments: (postId: string, postOwnerId: string) => void;
+}) => {
   if (post.isoutfit_post) {
     return;
   }
@@ -387,6 +420,7 @@ export const ModalHaulPostCard = ({
   const isOwnPost = post.user_id === currentUserId;
   const [activeIndex, setActiveIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
+  const { comments } = useComments(post.id);
 
   const images = [...(post.images ?? [])].sort(
     (a, b) => a.order_index - b.order_index,
@@ -469,7 +503,8 @@ export const ModalHaulPostCard = ({
       <PostActions
         post={post}
         currentUserId={currentUserId}
-        onCommentPress={() => setShowComments(true)}
+        commentCount={comments.length}
+        onCommentPress={() => onOpenComments(post.id, post.user_id)}
       />
       <View style={styles.postFooter}>
         {post.description && (
@@ -480,12 +515,6 @@ export const ModalHaulPostCard = ({
           {formatTimeAgo(post.created_at)}
         </Text>
       </View>
-      <CommentsSheet
-        postId={post.id}
-        postOwnerId={post.user_id}
-        visible={showComments}
-        onClose={() => setShowComments(false)}
-      />
     </View>
   );
 };
@@ -536,17 +565,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 16,
   },
-  postContainer: {
-    backgroundColor: "#fff",
 
-    overflow: "hidden",
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
   postHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -599,7 +618,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#f5f5f5",
   },
   postFooter: {
-    padding: 16,
+    padding: 12,
+    paddingTop: 4, // ✅ reduce top padding
+  },
+  postContainer: {
+    backgroundColor: "#fff",
+    overflow: "hidden",
+    marginBottom: 0, // ✅ remove bottom margin
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   postDescription: {
     fontSize: 15,

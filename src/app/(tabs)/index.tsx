@@ -1,10 +1,12 @@
 import { HaulPostCard, PostCard } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
+import { useFollows } from "@/hooks/useFollows";
 import { Post, usePosts } from "@/hooks/usePosts";
 import { daysAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
 import {
   Animated,
   FlatList,
@@ -18,6 +20,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function Index() {
+  const { following, loadFollowing } = useFollows();
   const [showPreview, setShowPreview] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [description, setDescription] = useState<string>("");
@@ -37,7 +40,15 @@ export default function Index() {
 
   const hasActivePost = !!userActivePost;
 
-  const groupedPosts = (posts ?? [])
+  useEffect(() => {
+    loadFollowing();
+  }, [user?.id]);
+
+  const followingPosts = posts.filter(
+    (post) => following.includes(post.user_id) || post.user_id === user?.id,
+  );
+
+  const groupedPosts = followingPosts
     .filter((post) => daysAgo(post.created_at) !== "expired")
     .filter((post) => post.isoutfit_post)
     .reduce((groups: Record<string, Post[]>, post) => {
@@ -173,7 +184,7 @@ export default function Index() {
           />
         ) : (
           <FlatList
-            data={posts}
+            data={followingPosts}
             style={{ width: "100%" }}
             renderItem={renderHaulPost}
             keyExtractor={(item) => item.id}

@@ -1,3 +1,4 @@
+import { CommentsSheet } from "@/components/CommentSheet";
 import {
   ExplorePostCard,
   ModalHaulPostCard,
@@ -52,6 +53,18 @@ export default function Profile() {
   const filteredPosts = posts.filter((post) =>
     activeTab === "fits" ? post.isoutfit_post : !post.isoutfit_post,
   );
+  const [commentPost, setCommentPost] = useState<Post | null>(null);
+  const [commentPostId, setCommentPostId] = useState<string | null>(null);
+  const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
+    null,
+  );
+
+  // Pass a callback down into your modal post cards
+  const handleOpenComments = (postId: string, postOwnerId: string) => {
+    console.log("postId:", postId, "postOwnerId:", postOwnerId);
+    setCommentPostId(postId);
+    setCommentPostOwnerId(postOwnerId);
+  };
 
   const renderExplorePost = ({ item }: { item: Post }) => (
     <ExplorePostCard
@@ -224,15 +237,9 @@ export default function Profile() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <Modal
-        visible={selectedPost !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedPost(null)}
-      >
+      {selectedPost && (
         <View style={styles.modalOverlay}>
-          <View style={styles.modalPostContent}>
-            {/* Close button */}
+          <View style={styles.modalContent}>
             <TouchableOpacity
               style={styles.closeButton}
               onPress={() => setSelectedPost(null)}
@@ -240,29 +247,34 @@ export default function Profile() {
               <Text style={styles.closeText}>✕</Text>
             </TouchableOpacity>
 
-            {selectedPost && (
-              <>
-                {/* Header */}
-
-                {/* Images */}
-                {selectedPost.isoutfit_post ? (
-                  <ModalPostCard
-                    post={selectedPost}
-                    currentUserId={user?.id}
-                    onNavigateAway={() => setSelectedPost(null)}
-                  />
-                ) : (
-                  <ModalHaulPostCard
-                    post={selectedPost}
-                    currentUserId={user?.id}
-                    onNavigateAway={() => setSelectedPost(null)}
-                  />
-                )}
-              </>
+            {selectedPost.isoutfit_post ? (
+              <ModalPostCard
+                post={selectedPost}
+                currentUserId={user?.id}
+                onNavigateAway={() => setSelectedPost(null)}
+                onOpenComments={handleOpenComments}
+              />
+            ) : (
+              <ModalHaulPostCard
+                post={selectedPost}
+                currentUserId={user?.id}
+                onNavigateAway={() => setSelectedPost(null)}
+                onOpenComments={handleOpenComments}
+              />
             )}
           </View>
         </View>
-      </Modal>
+      )}
+
+      <CommentsSheet
+        postId={commentPostId ?? ""}
+        postOwnerId={commentPostOwnerId ?? ""}
+        visible={commentPostId !== null}
+        onClose={() => {
+          setCommentPostId(null);
+          setCommentPostOwnerId(null);
+        }}
+      />
       <View style={styles.topHeader}>
         <Text style={styles.topHeaderUsername}>@{user?.username}</Text>
         <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
@@ -669,6 +681,13 @@ const styles = StyleSheet.create({
     color: "#000",
     fontWeight: "600",
   },
+  modalOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
+  },
   postContainer: {
     backgroundColor: "#fff",
 
@@ -717,6 +736,13 @@ const styles = StyleSheet.create({
     fontSize: 32,
     fontWeight: "bold",
     marginBottom: 8,
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    width: "95%",
+    maxHeight: "85%",
+    overflow: "hidden",
   },
   subtitle: {
     fontSize: 16,
@@ -794,13 +820,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
   },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 32,
-    paddingBottom: 48,
-  },
+
   cancelModalButton: {
     marginTop: 12,
     width: "100%",
@@ -812,12 +832,6 @@ const styles = StyleSheet.create({
     color: "#666",
   },
 
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
   closeButton: {
     position: "absolute",
     top: 12,

@@ -15,6 +15,7 @@ export interface Comment {
 }
 
 export const useComments = (postId: string) => {
+  const [commentCount, setCommentCount] = useState(0);
   const [comments, setComments] = useState<Comment[]>([]);
   const { user } = useAuth();
 
@@ -23,12 +24,13 @@ export const useComments = (postId: string) => {
   }, [postId]);
 
   const fetchComments = async () => {
-    const { data } = await supabase
+    const { data, count } = await supabase
       .from("comments")
       .select("*, profiles(username, profile_image_url)")
       .eq("post_id", postId)
       .order("created_at", { ascending: true });
     setComments(data ?? []);
+    setCommentCount(count ?? 0);
   };
 
   const addComment = async (content: string, postOwnerId: string) => {
@@ -39,6 +41,7 @@ export const useComments = (postId: string) => {
       .single();
 
     setComments((prev) => [...prev, data]);
+    setCommentCount((commentCount) => commentCount + 1);
 
     // Notify post owner
     if (user?.id !== postOwnerId) {
@@ -55,7 +58,8 @@ export const useComments = (postId: string) => {
   const deleteComment = async (commentId: string) => {
     await supabase.from("comments").delete().eq("id", commentId);
     setComments((prev) => prev.filter((c) => c.id !== commentId));
+    setCommentCount((commentCount) => commentCount - 1);
   };
 
-  return { comments, addComment, deleteComment };
+  return { comments, addComment, deleteComment, commentCount: comments.length };
 };

@@ -1,6 +1,8 @@
 import { useAuth } from "@/context/AuthContext";
 import { useComments } from "@/hooks/useComments";
 import { Ionicons } from "@expo/vector-icons";
+import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
+
 import {
   BottomSheetFlatList,
   BottomSheetFooter,
@@ -36,7 +38,7 @@ export const CommentsSheet = ({
   const [text, setText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const bottomSheetRef = useRef<BottomSheetModal>(null);
-  const snapPoints = useMemo(() => ["94%"], []);
+  const snapPoints = useMemo(() => ["94%", "75%"], []);
 
   useEffect(() => {
     if (visible) {
@@ -45,6 +47,7 @@ export const CommentsSheet = ({
       bottomSheetRef.current?.dismiss();
     }
   }, [visible]);
+
   const handleSubmit = async () => {
     if (!text.trim() || !user) return;
     setIsSubmitting(true);
@@ -56,6 +59,53 @@ export const CommentsSheet = ({
     }
   };
 
+  const renderFooter = useCallback(
+    (props: any) => (
+      <BottomSheetFooter {...props} bottomInset={24}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={10}
+        >
+          <View style={styles.inputRow}>
+            {user?.profileImage ? (
+              <Image
+                source={{ uri: user.profileImage }}
+                style={styles.inputAvatar}
+                cachePolicy="none"
+              />
+            ) : (
+              <View style={[styles.inputAvatar, styles.avatarPlaceholder]}>
+                <Text style={styles.avatarText}>
+                  {user?.email?.[0]?.toUpperCase() || "U"}
+                </Text>
+              </View>
+            )}
+
+            <BottomSheetTextInput
+              style={styles.input}
+              placeholder="Add a comment..."
+              placeholderTextColor="#999"
+              value={text}
+              onChangeText={setText}
+              multiline
+            />
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={!text.trim() || isSubmitting}
+            >
+              <Ionicons
+                name="send"
+                size={24}
+                color={text.trim() ? "#000" : "#ccc"}
+              />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </BottomSheetFooter>
+    ),
+    [isSubmitting, user, text],
+  );
+
   const handleClose = useCallback(() => {
     bottomSheetRef.current?.close();
     onClose();
@@ -66,7 +116,7 @@ export const CommentsSheet = ({
   return (
     <BottomSheetModal
       ref={bottomSheetRef}
-      index={0}
+      index={1}
       snapPoints={snapPoints}
       enablePanDownToClose
       onDismiss={onClose}
@@ -215,10 +265,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: "#f0f0f0",
     gap: 12,
+    backgroundColor: "#fff",
+    minHeight: 70,
   },
   input: {
     flex: 1,
@@ -228,5 +280,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     fontSize: 14,
     maxHeight: 100,
+  },
+  inputAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
   },
 });

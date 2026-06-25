@@ -1,3 +1,6 @@
+import { CommentsSheet } from "@/components/CommentSheet";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import {
   ExplorePostCard,
   ModalHaulPostCard,
@@ -11,12 +14,11 @@ import { Post, usePosts } from "@/hooks/usePosts";
 import { SearchUser, useSearch } from "@/hooks/useSearch";
 import { Image } from "expo-image";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
   FlatList,
-  Modal,
   RefreshControl,
   StyleSheet,
   Text,
@@ -29,7 +31,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
   const { results, isLoading, searchUsers } = useSearch();
-  const { addFollow, unfollowUser, isFollowing } = useFollows();
+  const { addFollow, unfollowUser, isFollowing, loadFollowing } = useFollows();
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const { posts, refreshPosts } = usePosts();
@@ -40,6 +42,32 @@ export default function SearchScreen() {
   const headerVisible = useRef(new Animated.Value(1)).current;
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [commentPost, setCommentPost] = useState<Post | null>(null);
+  const [commentPostId, setCommentPostId] = useState<string | null>(null);
+  const [recentSearches, setRecentSearches] = useState<SearchUser[]>([]);
+  const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
+    null,
+  );
+
+  const RECENT_KEY = "recent_searches";
+
+  useEffect(() => {
+    const load = async () => {
+      const stored = await AsyncStorage.getItem(RECENT_KEY);
+      if (stored) setRecentSearches(JSON.parse(stored));
+    };
+    load();
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.setItem(RECENT_KEY, JSON.stringify(recentSearches));
+  }, [recentSearches]);
+
+  // Pass a callback down into your modal post cards
+  const handleOpenComments = (postId: string, postOwnerId: string) => {
+    console.log("postId:", postId, "postOwnerId:", postOwnerId);
+    setCommentPostId(postId);
+    setCommentPostOwnerId(postOwnerId);
+  };
 
   const handleSearch = (text: string) => {
     setQuery(text);
@@ -51,6 +79,9 @@ export default function SearchScreen() {
       refreshPosts();
     }, []),
   );
+  useEffect(() => {
+    loadFollowing();
+  }, [user?.id]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -71,10 +102,20 @@ export default function SearchScreen() {
     />
   );
 
+  const handleSelectUser = (user: SearchUser) => {
+    // prevent duplicates
+    setRecentSearches((prev) => {
+      const filtered = prev.filter((u) => u.id !== user.id);
+      return [user, ...filtered].slice(0, 10); // keep last 10
+    });
+
+    router.push(`/(profile)/${user.id}`);
+  };
+
   const renderUser = ({ item }: { item: SearchUser }) => (
     <TouchableOpacity
       style={styles.userRow}
-      onPress={() => router.push(`/(profile)/${item.id}`)}
+      onPress={() => handleSelectUser(item)}
     >
       {item.profile_image_url ? (
         <Image source={{ uri: item.profile_image_url }} style={styles.avatar} />
@@ -138,15 +179,9 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
-      <Modal
-        visible={selectedPost !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedPost(null)}
-      >
+      {selectedPost && (
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            {/* Close button */}
             <TouchableOpacity
               style={styles.closeButton}
               onPress={() => setSelectedPost(null)}
@@ -154,29 +189,35 @@ export default function SearchScreen() {
               <Text style={styles.closeText}>✕</Text>
             </TouchableOpacity>
 
-            {selectedPost && (
-              <>
-                {/* Header */}
-
-                {/* Images */}
-                {selectedPost.isoutfit_post ? (
-                  <ModalPostCard
-                    post={selectedPost}
-                    currentUserId={user?.id}
-                    onNavigateAway={() => setSelectedPost(null)}
-                  />
-                ) : (
-                  <ModalHaulPostCard
-                    post={selectedPost}
-                    currentUserId={user?.id}
-                    onNavigateAway={() => setSelectedPost(null)}
-                  />
-                )}
-              </>
+            {selectedPost.isoutfit_post ? (
+              <ModalPostCard
+                post={selectedPost}
+                currentUserId={user?.id}
+                onNavigateAway={() => setSelectedPost(null)}
+                onOpenComments={handleOpenComments}
+              />
+            ) : (
+              <ModalHaulPostCard
+                post={selectedPost}
+                currentUserId={user?.id}
+                onNavigateAway={() => setSelectedPost(null)}
+                onOpenComments={handleOpenComments}
+              />
             )}
           </View>
         </View>
-      </Modal>
+      )}
+
+      <CommentsSheet
+        postId={commentPostId ?? ""}
+        postOwnerId={commentPostOwnerId ?? ""}
+        visible={commentPostId !== null}
+        onClose={() => {
+          setCommentPostId(null);
+          setCommentPostOwnerId(null);
+        }}
+      />
+
       <View style={styles.searchRow}>
         {isFocused && (
           <TouchableOpacity
@@ -211,6 +252,20 @@ export default function SearchScreen() {
       {isFocused ? (
         isLoading ? (
           <ActivityIndicator style={{ marginTop: 20 }} />
+        ) : query.length === 0 ? (
+          <FlatList
+            key="recent"
+            data={recentSearches}
+            keyExtractor={(item) => item.id}
+            renderItem={renderUser}
+            style={{ paddingLeft: 10, paddingRight: 10 }}
+            ListHeaderComponent={
+              <Text style={styles.recentHeader}>Recent Searches</Text>
+            }
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No recent searches</Text>
+            }
+          />
         ) : (
           <FlatList
             key="search"
@@ -406,10 +461,11 @@ const styles = StyleSheet.create({
   },
 
   modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
     alignItems: "center",
+    zIndex: 10,
   },
   modalContent: {
     backgroundColor: "#fff",
@@ -460,5 +516,14 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: "#000",
+  },
+  recentHeader: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#000",
+    marginTop: 0,
+    marginBottom: 8,
+    paddingVertical: 2,
+    letterSpacing: 0.3,
   },
 });
