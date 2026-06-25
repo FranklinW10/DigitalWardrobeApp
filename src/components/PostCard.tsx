@@ -11,6 +11,7 @@ import {
   Dimensions,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -30,7 +31,6 @@ export function DoubleTapButton({ onDoubleTap, children }: any) {
 
   const handlePress = () => {
     const now = Date.now();
-
     if (now - lastTap.current < DOUBLE_PRESS_DELAY) {
       lastTap.current = 0;
       onDoubleTap?.();
@@ -40,51 +40,53 @@ export function DoubleTapButton({ onDoubleTap, children }: any) {
   };
 
   return (
-    <TouchableOpacity activeOpacity={1} onPress={handlePress}>
+    <Pressable onPress={handlePress} unstable_pressDelay={0}>
       {children}
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
 const LikeButton = ({
-  postId,
-  postOwnerId,
-  currentUserId,
+  likeCount,
+  isLiked,
+  toggleLike,
 }: {
-  postId: string;
-  postOwnerId: string;
-  currentUserId?: string;
-}) => {
-  const { likeCount, isLiked, toggleLike } = useLikes(postId, currentUserId);
-
-  return (
-    <TouchableOpacity style={styles.actionButton} onPress={toggleLike}>
-      <Ionicons
-        name={isLiked ? "heart" : "heart-outline"}
-        size={24}
-        color={isLiked ? "red" : "#000"}
-      />
-      <Text style={styles.actionCount}>{likeCount}</Text>
-    </TouchableOpacity>
-  );
-};
+  likeCount: number;
+  isLiked: boolean;
+  toggleLike: () => void;
+}) => (
+  <TouchableOpacity style={styles.actionButton} onPress={toggleLike}>
+    <Ionicons
+      name={isLiked ? "heart" : "heart-outline"}
+      size={24}
+      color={isLiked ? "red" : "#000"}
+    />
+    <Text style={styles.actionCount}>{likeCount}</Text>
+  </TouchableOpacity>
+);
 
 const PostActions = ({
   post,
   currentUserId,
   commentCount,
+  likeCount,
+  isLiked,
+  toggleLike,
   onCommentPress,
 }: {
   post: Post;
   currentUserId?: string;
   commentCount: number;
+  likeCount: number;
+  isLiked: boolean;
+  toggleLike: () => void;
   onCommentPress: () => void;
 }) => (
   <View style={styles.actions}>
     <LikeButton
-      postId={post.id}
-      postOwnerId={post.user_id}
-      currentUserId={currentUserId}
+      likeCount={likeCount}
+      isLiked={isLiked}
+      toggleLike={toggleLike}
     />
     <TouchableOpacity
       style={styles.actionButton}
@@ -156,9 +158,10 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
           post={post}
           currentUserId={currentUserId}
           commentCount={comments.length}
-          onCommentPress={() => {
-            setShowComments(true);
-          }}
+          likeCount={likeCount}
+          isLiked={isLiked}
+          toggleLike={toggleLike}
+          onCommentPress={() => setShowComments(true)}
         />
       </View>
       <View style={styles.postFooter}>
@@ -196,7 +199,19 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
   const { comments } = useComments(post.id);
+  const { likeCount, isLiked, toggleLike } = useLikes(post.id, currentUserId);
 
+  const lastTap = useRef(0);
+
+  const handleDoubleTap = () => {
+    const now = Date.now();
+    if (now - lastTap.current < DOUBLE_PRESS_DELAY) {
+      lastTap.current = 0;
+      toggleLike();
+    } else {
+      lastTap.current = now;
+    }
+  };
   const images = [...(post.images ?? [])].sort(
     (a, b) => a.order_index - b.order_index,
   );
@@ -247,13 +262,15 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
           onMomentumScrollEnd={handleScroll}
         >
           {images.map((img, index) => (
-            <Image
-              key={index}
-              cachePolicy="none"
-              source={{ uri: img.image_url }}
-              style={[styles.postImage, { width: SCREEN_WIDTH }]}
-              contentFit="cover"
-            />
+            <Pressable key={index} onPress={handleDoubleTap}>
+              <Image
+                key={index}
+                cachePolicy="none"
+                source={{ uri: img.image_url }}
+                style={[styles.postImage, { width: SCREEN_WIDTH }]}
+                contentFit="cover"
+              />
+            </Pressable>
           ))}
         </ScrollView>
 
@@ -274,8 +291,11 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
 
       <PostActions
         post={post}
-        commentCount={comments.length}
         currentUserId={currentUserId}
+        commentCount={comments.length}
+        likeCount={likeCount}
+        isLiked={isLiked}
+        toggleLike={toggleLike}
         onCommentPress={() => setShowComments(true)}
       />
       <View style={styles.postFooter}>
@@ -334,6 +354,8 @@ export const ModalPostCard = ({
   onNavigateAway: () => void;
   onOpenComments: (postId: string, postOwnerId: string) => void;
 }) => {
+  const { likeCount, isLiked, toggleLike } = useLikes(post.id, currentUserId);
+
   const postUser = post.profiles;
   const isOwnPost = post.user_id === currentUserId;
   const [showComments, setShowComments] = useState(false);
@@ -378,17 +400,22 @@ export const ModalPostCard = ({
           </TouchableOpacity>
           {/*Post content*/}
         </View>
-        <Image
-          cachePolicy={"none"}
-          source={{ uri: post.image_url }}
-          style={styles.postImage}
-          contentFit="cover"
-        />
+        <DoubleTapButton onDoubleTap={toggleLike}>
+          <Image
+            cachePolicy={"none"}
+            source={{ uri: post.image_url }}
+            style={styles.postImage}
+            contentFit="cover"
+          />
+        </DoubleTapButton>
         <PostActions
           post={post}
           currentUserId={currentUserId}
           commentCount={comments.length}
-          onCommentPress={() => onOpenComments(post.id, post.user_id)}
+          likeCount={likeCount}
+          isLiked={isLiked}
+          toggleLike={toggleLike}
+          onCommentPress={() => setShowComments(true)}
         />
       </View>
       <View style={styles.postFooter}>
@@ -416,11 +443,25 @@ export const ModalHaulPostCard = ({
   if (post.isoutfit_post) {
     return;
   }
+  const { likeCount, isLiked, toggleLike } = useLikes(post.id, currentUserId);
+
   const postUser = post.profiles;
   const isOwnPost = post.user_id === currentUserId;
   const [activeIndex, setActiveIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
   const { comments } = useComments(post.id);
+
+  const lastTap = useRef(0);
+
+  const handleDoubleTap = () => {
+    const now = Date.now();
+    if (now - lastTap.current < DOUBLE_PRESS_DELAY) {
+      lastTap.current = 0;
+      toggleLike();
+    } else {
+      lastTap.current = now;
+    }
+  };
 
   const images = [...(post.images ?? [])].sort(
     (a, b) => a.order_index - b.order_index,
@@ -475,13 +516,15 @@ export const ModalHaulPostCard = ({
           onMomentumScrollEnd={handleScroll}
         >
           {images.map((img, index) => (
-            <Image
-              key={index}
-              cachePolicy="none"
-              source={{ uri: img.image_url }}
-              style={[styles.postImage, { width: SCREEN_WIDTH - 20 }]}
-              contentFit="cover"
-            />
+            <Pressable key={index} onPress={handleDoubleTap}>
+              <Image
+                key={index}
+                cachePolicy="none"
+                source={{ uri: img.image_url }}
+                style={[styles.postImage, { width: SCREEN_WIDTH - 20 }]}
+                contentFit="cover"
+              />
+            </Pressable>
           ))}
         </ScrollView>
 
@@ -504,7 +547,10 @@ export const ModalHaulPostCard = ({
         post={post}
         currentUserId={currentUserId}
         commentCount={comments.length}
-        onCommentPress={() => onOpenComments(post.id, post.user_id)}
+        likeCount={likeCount}
+        isLiked={isLiked}
+        toggleLike={toggleLike}
+        onCommentPress={() => setShowComments(true)}
       />
       <View style={styles.postFooter}>
         {post.description && (
@@ -699,6 +745,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     paddingVertical: 8,
+    marginBottom: -22,
   },
   dot: {
     width: 7,

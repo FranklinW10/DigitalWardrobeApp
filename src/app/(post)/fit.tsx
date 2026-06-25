@@ -109,15 +109,15 @@ export default function Fit() {
         )}
 
         <TextInput
-          style={styles.descriptionInput}
-          placeholder="Add a description (optional)"
+          style={styles.captionInput}
+          placeholder="Write a caption..."
           placeholderTextColor="#999"
           value={description}
           onChangeText={setDescription}
           multiline
-          maxLength={500}
-          textAlignVertical="top"
+          maxLength={300}
         />
+        <Text style={styles.charCount}>{description.length}/300</Text>
         <View style={styles.modalButtons}>
           <TouchableOpacity
             style={[styles.modalButton, styles.postButton]}
@@ -228,5 +228,24 @@ const styles = StyleSheet.create({
     fontSize: 64,
     fontWeight: "300",
     lineHeight: 70,
+  },
+  captionInput: {
+    width: "100%",
+    minHeight: 80,
+    maxHeight: 140,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 15,
+    color: "#000",
+    marginTop: 16,
+    textAlignVertical: "top",
+  },
+  charCount: {
+    alignSelf: "flex-end",
+    fontSize: 12,
+    color: "#999",
+    marginTop: 4,
+    marginBottom: 10,
   },
 });
