@@ -4,6 +4,7 @@ import {
   ModalPostCard,
 } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
+import { Ionicons } from "@expo/vector-icons";
 
 import { useFollows } from "@/hooks/useFollows";
 import { Post, usePosts } from "@/hooks/usePosts";
@@ -188,17 +189,24 @@ export default function SearchScreen() {
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
         )}
-
-        <TextInput
-          ref={inputRef}
-          style={[styles.searchInput, isFocused && { width: "90%" }]}
-          placeholder={"🔎 Search by name or username..."}
-          value={query}
-          onChangeText={handleSearch}
-          onFocus={() => setIsFocused(true)}
-          autoCapitalize="none"
-          onBlur={() => setIsFocused(false)}
-        />
+        <View style={[styles.searchContainer, isFocused && { flex: 1 }]}>
+          <Ionicons
+            name="search"
+            size={18}
+            color="#999"
+            style={styles.searchIcon}
+          />
+          <TextInput
+            ref={inputRef}
+            style={[styles.searchInput, isFocused && { width: "90%" }]}
+            placeholder={"Search by name or username..."}
+            value={query}
+            onChangeText={handleSearch}
+            onFocus={() => setIsFocused(true)}
+            autoCapitalize="none"
+            onBlur={() => setIsFocused(false)}
+          />
+        </View>
       </View>
       {isFocused ? (
         isLoading ? (
@@ -246,15 +254,6 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 0,
     backgroundColor: "#fff",
-  },
-  searchInput: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 10,
-    padding: 12,
-    fontSize: 15,
-    marginBottom: 16,
-    width: "100%",
   },
   userRow: {
     flexDirection: "row",
@@ -312,14 +311,6 @@ const styles = StyleSheet.create({
     marginTop: 40,
   },
 
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 10,
-    marginBottom: -2,
-    width: "100%",
-  },
   backArrow: {
     marginBottom: 15,
     fontSize: 22,
@@ -443,5 +434,31 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "600",
+  },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+    width: "100%",
+  },
+  searchContainer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+    marginBottom: 8,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: "#000",
   },
 });

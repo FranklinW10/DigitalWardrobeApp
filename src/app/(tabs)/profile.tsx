@@ -314,14 +314,22 @@ export default function Profile() {
 
             {/* Follower counts */}
             <View style={styles.statsRow}>
-              <View style={styles.stat}>
-                <Text style={styles.statNumber}>{followerCount}</Text>
-                <Text style={styles.statLabel}>Followers</Text>
-              </View>
-              <View style={styles.stat}>
-                <Text style={styles.statNumber}>{followingCount}</Text>
-                <Text style={styles.statLabel}>Following</Text>
-              </View>
+              <TouchableOpacity
+                onPress={() => router.push("/(profile)/followList")}
+              >
+                <View style={styles.stat}>
+                  <Text style={styles.statNumber}>{followerCount}</Text>
+                  <Text style={styles.statLabel}>Followers</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push("/(profile)/followList")}
+              >
+                <View style={styles.stat}>
+                  <Text style={styles.statNumber}>{followingCount}</Text>
+                  <Text style={styles.statLabel}>Following</Text>
+                </View>
+              </TouchableOpacity>
               <View style={styles.stat}>
                 <Text style={styles.statNumber}>{posts.length}</Text>
                 <Text style={styles.statLabel}>Posts</Text>
