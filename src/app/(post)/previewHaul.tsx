@@ -1,60 +1,33 @@
-import { HaulPostCard } from "@/components/PostCard";
-import { useAuth } from "@/context/AuthContext";
-import { Post, usePosts } from "@/hooks/usePosts";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-
 import {
-  ActivityIndicator,
-  Alert,
+  Dimensions,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 
-export default function Preview() {
-  const { selectedImages } = useLocalSearchParams();
-  const { imageUris, description, alreadyPosted } = useLocalSearchParams();
-  const images: string[] = imageUris ? JSON.parse(imageUris as string) : [];
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const PREVIEW_SIZE = SCREEN_WIDTH - 48;
 
-  const userActivePost = alreadyPosted === "true";
+export default function PreviewHaul() {
+  const { imageUris } = useLocalSearchParams();
+  const images: string[] = JSON.parse(imageUris as string);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [caption, setCaption] = useState("");
   const router = useRouter();
-  const [showPreview, setShowPreview] = useState(false);
-  const [isUploading1, setIsUploading1] = useState(false);
-  const [isUploading2, setIsUploading2] = useState(false);
-  const { user } = useAuth();
-  const [refreshing, setRefreshing] = useState(false);
-  const { createPost } = usePosts();
-  const [publicPost, setPublicPost] = useState(false);
 
-  const renderHaulPost = ({ item }: { item: Post }) => (
-    <HaulPostCard post={item} currentUserId={user?.id} />
-  );
-
-  const handlePosts = async (publicPost: boolean) => {
-    if (!images) return;
-
-    publicPost ? setIsUploading1(true) : setIsUploading2(true);
-
-    try {
-      await createPost(
-        undefined,
-        description as string,
-        publicPost,
-        false,
-        images as string[],
-      );
-      Alert.alert("Success", "Your post has been created successfully.");
-    } catch (error) {
-      console.error("Error creating post:", error);
-      Alert.alert("Error", "Failed to create post. Please try again.");
-    } finally {
-      publicPost ? setIsUploading1(false) : setIsUploading2(false);
-    }
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(e.nativeEvent.contentOffset.x / PREVIEW_SIZE);
+    setActiveIndex(index);
   };
+
   return (
     <View style={styles.container}>
       <TouchableOpacity
@@ -64,67 +37,66 @@ export default function Preview() {
         <Text style={styles.closeButtonText}>←</Text>
       </TouchableOpacity>
 
-      <Text style={styles.title}>Preview</Text>
+      <Text style={styles.title}>Add a caption</Text>
 
-      <View style={styles.divider} />
-
-      <View style={{ height: 300, marginBottom: 16 }}>
+      <View style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}>
         <ScrollView
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          style={styles.previewScrollView}
-          contentContainerStyle={{ flexGrow: 0 }}
+          onMomentumScrollEnd={handleScroll}
+          style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
         >
           {images.map((uri, index) => (
             <Image
               key={index}
               source={{ uri }}
-              style={styles.previewImage}
+              style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
               contentFit="cover"
             />
           ))}
         </ScrollView>
       </View>
 
-      <View style={styles.divider} />
+      {images.length > 1 && (
+        <View style={styles.dotsContainer}>
+          {images.map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.dot,
+                index === activeIndex ? styles.dotActive : styles.dotInactive,
+              ]}
+            />
+          ))}
+        </View>
+      )}
 
-      <View style={styles.buttons}>
-        <TouchableOpacity
-          style={styles.postButton}
-          onPress={async () => {
-            await handlePosts(false);
-            router.replace("/(tabs)");
-          }}
-        >
-          <Text style={styles.postText}>
-            {isUploading2 ? (
-              <ActivityIndicator size={24} color="#fff" />
-            ) : (
-              "Add to archive"
-            )}
-          </Text>
-        </TouchableOpacity>
+      <TextInput
+        style={styles.captionInput}
+        placeholder="Write a caption..."
+        placeholderTextColor="#999"
+        value={caption}
+        onChangeText={setCaption}
+        multiline
+        maxLength={300}
+      />
+      <Text style={styles.charCount}>{caption.length}/300</Text>
 
-        <TouchableOpacity
-          style={styles.postButton}
-          onPress={async () => {
-            setPublicPost(true);
-            await handlePosts(true);
-            router.replace("/(tabs)");
-          }}
-        >
-          <Text style={styles.postText}>
-            {isUploading1 ? (
-              <ActivityIndicator size={24} color="#fff" />
-            ) : userActivePost ? (
-              "Update Post"
-            ) : (
-              "Post Publicly"
-            )}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <TouchableOpacity
+        style={styles.button}
+        onPress={() =>
+          router.push({
+            pathname: "/finalPreviewHaul",
+            params: {
+              imageUris: JSON.stringify(images),
+              caption,
+            },
+          })
+        }
+      >
+        <Text style={styles.buttonText}>Preview Post →</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -135,50 +107,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     padding: 24,
     paddingTop: 60,
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-    color: "#000",
-  },
-  divider: {
-    width: "100%",
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "#d0d0d0",
-    marginVertical: 16,
-  },
-  description: {
-    fontSize: 15,
-    color: "#555",
-    lineHeight: 22,
-    alignSelf: "flex-start",
-  },
-  buttons: {
-    flexDirection: "row",
-    gap: 12,
-    width: "100%",
-    marginTop: 4,
-  },
-  postButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: "#000",
-  },
-  postText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#fff",
-  },
-  postContainer: {
-    flex: 0.75,
-    width: "100%",
-    justifyContent: "center",
-    alignItems: "center",
   },
   closeButton: {
     position: "absolute",
@@ -190,16 +120,56 @@ const styles = StyleSheet.create({
   closeButtonText: {
     fontSize: 22,
     color: "#000",
-    fontWeight: "400",
   },
-  previewScrollView: {
-    width: 300,
-    height: 300,
-    overflow: "hidden",
-    marginBottom: -100,
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 24,
+    color: "#000",
   },
-  previewImage: {
-    width: 300,
-    height: 300,
+  dotsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  dotActive: { backgroundColor: "#000" },
+  dotInactive: { backgroundColor: "#ccc" },
+  captionInput: {
+    width: "100%",
+    minHeight: 80,
+    maxHeight: 140,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 15,
+    color: "#000",
+    marginTop: 16,
+    textAlignVertical: "top",
+  },
+  charCount: {
+    alignSelf: "flex-end",
+    fontSize: 12,
+    color: "#999",
+    marginTop: 4,
+  },
+  button: {
+    width: "100%",
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: "#000",
+    marginTop: 24,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
