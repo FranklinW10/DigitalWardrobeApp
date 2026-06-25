@@ -7,6 +7,9 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   ScrollView,
   StyleSheet,
   Text,
@@ -24,7 +27,7 @@ export default function Haul() {
   const [refreshing, setRefreshing] = useState(false);
   const { createPost } = usePosts();
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
-
+  const [activeIndex, setActiveIndex] = useState(0);
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -91,6 +94,11 @@ export default function Haul() {
       setIsUploading(false);
     }
   };
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+    setActiveIndex(index);
+  };
+  const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
   return (
     <View style={styles.modalContainer}>
@@ -106,29 +114,53 @@ export default function Haul() {
       <View style={styles.modalContent}>
         <Text style={styles.modalTitle}> {"Select Images form your haul"}</Text>
         {selectedImages.length > 0 ? (
-          <View style={{ height: 300, marginBottom: 16 }}>
-            <ScrollView
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              style={styles.previewScrollView}
-              contentContainerStyle={{ flexGrow: 0 }}
-            >
-              {selectedImages.map((uri, index) => (
-                <Image
-                  key={index}
-                  source={{ uri }}
-                  style={styles.previewImage}
-                  contentFit="cover"
-                />
-              ))}
-            </ScrollView>
-            <TouchableOpacity style={styles.addMoreButton} onPress={pickImage}>
-              <Text style={styles.addMoreText}>
-                {selectedImages.length} photo
-                {selectedImages.length > 1 ? "s" : ""} selected · tap to change
-              </Text>
-            </TouchableOpacity>
+          <View style={{ height: 400, marginBottom: 16 }}>
+            <View>
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                style={styles.previewScrollView}
+                contentContainerStyle={{ flexGrow: 0 }}
+                onMomentumScrollEnd={handleScroll}
+              >
+                {selectedImages.map((uri, index) => (
+                  <Image
+                    key={index}
+                    source={{ uri }}
+                    style={styles.previewImage}
+                    contentFit="cover"
+                  />
+                ))}
+              </ScrollView>
+
+              {selectedImages.length > 1 && (
+                <View style={styles.dotsContainer}>
+                  {selectedImages.map((_, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        styles.dot,
+                        index === activeIndex
+                          ? styles.dotActive
+                          : styles.dotInactive,
+                      ]}
+                    />
+                  ))}
+                </View>
+              )}
+
+              <TouchableOpacity
+                style={styles.addMoreButton}
+                onPress={pickImage}
+              >
+                <Text style={styles.addMoreText}>
+                  {selectedImages.length} photo
+                  {selectedImages.length > 1 ? "s" : ""} selected · tap to
+                  change
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
           <TouchableOpacity
@@ -167,6 +199,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     flex: 1,
     backgroundColor: "#fff",
+
     padding: 24,
     paddingTop: 60,
   },
@@ -178,7 +211,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 20,
+    marginBottom: 40,
     color: "#000",
   },
   descriptionInput: {
@@ -248,7 +281,7 @@ const styles = StyleSheet.create({
     width: 300,
     height: 300,
     overflow: "hidden",
-    marginBottom: -100,
+    marginBottom: 0,
   },
   previewImage: {
     width: 300,
@@ -256,8 +289,8 @@ const styles = StyleSheet.create({
   },
   addMoreButton: {
     alignSelf: "center",
-    marginTop: 8,
-    marginBottom: 16,
+    marginTop: 20,
+    marginBottom: 0,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 20,
@@ -267,5 +300,23 @@ const styles = StyleSheet.create({
   addMoreText: {
     fontSize: 13,
     color: "#666",
+  },
+  dotsContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+  },
+  dot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  dotActive: {
+    backgroundColor: "#000",
+  },
+  dotInactive: {
+    backgroundColor: "#ccc",
   },
 });

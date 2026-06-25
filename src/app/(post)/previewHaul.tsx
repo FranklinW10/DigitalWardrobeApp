@@ -1,5 +1,6 @@
+import { HaulPostCard } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
-import { usePosts } from "@/hooks/usePosts";
+import { Post, usePosts } from "@/hooks/usePosts";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
@@ -28,6 +29,10 @@ export default function Preview() {
   const [refreshing, setRefreshing] = useState(false);
   const { createPost } = usePosts();
   const [publicPost, setPublicPost] = useState(false);
+
+  const renderHaulPost = ({ item }: { item: Post }) => (
+    <HaulPostCard post={item} currentUserId={user?.id} />
+  );
 
   const handlePosts = async (publicPost: boolean) => {
     if (!images) return;

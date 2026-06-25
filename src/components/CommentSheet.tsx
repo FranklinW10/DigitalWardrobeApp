@@ -15,7 +15,6 @@ import {
   Platform,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -39,6 +38,8 @@ export const CommentsSheet = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ["94%", "75%"], []);
+  const textRef = useRef("");
+  const inputRef = useRef<any>(null);
 
   useEffect(() => {
     if (visible) {
@@ -48,16 +49,17 @@ export const CommentsSheet = ({
     }
   }, [visible]);
 
-  const handleSubmit = async () => {
-    if (!text.trim() || !user) return;
-    setIsSubmitting(true);
+  const handleSubmit = useCallback(async () => {
+    const val = textRef.current.trim();
+    if (!val || !user) return;
     try {
-      await addComment(text.trim(), postOwnerId);
-      setText("");
+      await addComment(val, postOwnerId);
+      textRef.current = "";
+      inputRef.current?.clear();
     } finally {
-      setIsSubmitting(false);
+      // nothing
     }
-  };
+  }, [user, addComment, postOwnerId]);
 
   const renderFooter = useCallback(
     (props: any) => (
@@ -82,28 +84,23 @@ export const CommentsSheet = ({
             )}
 
             <BottomSheetTextInput
+              ref={inputRef}
               style={styles.input}
               placeholder="Add a comment..."
               placeholderTextColor="#999"
-              value={text}
-              onChangeText={setText}
+              onChangeText={(val) => {
+                textRef.current = val;
+              }}
               multiline
             />
-            <TouchableOpacity
-              onPress={handleSubmit}
-              disabled={!text.trim() || isSubmitting}
-            >
-              <Ionicons
-                name="send"
-                size={24}
-                color={text.trim() ? "#000" : "#ccc"}
-              />
+            <TouchableOpacity onPress={handleSubmit}>
+              <Ionicons name="send" size={24} color={"#000"} />
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </BottomSheetFooter>
     ),
-    [isSubmitting, user, text],
+    [isSubmitting, user],
   );
 
   const handleClose = useCallback(() => {
@@ -121,35 +118,7 @@ export const CommentsSheet = ({
       enablePanDownToClose
       onDismiss={onClose}
       backgroundStyle={styles.background}
-      footerComponent={(props) => (
-        <BottomSheetFooter {...props} bottomInset={24}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
-            keyboardVerticalOffset={10}
-          >
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                placeholder="Add a comment..."
-                placeholderTextColor="#999"
-                value={text}
-                onChangeText={setText}
-                multiline
-              />
-              <TouchableOpacity
-                onPress={handleSubmit}
-                disabled={!text.trim() || isSubmitting}
-              >
-                <Ionicons
-                  name="send"
-                  size={24}
-                  color={text.trim() ? "#000" : "#ccc"}
-                />
-              </TouchableOpacity>
-            </View>
-          </KeyboardAvoidingView>
-        </BottomSheetFooter>
-      )}
+      footerComponent={renderFooter}
     >
       {/* Header */}
       <View style={styles.header}>
