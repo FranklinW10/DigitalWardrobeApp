@@ -122,7 +122,7 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
             <View style={styles.userInfo}>
               {postUser?.profile_image_url ? (
                 <Image
-                  cachePolicy={"none"}
+                  cachePolicy={"memory"}
                   source={{ uri: postUser.profile_image_url }}
                   style={styles.avatar}
                 />
@@ -148,7 +148,7 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
         </View>
         <DoubleTapButton onDoubleTap={toggleLike}>
           <Image
-            cachePolicy={"none"}
+            cachePolicy={"memory-disk"}
             source={{ uri: post.image_url }}
             style={styles.postImage}
             contentFit="cover"
@@ -230,7 +230,7 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
           <View style={styles.userInfo}>
             {postUser?.profile_image_url ? (
               <Image
-                cachePolicy="none"
+                cachePolicy="memory"
                 source={{ uri: postUser.profile_image_url }}
                 style={styles.avatar}
               />
@@ -265,7 +265,7 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
             <Pressable key={index} onPress={handleDoubleTap}>
               <Image
                 key={index}
-                cachePolicy="none"
+                cachePolicy="memory-disk"
                 source={{ uri: img.image_url }}
                 style={[styles.postImage, { width: SCREEN_WIDTH }]}
                 contentFit="cover"
@@ -334,7 +334,7 @@ export const ExplorePostCard = ({
       <View>
         <TouchableOpacity onPress={onPress}>
           <Image
-            cachePolicy="none"
+            cachePolicy="memory-disk"
             source={{ uri: firstImage }}
             style={{ width: ITEM_SIZE, height: ITEM_SIZE }}
             contentFit="cover"
@@ -376,7 +376,7 @@ export const ModalPostCard = ({
             <View style={styles.userInfo}>
               {postUser?.profile_image_url ? (
                 <Image
-                  cachePolicy={"none"}
+                  cachePolicy={"memory"}
                   source={{ uri: postUser.profile_image_url }}
                   style={styles.avatar}
                 />
@@ -402,7 +402,7 @@ export const ModalPostCard = ({
         </View>
         <DoubleTapButton onDoubleTap={toggleLike}>
           <Image
-            cachePolicy={"none"}
+            cachePolicy={"memory-disk"}
             source={{ uri: post.image_url }}
             style={styles.postImage}
             contentFit="cover"
@@ -484,7 +484,7 @@ export const ModalHaulPostCard = ({
           <View style={styles.userInfo}>
             {postUser?.profile_image_url ? (
               <Image
-                cachePolicy="none"
+                cachePolicy="memory"
                 source={{ uri: postUser.profile_image_url }}
                 style={styles.avatar}
               />
@@ -519,7 +519,7 @@ export const ModalHaulPostCard = ({
             <Pressable key={index} onPress={handleDoubleTap}>
               <Image
                 key={index}
-                cachePolicy="none"
+                cachePolicy="memory-disk"
                 source={{ uri: img.image_url }}
                 style={[styles.postImage, { width: SCREEN_WIDTH - 20 }]}
                 contentFit="cover"

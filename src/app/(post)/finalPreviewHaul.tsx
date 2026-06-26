@@ -59,7 +59,7 @@ export default function FinalPreviewHaul() {
               <Image
                 source={{ uri: user.profileImage }}
                 style={styles.avatar}
-                cachePolicy="none"
+                cachePolicy="memory"
               />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
@@ -90,7 +90,7 @@ export default function FinalPreviewHaul() {
                 source={{ uri }}
                 style={{ width: POST_WIDTH, height: POST_WIDTH }}
                 contentFit="cover"
-                cachePolicy="none"
+                cachePolicy="memory-disk"
               />
             ))}
           </ScrollView>
