@@ -178,7 +178,10 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
           isLiked={isLiked}
           toggleLike={toggleLike}
           onCommentPress={() => setShowComments(true)}
-          onLikeCountPress={() => setShowLikers(true)}
+          onLikeCountPress={() => {
+            fetchLikers();
+            setShowLikers(true);
+          }}
         />
       </View>
       <View style={styles.postFooter}>
@@ -328,7 +331,10 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
         isLiked={isLiked}
         toggleLike={toggleLike}
         onCommentPress={() => setShowComments(true)}
-        onLikeCountPress={() => setShowLikers(true)}
+        onLikeCountPress={() => {
+          fetchLikers();
+          setShowLikers(true);
+        }}
       />
       <View style={styles.postFooter}>
         {post.description && (
@@ -388,9 +394,11 @@ export const ModalPostCard = ({
   currentUserId,
   onNavigateAway,
   onOpenComments,
+  onOpenLikers,
 }: PostCardProps & {
   onNavigateAway: () => void;
   onOpenComments: (postId: string, postOwnerId: string) => void;
+  onOpenLikers: (postId: string) => void;
 }) => {
   const {
     likeCount,
@@ -460,8 +468,8 @@ export const ModalPostCard = ({
           likeCount={likeCount}
           isLiked={isLiked}
           toggleLike={toggleLike}
-          onCommentPress={() => setShowComments(true)}
-          onLikeCountPress={() => setShowLikers(true)}
+          onCommentPress={() => onOpenComments(post.id, post.user_id)}
+          onLikeCountPress={() => onOpenLikers(post.id)}
         />
       </View>
       <View style={styles.postFooter}>
@@ -482,9 +490,11 @@ export const ModalHaulPostCard = ({
   currentUserId,
   onNavigateAway,
   onOpenComments,
+  onOpenLikers,
 }: HaulPostCardProps & {
   onNavigateAway: () => void;
   onOpenComments: (postId: string, postOwnerId: string) => void;
+  onOpenLikers: (postId: string) => void;
 }) => {
   if (post.isoutfit_post) {
     return;
@@ -603,8 +613,8 @@ export const ModalHaulPostCard = ({
         likeCount={likeCount}
         isLiked={isLiked}
         toggleLike={toggleLike}
-        onCommentPress={() => setShowComments(true)}
-        onLikeCountPress={() => setShowLikers(true)}
+        onCommentPress={() => onOpenComments(post.id, post.user_id)}
+        onLikeCountPress={() => onOpenLikers(post.id)}
       />
       <View style={styles.postFooter}>
         {post.description && (

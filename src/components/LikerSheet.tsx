@@ -1,11 +1,13 @@
+import { useAuth } from "@/context/AuthContext";
 import { Liker } from "@/hooks/useLikes";
 import { Ionicons } from "@expo/vector-icons";
+import { BottomSheetFlatList, BottomSheetModal } from "@gorhom/bottom-sheet";
 import { Image } from "expo-image";
 import { router } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef } from "react";
+
 import {
   ActivityIndicator,
-  FlatList,
-  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -25,87 +27,91 @@ export const LikersSheet = ({
   visible,
   onClose,
 }: LikersSheetProps) => {
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <View style={{ flex: 1, justifyContent: "flex-end" }}>
-        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} />
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
-          <View style={styles.header}>
-            <Text style={styles.title}>Liked by</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color="#000" />
-            </TouchableOpacity>
-          </View>
+  const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const snapPoints = useMemo(() => ["94%", "75%"], []);
 
-          {isLoading ? (
-            <ActivityIndicator style={{ marginTop: 32 }} />
-          ) : (
-            <FlatList
-              data={likers}
-              keyExtractor={(item) => item.user_id}
-              contentContainerStyle={styles.list}
-              ListEmptyComponent={
-                <Text style={styles.empty}>No likes yet</Text>
-              }
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.row}
-                  onPress={() => {
-                    onClose();
-                    router.push(`/(profile)/${item.user_id}`);
-                  }}
-                >
-                  {item.profiles?.profile_image_url ? (
-                    <Image
-                      source={{ uri: item.profiles.profile_image_url }}
-                      style={styles.avatar}
-                      cachePolicy="memory"
-                    />
-                  ) : (
-                    <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                      <Text style={styles.avatarText}>
-                        {item.profiles?.name?.[0]?.toUpperCase() || "U"}
-                      </Text>
-                    </View>
-                  )}
-                  <View>
-                    <Text style={styles.name}>{item.profiles?.name}</Text>
-                    <Text style={styles.username}>
-                      @{item.profiles?.username}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              )}
-            />
-          )}
-        </View>
+  useEffect(() => {
+    if (visible) {
+      bottomSheetRef.current?.present();
+    } else {
+      bottomSheetRef.current?.dismiss();
+    }
+  }, [visible]);
+
+  const handleClose = useCallback(() => {
+    bottomSheetRef.current?.close();
+    onClose();
+  }, [onClose]);
+  if (!visible) return null;
+  const { user } = useAuth();
+  return (
+    <BottomSheetModal
+      ref={bottomSheetRef}
+      index={1}
+      snapPoints={snapPoints}
+      enablePanDownToClose
+      onDismiss={onClose}
+      backgroundStyle={styles.background}
+    >
+      <View style={styles.header}>
+        <Text style={styles.title}>Liked by</Text>
+        <TouchableOpacity onPress={handleClose}>
+          <Ionicons name="close" size={24} color="#000" />
+        </TouchableOpacity>
       </View>
-    </Modal>
+
+      {isLoading ? (
+        <ActivityIndicator style={{ marginTop: 32 }} />
+      ) : (
+        <BottomSheetFlatList
+          data={likers}
+          keyExtractor={(item) => item.user_id}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={<Text style={styles.empty}>No likes yet</Text>}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.row}
+              onPress={() => {
+                handleClose();
+                {
+                  item.user_id === user?.id
+                    ? router.push(`/(tabs)/profile`)
+                    : router.push(`/(profile)/${item.user_id}`);
+                }
+              }}
+            >
+              {item.profiles?.profile_image_url ? (
+                <Image
+                  source={{ uri: item.profiles.profile_image_url }}
+                  style={styles.avatar}
+                  cachePolicy="memory"
+                />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                  <Text style={styles.avatarText}>
+                    {item.profiles?.name?.[0]?.toUpperCase() || "U"}
+                  </Text>
+                </View>
+              )}
+              <View>
+                <Text style={styles.name}>
+                  {item.user_id === user?.id ? "You" : item.profiles?.name}
+                </Text>
+                <Text style={styles.username}>@{item.profiles?.username}</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+        />
+      )}
+    </BottomSheetModal>
   );
 };
 
 const styles = StyleSheet.create({
-  sheet: {
+  background: {
     backgroundColor: "#fff",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: "75%",
-    paddingBottom: 32,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: "#ccc",
-    borderRadius: 2,
-    alignSelf: "center",
-    marginTop: 8,
-    marginBottom: 4,
   },
   header: {
     flexDirection: "row",

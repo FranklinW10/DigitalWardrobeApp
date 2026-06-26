@@ -1,12 +1,15 @@
 import { CommentsSheet } from "@/components/CommentSheet";
+import { LikersSheet } from "@/components/LikerSheet";
 import {
   ExplorePostCard,
   ModalHaulPostCard,
   ModalPostCard,
 } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
+import { Liker } from "@/hooks/useLikes";
 import { Post } from "@/hooks/usePosts";
 import { supabase } from "@/lib/supabase/client";
+
 import { uploadProfileImage } from "@/lib/supabase/storage";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -53,11 +56,25 @@ export default function Profile() {
   const filteredPosts = posts.filter((post) =>
     activeTab === "fits" ? post.isoutfit_post : !post.isoutfit_post,
   );
+  const [likerPostId, setLikerPostId] = useState<string | null>(null);
+  const [likers, setLikers] = useState<Liker[]>([]);
+  const [isLoadingLikers, setIsLoadingLikers] = useState(false);
   const [commentPost, setCommentPost] = useState<Post | null>(null);
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
     null,
   );
+
+  const handleOpenLikers = async (postId: string) => {
+    setLikerPostId(postId);
+    setIsLoadingLikers(true);
+    const { data } = await supabase
+      .from("likes")
+      .select("user_id, profiles(username, name, profile_image_url)")
+      .eq("post_id", postId);
+    setLikers((data as any) ?? []);
+    setIsLoadingLikers(false);
+  };
 
   // Pass a callback down into your modal post cards
   const handleOpenComments = (postId: string, postOwnerId: string) => {
@@ -136,7 +153,6 @@ export default function Profile() {
         .select("*, profiles(*), images(*)")
         .eq("user_id", user?.id)
         .eq("is_active", true)
-        .eq("is_public", true)
         .order("created_at", { ascending: false });
       if (postsError) throw postsError;
       setPosts(postsData ?? []);
@@ -235,6 +251,38 @@ export default function Profile() {
     }
   };
 
+  const handlePostOptions = (post: Post) => {
+    const options = [
+      {
+        text: post.is_public ? "Switch to archive" : "Switch to Public",
+        onPress: async () => {
+          await supabase
+            .from("posts")
+            .update({ is_public: !post.is_public })
+            .eq("id", post.id);
+          setSelectedPost(null);
+        },
+      },
+      {
+        text: "Delete Post",
+        style: "destructive" as const,
+        onPress: async () => {
+          await supabase
+            .from("posts")
+            .update({ is_active: false })
+            .eq("id", post.id);
+          setSelectedPost(null);
+        },
+      },
+      {
+        text: "Cancel",
+        style: "cancel" as const,
+      },
+    ];
+
+    Alert.alert("Post Options", "", options);
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {selectedPost && (
@@ -253,6 +301,7 @@ export default function Profile() {
                 currentUserId={user?.id}
                 onNavigateAway={() => setSelectedPost(null)}
                 onOpenComments={handleOpenComments}
+                onOpenLikers={handleOpenLikers}
               />
             ) : (
               <ModalHaulPostCard
@@ -260,9 +309,16 @@ export default function Profile() {
                 currentUserId={user?.id}
                 onNavigateAway={() => setSelectedPost(null)}
                 onOpenComments={handleOpenComments}
+                onOpenLikers={handleOpenLikers}
               />
             )}
           </View>
+          <TouchableOpacity
+            style={styles.exploreButton}
+            onPress={() => handlePostOptions(selectedPost)}
+          >
+            <Text style={styles.exploreButtonText}>Post Options</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -274,6 +330,12 @@ export default function Profile() {
           setCommentPostId(null);
           setCommentPostOwnerId(null);
         }}
+      />
+      <LikersSheet
+        likers={likers}
+        isLoading={isLoadingLikers}
+        visible={likerPostId !== null}
+        onClose={() => setLikerPostId(null)}
       />
       <View style={styles.topHeader}>
         <Text style={styles.topHeaderUsername}>@{user?.username}</Text>
@@ -855,5 +917,22 @@ const styles = StyleSheet.create({
     width: "95%",
     maxHeight: "85%",
     overflow: "hidden",
+  },
+  exploreButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 16,
+    backgroundColor: "#000",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+  },
+  exploreButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

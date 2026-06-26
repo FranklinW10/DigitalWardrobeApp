@@ -31,6 +31,7 @@ export default function Index() {
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
+
   const headerVisible = useRef(new Animated.Value(1)).current;
   const [activeTab, setActiveTab] = useState<"fits" | "hauls">("fits");
   // Check if user has an active post
@@ -142,6 +143,10 @@ export default function Index() {
       </TouchableOpacity>
     </View>
   );
+  const tabHeight = headerVisible.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 60], // match the height of your tab switcher
+  });
 
   return (
     <>
@@ -163,8 +168,12 @@ export default function Index() {
 
         {/*List*/}
 
+        <Animated.View style={{ height: tabHeight, overflow: "hidden" }}>
+          {tabSwitcher}
+        </Animated.View>
         {activeTab === "fits" ? (
           <SectionList
+            key="fits"
             sections={sections}
             keyExtractor={(item) => item.id}
             renderItem={renderPost}
@@ -176,11 +185,14 @@ export default function Index() {
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
-            ListEmptyComponent={<View>{tabSwitcher}</View>}
+            ListEmptyComponent={
+              <View style={styles.emptyContent}>
+                <Text>No posts yet</Text>
+              </View>
+            }
             contentContainerStyle={
               sections.length === 0 ? styles.emptyContent : styles.content
             }
-            ListHeaderComponent={<View>{tabSwitcher}</View>}
           />
         ) : (
           <FlatList
@@ -200,7 +212,7 @@ export default function Index() {
             refreshControl={
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
-            ListHeaderComponent={<View>{tabSwitcher}</View>}
+
             // ListHeaderComponent={
             //   <View style={styles.headerContainer}>
             //     <Text

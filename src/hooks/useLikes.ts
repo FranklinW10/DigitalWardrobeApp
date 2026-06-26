@@ -24,10 +24,12 @@ export const useLikes = (postId: string, currentUserId?: string) => {
 
   const fetchLikers = async () => {
     setIsLoadingLikers(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("likes")
       .select("user_id, profiles(username, name, profile_image_url)")
       .eq("post_id", postId);
+    console.log("likers data:", data);
+    console.log("likers error:", error);
     setLikers((data as any) ?? []);
     setIsLoadingLikers(false);
   };
