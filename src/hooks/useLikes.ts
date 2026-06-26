@@ -2,14 +2,37 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
 
+export interface Liker {
+  user_id: string;
+  profiles: {
+    username: string;
+    name: string;
+    profile_image_url?: string;
+  };
+}
+
 export const useLikes = (postId: string, currentUserId?: string) => {
   const { user } = useAuth();
   const [likeCount, setLikeCount] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
+  const [likers, setLikers] = useState<Liker[]>([]);
+  const [isLoadingLikers, setIsLoadingLikers] = useState(false);
 
   useEffect(() => {
     fetchLikes();
   }, [postId]);
+
+  const fetchLikers = async () => {
+    setIsLoadingLikers(true);
+    const { data, error } = await supabase
+      .from("likes")
+      .select("user_id, profiles(username, name, profile_image_url)")
+      .eq("post_id", postId);
+    console.log("likers data:", data);
+    console.log("likers error:", error);
+    setLikers((data as any) ?? []);
+    setIsLoadingLikers(false);
+  };
 
   const fetchLikes = async () => {
     const { count } = await supabase
@@ -67,5 +90,12 @@ export const useLikes = (postId: string, currentUserId?: string) => {
     }
   };
 
-  return { likeCount, isLiked, toggleLike };
+  return {
+    likeCount,
+    isLiked,
+    toggleLike,
+    likers,
+    fetchLikers,
+    isLoadingLikers,
+  };
 };

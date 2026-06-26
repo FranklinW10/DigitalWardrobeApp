@@ -1,13 +1,15 @@
 import { CommentsSheet } from "@/components/CommentSheet";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
+import { LikersSheet } from "@/components/LikerSheet";
 import {
   ExplorePostCard,
   ModalHaulPostCard,
   ModalPostCard,
 } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
+import { Liker } from "@/hooks/useLikes";
+import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { useFollows } from "@/hooks/useFollows";
 import { Post, usePosts } from "@/hooks/usePosts";
@@ -44,6 +46,10 @@ export default function SearchScreen() {
   const [commentPost, setCommentPost] = useState<Post | null>(null);
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [recentSearches, setRecentSearches] = useState<SearchUser[]>([]);
+  const [likerPostId, setLikerPostId] = useState<string | null>(null);
+  const [likers, setLikers] = useState<Liker[]>([]);
+  const [isLoadingLikers, setIsLoadingLikers] = useState(false);
+
   const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
     null,
   );
@@ -61,6 +67,17 @@ export default function SearchScreen() {
   useEffect(() => {
     AsyncStorage.setItem(RECENT_KEY, JSON.stringify(recentSearches));
   }, [recentSearches]);
+
+  const handleOpenLikers = async (postId: string) => {
+    setLikerPostId(postId);
+    setIsLoadingLikers(true);
+    const { data } = await supabase
+      .from("likes")
+      .select("user_id, profiles(username, name, profile_image_url)")
+      .eq("post_id", postId);
+    setLikers((data as any) ?? []);
+    setIsLoadingLikers(false);
+  };
 
   // Pass a callback down into your modal post cards
   const handleOpenComments = (postId: string, postOwnerId: string) => {
@@ -195,6 +212,7 @@ export default function SearchScreen() {
                 currentUserId={user?.id}
                 onNavigateAway={() => setSelectedPost(null)}
                 onOpenComments={handleOpenComments}
+                onOpenLikers={handleOpenLikers}
               />
             ) : (
               <ModalHaulPostCard
@@ -202,6 +220,7 @@ export default function SearchScreen() {
                 currentUserId={user?.id}
                 onNavigateAway={() => setSelectedPost(null)}
                 onOpenComments={handleOpenComments}
+                onOpenLikers={handleOpenLikers}
               />
             )}
           </View>
@@ -214,18 +233,23 @@ export default function SearchScreen() {
             <Ionicons name="grid-outline" size={16} color="#fff" />
             <Text style={styles.exploreButtonText}>Scroll Explore Posts →</Text>
           </TouchableOpacity>
+          <CommentsSheet
+            postId={commentPostId ?? ""}
+            postOwnerId={commentPostOwnerId ?? ""}
+            visible={commentPostId !== null}
+            onClose={() => {
+              setCommentPostId(null);
+              setCommentPostOwnerId(null);
+            }}
+          />
+          <LikersSheet
+            likers={likers}
+            isLoading={isLoadingLikers}
+            visible={likerPostId !== null}
+            onClose={() => setLikerPostId(null)}
+          />
         </View>
       )}
-
-      <CommentsSheet
-        postId={commentPostId ?? ""}
-        postOwnerId={commentPostOwnerId ?? ""}
-        visible={commentPostId !== null}
-        onClose={() => {
-          setCommentPostId(null);
-          setCommentPostOwnerId(null);
-        }}
-      />
 
       <View style={styles.searchRow}>
         {isFocused && (

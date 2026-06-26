@@ -1,5 +1,7 @@
 import { CommentsSheet } from "@/components/CommentSheet";
+import { LikersSheet } from "@/components/LikerSheet";
 import { useAuth } from "@/context/AuthContext";
+import { Liker } from "@/hooks/useLikes";
 
 import {
   ExplorePostCard,
@@ -49,7 +51,9 @@ export default function UserProfileScreen() {
   const { addFollow, unfollowUser, isFollowing, loadFollowing } = useFollows();
   const [activeTab, setActiveTab] = useState<"fits" | "hauls">("fits");
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-
+  const [likerPostId, setLikerPostId] = useState<string | null>(null);
+  const [likers, setLikers] = useState<Liker[]>([]);
+  const [isLoadingLikers, setIsLoadingLikers] = useState(false);
   const [commentPost, setCommentPost] = useState<Post | null>(null);
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
@@ -60,6 +64,16 @@ export default function UserProfileScreen() {
     console.log("postId:", postId, "postOwnerId:", postOwnerId);
     setCommentPostId(postId);
     setCommentPostOwnerId(postOwnerId);
+  };
+  const handleOpenLikers = async (postId: string) => {
+    setLikerPostId(postId);
+    setIsLoadingLikers(true);
+    const { data } = await supabase
+      .from("likes")
+      .select("user_id, profiles(username, name, profile_image_url)")
+      .eq("post_id", postId);
+    setLikers((data as any) ?? []);
+    setIsLoadingLikers(false);
   };
 
   const filteredPosts = posts.filter((post) =>
@@ -173,6 +187,7 @@ export default function UserProfileScreen() {
                 currentUserId={user?.id}
                 onNavigateAway={() => setSelectedPost(null)}
                 onOpenComments={handleOpenComments}
+                onOpenLikers={handleOpenLikers}
               />
             ) : (
               <ModalHaulPostCard
@@ -180,6 +195,7 @@ export default function UserProfileScreen() {
                 currentUserId={user?.id}
                 onNavigateAway={() => setSelectedPost(null)}
                 onOpenComments={handleOpenComments}
+                onOpenLikers={handleOpenLikers}
               />
             )}
           </View>
@@ -194,6 +210,12 @@ export default function UserProfileScreen() {
           setCommentPostId(null);
           setCommentPostOwnerId(null);
         }}
+      />
+      <LikersSheet
+        likers={likers}
+        isLoading={isLoadingLikers}
+        visible={likerPostId !== null}
+        onClose={() => setLikerPostId(null)}
       />
 
       <View style={styles.topHeader}>
