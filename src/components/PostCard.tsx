@@ -1,4 +1,5 @@
 import { CommentsSheet } from "@/components/CommentSheet";
+import { LikersSheet } from "@/components/LikerSheet";
 import { useComments } from "@/hooks/useComments";
 import { useLikes } from "@/hooks/useLikes";
 import { Post } from "@/hooks/usePosts";
@@ -45,24 +46,29 @@ export function DoubleTapButton({ onDoubleTap, children }: any) {
     </Pressable>
   );
 }
-
 const LikeButton = ({
   likeCount,
   isLiked,
   toggleLike,
+  onLikeCountPress,
 }: {
   likeCount: number;
   isLiked: boolean;
   toggleLike: () => void;
+  onLikeCountPress: () => void;
 }) => (
-  <TouchableOpacity style={styles.actionButton} onPress={toggleLike}>
-    <Ionicons
-      name={isLiked ? "heart" : "heart-outline"}
-      size={24}
-      color={isLiked ? "red" : "#000"}
-    />
-    <Text style={styles.actionCount}>{likeCount}</Text>
-  </TouchableOpacity>
+  <View style={styles.actionButton}>
+    <TouchableOpacity onPress={toggleLike}>
+      <Ionicons
+        name={isLiked ? "heart" : "heart-outline"}
+        size={24}
+        color={isLiked ? "red" : "#000"}
+      />
+    </TouchableOpacity>
+    <TouchableOpacity onPress={onLikeCountPress}>
+      <Text style={styles.actionCount}>{likeCount}</Text>
+    </TouchableOpacity>
+  </View>
 );
 
 const PostActions = ({
@@ -73,6 +79,7 @@ const PostActions = ({
   isLiked,
   toggleLike,
   onCommentPress,
+  onLikeCountPress,
 }: {
   post: Post;
   currentUserId?: string;
@@ -81,12 +88,14 @@ const PostActions = ({
   isLiked: boolean;
   toggleLike: () => void;
   onCommentPress: () => void;
+  onLikeCountPress: () => void;
 }) => (
   <View style={styles.actions}>
     <LikeButton
       likeCount={likeCount}
       isLiked={isLiked}
       toggleLike={toggleLike}
+      onLikeCountPress={onLikeCountPress}
     />
     <TouchableOpacity
       style={styles.actionButton}
@@ -106,8 +115,15 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
   const postUser = post.profiles;
   const isOwnPost = post.user_id === currentUserId;
   const [showComments, setShowComments] = useState(false);
-
-  const { likeCount, isLiked, toggleLike } = useLikes(post.id, currentUserId);
+  const [showLikers, setShowLikers] = useState(false);
+  const {
+    likeCount,
+    isLiked,
+    toggleLike,
+    likers,
+    isLoadingLikers,
+    fetchLikers,
+  } = useLikes(post.id, currentUserId);
   return (
     <>
       <View style={styles.postContainer}>
@@ -162,6 +178,7 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
           isLiked={isLiked}
           toggleLike={toggleLike}
           onCommentPress={() => setShowComments(true)}
+          onLikeCountPress={() => setShowLikers(true)}
         />
       </View>
       <View style={styles.postFooter}>
@@ -178,6 +195,12 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
         postOwnerId={post.user_id}
         visible={showComments}
         onClose={() => setShowComments(false)}
+      />
+      <LikersSheet
+        likers={likers}
+        isLoading={isLoadingLikers}
+        visible={showLikers}
+        onClose={() => setShowLikers(false)}
       />
     </>
   );
@@ -199,7 +222,15 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
   const { comments } = useComments(post.id);
-  const { likeCount, isLiked, toggleLike } = useLikes(post.id, currentUserId);
+  const {
+    likeCount,
+    isLiked,
+    toggleLike,
+    likers,
+    isLoadingLikers,
+    fetchLikers,
+  } = useLikes(post.id, currentUserId);
+  const [showLikers, setShowLikers] = useState(false);
 
   const lastTap = useRef(0);
 
@@ -297,6 +328,7 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
         isLiked={isLiked}
         toggleLike={toggleLike}
         onCommentPress={() => setShowComments(true)}
+        onLikeCountPress={() => setShowLikers(true)}
       />
       <View style={styles.postFooter}>
         {post.description && (
@@ -312,6 +344,12 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
         postOwnerId={post.user_id}
         visible={showComments}
         onClose={() => setShowComments(false)}
+      />
+      <LikersSheet
+        likers={likers}
+        isLoading={isLoadingLikers}
+        visible={showLikers}
+        onClose={() => setShowLikers(false)}
       />
     </View>
   );
@@ -354,12 +392,19 @@ export const ModalPostCard = ({
   onNavigateAway: () => void;
   onOpenComments: (postId: string, postOwnerId: string) => void;
 }) => {
-  const { likeCount, isLiked, toggleLike } = useLikes(post.id, currentUserId);
-
+  const {
+    likeCount,
+    isLiked,
+    toggleLike,
+    likers,
+    isLoadingLikers,
+    fetchLikers,
+  } = useLikes(post.id, currentUserId);
   const postUser = post.profiles;
   const isOwnPost = post.user_id === currentUserId;
   const [showComments, setShowComments] = useState(false);
   const { comments } = useComments(post.id);
+  const [showLikers, setShowLikers] = useState(false);
 
   return (
     <>
@@ -416,6 +461,7 @@ export const ModalPostCard = ({
           isLiked={isLiked}
           toggleLike={toggleLike}
           onCommentPress={() => setShowComments(true)}
+          onLikeCountPress={() => setShowLikers(true)}
         />
       </View>
       <View style={styles.postFooter}>
@@ -443,13 +489,20 @@ export const ModalHaulPostCard = ({
   if (post.isoutfit_post) {
     return;
   }
-  const { likeCount, isLiked, toggleLike } = useLikes(post.id, currentUserId);
-
+  const {
+    likeCount,
+    isLiked,
+    toggleLike,
+    likers,
+    isLoadingLikers,
+    fetchLikers,
+  } = useLikes(post.id, currentUserId);
   const postUser = post.profiles;
   const isOwnPost = post.user_id === currentUserId;
   const [activeIndex, setActiveIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
   const { comments } = useComments(post.id);
+  const [showLikers, setShowLikers] = useState(false);
 
   const lastTap = useRef(0);
 
@@ -551,6 +604,7 @@ export const ModalHaulPostCard = ({
         isLiked={isLiked}
         toggleLike={toggleLike}
         onCommentPress={() => setShowComments(true)}
+        onLikeCountPress={() => setShowLikers(true)}
       />
       <View style={styles.postFooter}>
         {post.description && (
