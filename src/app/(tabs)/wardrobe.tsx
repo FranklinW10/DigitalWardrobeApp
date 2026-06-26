@@ -1,117 +1,117 @@
-import { useAuth } from "@/context/AuthContext";
-import { Post, usePosts } from "@/hooks/usePosts";
-import { formatTimeAgo } from "@/lib/date-helper";
-import { Image } from "expo-image";
-import { useRouter } from "expo-router";
-import { useState } from "react";
-import { FlatList, RefreshControl, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Post } from "@/hooks/usePosts";
+import { StyleSheet, Text, View } from "react-native";
 
 interface PostCardProps {
   post: Post;
   currentUserId?: string;
 }
 
-const PostCard = ({ post, currentUserId }: PostCardProps) => {
-  const postUser = post.profiles;
-  const isOwnPost = post.user_id === currentUserId;
+export default function Warderobe() {
+  // const postUser = post.profiles;
+  // const isOwnPost = post.user_id === currentUserId;
   return (
-    <View style={styles.postContainer}>
-      <View style={styles.postHeader}>
-        <View style={styles.userInfo}>
-          {postUser?.profile_image_url ? (
-            <Image
-              cachePolicy={"none"}
-              source={{ uri: postUser.profile_image_url }}
-              style={styles.avatar}
-            />
-          ) : (
-            <View style={[styles.avatar, styles.avatarPlaceholder]}>
-              <Text style={styles.avatarText}>
-                {postUser?.name?.[0]?.toUpperCase() || "U"}
-              </Text>
-            </View>
-          )}
-
-          <View>
-            <Text style={styles.username}>
-              {isOwnPost ? "You" : `@${postUser?.username}`}
-            </Text>
-            <Text style={styles.timeAgo}>{formatTimeAgo(post.created_at)}</Text>
-          </View>
-        </View>
-        {/*Post content*/}
-      </View>
-      <Image
-        cachePolicy={"none"}
-        source={{ uri: post.image_url }}
-        style={styles.postImage}
-        contentFit="cover"
-      />
-
-      <View style={styles.postFooter}>
-        {post.description && (
-          <Text style={styles.postDescription}>{post.description}</Text>
-        )}
-        <Text style={styles.postInfo}>
-          {isOwnPost ? "Your Post" : `${postUser?.name}'post`} -{" "}
-          {formatTimeAgo(post.created_at)}
-        </Text>
-      </View>
+    <View style={styles.container}>
+      <Text>Under Construction</Text>
     </View>
   );
-};
-
-export default function Wardrobe() {
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [description, setDescription] = useState<string>("");
-  const router = useRouter();
-  const [isUploading, setIsUploading] = useState(false);
-  const { posts, refreshOwnPosts } = usePosts();
-  const { user } = useAuth();
-  const [refreshing, setRefreshing] = useState(false);
-
-  //Check if user has an active post
-  // const userActivePost = (posts ?? []).find(
-  //   (post) => post.user_id === user?.id && post.is_active && post.is_public,
-  // );
-
-  // const hasActivePost = !!userActivePost;
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await refreshOwnPosts();
-    } catch (error) {
-      console.error("Error refreshing posts:", error);
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  const renderPost = ({ item }: { item: Post }) => (
-    <PostCard post={item} currentUserId={user?.id} />
-  );
-
-  return (
-    <SafeAreaView style={styles.container} edges={["bottom", "top"]}>
-      {/*List*/}
-      <FlatList
-        data={posts}
-        renderItem={renderPost}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={
-          posts.length === 0 ? styles.emptyContent : styles.content
-        }
-        ListEmptyComponent={<Text>No posts found</Text>}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      />
-    </SafeAreaView>
-  );
 }
+
+//     <View style={styles.postContainer}>
+//       <View style={styles.postHeader}>
+//         <View style={styles.userInfo}>
+//           {postUser?.profile_image_url ? (
+//             <Image
+//               cachePolicy={"memory"}
+//               source={{ uri: postUser.profile_image_url }}
+//               style={styles.avatar}
+//             />
+//           ) : (
+//             <View style={[styles.avatar, styles.avatarPlaceholder]}>
+//               <Text style={styles.avatarText}>
+//                 {postUser?.name?.[0]?.toUpperCase() || "U"}
+//               </Text>
+//             </View>
+//           )}
+
+//           <View>
+//             <Text style={styles.username}>
+//               {isOwnPost ? "You" : `@${postUser?.username}`}
+//             </Text>
+//             <Text style={styles.timeAgo}>{formatTimeAgo(post.created_at)}</Text>
+//           </View>
+//         </View>
+//         {/*Post content*/}
+//       </View>
+//       <Image
+//         cachePolicy={"memory-disk"}
+//         source={{ uri: post.image_url }}
+//         style={styles.postImage}
+//         contentFit="cover"
+//       />
+
+//       <View style={styles.postFooter}>
+//         {post.description && (
+//           <Text style={styles.postDescription}>{post.description}</Text>
+//         )}
+//         <Text style={styles.postInfo}>
+//           {isOwnPost ? "Your Post" : `${postUser?.name}'post`} -{" "}
+//           {formatTimeAgo(post.created_at)}
+//         </Text>
+//       </View>
+//     </View>
+//   );
+// };
+
+// export default function Wardrobe() {
+//   const [showPreview, setShowPreview] = useState(false);
+//   const [previewImage, setPreviewImage] = useState<string | null>(null);
+//   const [description, setDescription] = useState<string>("");
+//   const router = useRouter();
+//   const [isUploading, setIsUploading] = useState(false);
+//   const { posts, refreshOwnPosts } = usePosts();
+//   const { user } = useAuth();
+//   const [refreshing, setRefreshing] = useState(false);
+
+//   //Check if user has an active post
+//   // const userActivePost = (posts ?? []).find(
+//   //   (post) => post.user_id === user?.id && post.is_active && post.is_public,
+//   // );
+
+//   // const hasActivePost = !!userActivePost;
+
+//   const onRefresh = async () => {
+//     setRefreshing(true);
+//     try {
+//       await refreshOwnPosts();
+//     } catch (error) {
+//       console.error("Error refreshing posts:", error);
+//     } finally {
+//       setRefreshing(false);
+//     }
+//   };
+
+//   const renderPost = ({ item }: { item: Post }) => (
+//     <PostCard post={item} currentUserId={user?.id} />
+//   );
+
+//   return (
+//     <SafeAreaView style={styles.container} edges={["bottom", "top"]}>
+//       {/*List*/}
+//       <FlatList
+//         data={posts}
+//         renderItem={renderPost}
+//         keyExtractor={(item) => item.id}
+//         contentContainerStyle={
+//           posts.length === 0 ? styles.emptyContent : styles.content
+//         }
+//         ListEmptyComponent={<Text>No posts found</Text>}
+//         refreshControl={
+//           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+//         }
+//       />
+//     </SafeAreaView>
+//   );
+// }
 
 const styles = StyleSheet.create({
   container: {

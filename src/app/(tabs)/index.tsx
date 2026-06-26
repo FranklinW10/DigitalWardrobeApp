@@ -194,7 +194,7 @@ export default function Index() {
             }
             ListEmptyComponent={
               <View>
-                {tabSwitcher} <Text>No posts found</Text>{" "}
+                {tabSwitcher} <Text>No posts found</Text>
               </View>
             }
             refreshControl={

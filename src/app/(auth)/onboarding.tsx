@@ -7,13 +7,13 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -148,7 +148,7 @@ export default function SignUpScreen() {
           >
             {profileImage ? (
               <Image
-                cachePolicy={"none"}
+                cachePolicy={"memory"}
                 source={{ uri: profileImage }}
                 style={styles.profileImage}
               />

@@ -58,7 +58,7 @@ export default function NotificationsScreen() {
               <Image
                 source={{ uri: item.actor.profile_image_url }}
                 style={styles.avatar}
-                cachePolicy="none"
+                cachePolicy="memory"
               />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>
@@ -83,7 +83,7 @@ export default function NotificationsScreen() {
                 source={{ uri: item.posts.image_url }}
                 style={styles.thumbnail}
                 contentFit="cover"
-                cachePolicy="none"
+                cachePolicy="memory-disk"
               />
             )}
 

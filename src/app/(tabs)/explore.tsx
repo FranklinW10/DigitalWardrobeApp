@@ -205,6 +205,15 @@ export default function SearchScreen() {
               />
             )}
           </View>
+          <TouchableOpacity
+            style={styles.exploreButton}
+            onPress={() => {
+              (setSelectedPost(null), router.push("/(profile)/exploreScroll"));
+            }}
+          >
+            <Ionicons name="grid-outline" size={16} color="#fff" />
+            <Text style={styles.exploreButtonText}>Scroll Explore Posts →</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -525,5 +534,22 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingVertical: 2,
     letterSpacing: 0.3,
+  },
+  exploreButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 16,
+    backgroundColor: "#000",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+  },
+  exploreButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

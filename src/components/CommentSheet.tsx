@@ -73,7 +73,7 @@ export const CommentsSheet = ({
               <Image
                 source={{ uri: user.profileImage }}
                 style={styles.inputAvatar}
-                cachePolicy="none"
+                cachePolicy="memory"
               />
             ) : (
               <View style={[styles.inputAvatar, styles.avatarPlaceholder]}>
@@ -140,7 +140,7 @@ export const CommentsSheet = ({
               <Image
                 source={{ uri: item.profiles.profile_image_url }}
                 style={styles.avatar}
-                cachePolicy="none"
+                cachePolicy="memory"
               />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>

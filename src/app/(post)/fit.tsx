@@ -93,7 +93,7 @@ export default function Fit() {
         {previewImage ? (
           <TouchableOpacity onPress={showImagePicker}>
             <Image
-              cachePolicy={"none"}
+              cachePolicy={"memory-disk"}
               source={{ uri: previewImage }}
               style={styles.previewImage}
               contentFit="cover"
@@ -221,7 +221,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 2,
     borderColor: "#e0e0e0",
-    borderStyle: "solid",
+    borderStyle: "dashed",
   },
   photoPlaceholderText: {
     color: "#000",
