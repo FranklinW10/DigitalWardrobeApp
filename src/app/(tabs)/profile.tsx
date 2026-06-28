@@ -442,7 +442,7 @@ export default function Profile() {
           onPress={() => setShowModal(false)}
         >
           {/* ← Stop press from bubbling up and closing when tapping inside */}
-          <TouchableOpacity activeOpacity={1} style={styles.modalContent}>
+          <TouchableOpacity activeOpacity={1} style={styles.editModalContent}>
             <Text style={styles.title}>Edit Profile</Text>
             <Text style={styles.subtitle}>Update your information</Text>
 
@@ -879,8 +879,18 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     flex: 1,
+    width: "100%",
     backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "flex-end",
+  },
+  editModalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    width: "100%",
+    maxHeight: "85%",
+    overflow: "hidden",
+    padding: 24,
+    paddingTop: 32,
   },
 
   cancelModalButton: {
