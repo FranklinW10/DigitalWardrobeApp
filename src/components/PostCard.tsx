@@ -6,8 +6,10 @@ import { Post } from "@/hooks/usePosts";
 import { formatTimeAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
+
 import {
   Dimensions,
   NativeScrollEvent,
@@ -385,6 +387,37 @@ export const ExplorePostCard = ({
           />
         </TouchableOpacity>
       </View>
+    </View>
+  );
+};
+
+export const ProfilePostCard = ({
+  post,
+  currentUserId,
+  onPress,
+}: HaulPostCardProps & { onPress: () => void }) => {
+  const firstImage = post.images?.[0]?.image_url ?? post.image_url;
+
+  return (
+    <View style={styles.explorePostContainer}>
+      <TouchableOpacity onPress={onPress}>
+        <View style={{ width: ITEM_SIZE, height: ITEM_SIZE }}>
+          <Image
+            cachePolicy="memory-disk"
+            source={{ uri: firstImage }}
+            style={{ width: ITEM_SIZE, height: ITEM_SIZE }}
+            contentFit="cover"
+          />
+          <LinearGradient
+            colors={["transparent", "rgba(0,0,0,0.6)"]}
+            style={styles.explorePostGradient}
+          >
+            <Text style={styles.explorePostBadgeText}>
+              {post.is_public ? "Public" : "Private"}
+            </Text>
+          </LinearGradient>
+        </View>
+      </TouchableOpacity>
     </View>
   );
 };
@@ -837,5 +870,30 @@ const styles = StyleSheet.create({
   actionCount: {
     fontSize: 14,
     fontWeight: "500",
+  },
+
+  explorePostBadge: {
+    position: "absolute",
+    bottom: 6,
+    left: 6,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  explorePostGradient: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: ITEM_SIZE / 2,
+    justifyContent: "flex-end",
+    paddingBottom: 6,
+    paddingLeft: 6,
+  },
+  explorePostBadgeText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
   },
 });

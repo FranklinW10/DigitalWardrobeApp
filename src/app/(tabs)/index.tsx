@@ -202,11 +202,11 @@ export default function Index() {
             keyExtractor={(item) => item.id}
             onScroll={handleScroll}
             contentContainerStyle={
-              posts.length === 0 ? styles.emptyContent : styles.content
+              followingPosts.length === 0 ? styles.emptyContent : styles.content
             }
             ListEmptyComponent={
-              <View>
-                {tabSwitcher} <Text>No posts found</Text>
+              <View style={styles.emptyContent}>
+                <Text>No posts found</Text>
               </View>
             }
             refreshControl={

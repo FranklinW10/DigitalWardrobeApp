@@ -1,9 +1,9 @@
 import { CommentsSheet } from "@/components/CommentSheet";
 import { LikersSheet } from "@/components/LikerSheet";
 import {
-  ExplorePostCard,
   ModalHaulPostCard,
   ModalPostCard,
+  ProfilePostCard
 } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
 import { Liker } from "@/hooks/useLikes";
@@ -84,7 +84,7 @@ export default function Profile() {
   };
 
   const renderExplorePost = ({ item }: { item: Post }) => (
-    <ExplorePostCard
+    <ProfilePostCard
       post={item}
       currentUserId={user?.id}
       onPress={() => setSelectedPost(item)}
@@ -466,7 +466,7 @@ export default function Profile() {
                   <Text style={styles.editBadgeText}>Edit</Text>
                 </View>
               </TouchableOpacity>
-
+              <Text style={styles.inputHeader}>Full Name</Text>
               <TextInput
                 placeholder="Full Name"
                 placeholderTextColor="#999"
@@ -475,6 +475,7 @@ export default function Profile() {
                 style={styles.input}
                 autoCapitalize="words"
               />
+              <Text style={styles.inputHeader}>Username</Text>
               <TextInput
                 placeholder="Username"
                 placeholderTextColor="#999"
@@ -944,5 +945,12 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "600",
+  },
+  inputHeader: {
+    fontSize: 16,
+
+    alignSelf: "flex-start",
+    color: "#666",
+    padding: 5,
   },
 });
