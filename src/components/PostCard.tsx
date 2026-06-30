@@ -3,7 +3,7 @@ import { LikersSheet } from "@/components/LikerSheet";
 import { useComments } from "@/hooks/useComments";
 import { useLikes } from "@/hooks/useLikes";
 import { Post } from "@/hooks/usePosts";
-import { formatTimeAgo } from "@/lib/date-helper";
+import { formatDate, formatTimeAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -192,7 +192,7 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
         )}
         <Text style={styles.postInfo}>
           {isOwnPost ? "Your Post" : `${postUser?.name}'post`} -{" "}
-          {formatTimeAgo(post.created_at)}
+          {formatDate(post.post_date)}
         </Text>
       </View>
       <CommentsSheet
@@ -344,7 +344,7 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
         )}
         <Text style={styles.postInfo}>
           {isOwnPost ? "Your Post" : `${postUser?.name}'s post`} -{" "}
-          {formatTimeAgo(post.created_at)}
+          {formatDate(post.post_date)}
         </Text>
       </View>
       <CommentsSheet
@@ -511,7 +511,7 @@ export const ModalPostCard = ({
         )}
         <Text style={styles.postInfo}>
           {isOwnPost ? "Your Post" : `${postUser?.name}'post`} -{" "}
-          {formatTimeAgo(post.created_at)}
+          {formatDate(post.post_date)}
         </Text>
       </View>
     </>
@@ -655,7 +655,7 @@ export const ModalHaulPostCard = ({
         )}
         <Text style={styles.postInfo}>
           {isOwnPost ? "Your Post" : `${postUser?.name}'s post`} -{" "}
-          {formatTimeAgo(post.created_at)}
+          {formatDate(post.post_date)}
         </Text>
       </View>
     </View>
