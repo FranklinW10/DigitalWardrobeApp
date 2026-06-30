@@ -5,16 +5,16 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    NativeScrollEvent,
-    NativeSyntheticEvent,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginTop: 60,
     marginHorizontal: 16,
-
+    marginBottom: 0,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -246,6 +246,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     paddingVertical: 8,
+    marginBottom: -22,
   },
   dot: { width: 7, height: 7, borderRadius: 4 },
   dotActive: { backgroundColor: "#000" },

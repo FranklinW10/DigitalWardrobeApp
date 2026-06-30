@@ -18,7 +18,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const POST_WIDTH = SCREEN_WIDTH - 32;
 
 export default function FinalPreviewFit() {
-  const { imageUri, caption } = useLocalSearchParams();
+  const { imageUri, description } = useLocalSearchParams();
   const { createPost } = usePosts();
   const { user } = useAuth();
   const router = useRouter();
@@ -27,7 +27,12 @@ export default function FinalPreviewFit() {
   const handlePost = async (isPublic: boolean) => {
     setUploading(isPublic ? "public" : "archive");
     try {
-      await createPost(imageUri as string, caption as string, isPublic, true);
+      await createPost(
+        imageUri as string,
+        description as string,
+        isPublic,
+        true,
+      );
       router.replace("/(tabs)");
     } catch (error) {
       Alert.alert("Error", "Failed to create post. Please try again.");
@@ -86,8 +91,8 @@ export default function FinalPreviewFit() {
 
         {/* Footer */}
         <View style={styles.postFooter}>
-          {caption ? (
-            <Text style={styles.postDescription}>{caption as string}</Text>
+          {description ? (
+            <Text style={styles.postDescription}>{description as string}</Text>
           ) : null}
           <Text style={styles.postInfo}>Your Post · Just now</Text>
         </View>

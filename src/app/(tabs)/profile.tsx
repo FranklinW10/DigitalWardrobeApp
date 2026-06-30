@@ -3,11 +3,11 @@ import { LikersSheet } from "@/components/LikerSheet";
 import {
   ModalHaulPostCard,
   ModalPostCard,
-  ProfilePostCard
+  ProfilePostCard,
 } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
 import { Liker } from "@/hooks/useLikes";
-import { Post } from "@/hooks/usePosts";
+import { Post, usePosts } from "@/hooks/usePosts";
 import { supabase } from "@/lib/supabase/client";
 
 import { uploadProfileImage } from "@/lib/supabase/storage";
@@ -22,6 +22,7 @@ import {
   Alert,
   FlatList,
   Modal,
+  RefreshControl,
   StyleSheet,
   Text,
   TextInput,
@@ -38,6 +39,8 @@ interface ProfileUser {
 }
 
 export default function Profile() {
+  const [refreshing, setRefreshing] = useState(false);
+  const { refreshPosts } = usePosts();
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const { user, updateUser, signOut } = useAuth();
@@ -64,6 +67,17 @@ export default function Profile() {
   const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
     null,
   );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshPosts();
+    } catch (error) {
+      console.error("Error refreshing posts:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleOpenLikers = async (postId: string) => {
     setLikerPostId(postId);
@@ -153,7 +167,7 @@ export default function Profile() {
         .select("*, profiles(*), images(*)")
         .eq("user_id", user?.id)
         .eq("is_active", true)
-        .order("created_at", { ascending: false });
+        .order("post_date", { ascending: false });
       if (postsError) throw postsError;
       setPosts(postsData ?? []);
 
@@ -282,6 +296,27 @@ export default function Profile() {
 
     Alert.alert("Post Options", "", options);
   };
+  const handleOldPostOptions = (post: Post) => {
+    const options = [
+      {
+        text: "Delete Post",
+        style: "destructive" as const,
+        onPress: async () => {
+          await supabase
+            .from("posts")
+            .update({ is_active: false })
+            .eq("id", post.id);
+          setSelectedPost(null);
+        },
+      },
+      {
+        text: "Cancel",
+        style: "cancel" as const,
+      },
+    ];
+
+    Alert.alert("Post Options", "", options);
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -315,7 +350,13 @@ export default function Profile() {
           </View>
           <TouchableOpacity
             style={styles.exploreButton}
-            onPress={() => handlePostOptions(selectedPost)}
+            onPress={() => {
+              if (selectedPost.ispostedontime === false) {
+                handleOldPostOptions(selectedPost);
+              } else {
+                handlePostOptions(selectedPost);
+              }
+            }}
           >
             <Text style={styles.exploreButtonText}>Post Options</Text>
           </TouchableOpacity>
@@ -350,6 +391,10 @@ export default function Profile() {
         data={filteredPosts}
         keyExtractor={(item) => item.id}
         columnWrapperStyle={{ gap: 2 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
         ListHeaderComponent={
           <View style={styles.header}>
             <TouchableOpacity
@@ -422,6 +467,17 @@ export default function Profile() {
             >
               <Text style={styles.followButtonText}>{"Edit Profile"}</Text>
             </TouchableOpacity>
+
+            {/* <TouchableOpacity
+              style={styles.followButton}
+              onPress={() => setShowCalendar(true)}
+            >
+              <CalendarView
+                posts={posts}
+                visible={showCalendar}
+                onClose={() => setShowCalendar(false)}
+              />
+            </TouchableOpacity> */}
 
             {tabSwitcher}
           </View>
@@ -509,6 +565,9 @@ export default function Profile() {
 }
 
 const styles = StyleSheet.create({
+  whitespace: {
+    padding: 5,
+  },
   container: {
     flex: 1,
     backgroundColor: "#fff",

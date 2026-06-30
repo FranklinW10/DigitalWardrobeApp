@@ -11,6 +11,43 @@ export const formatTimeAgo = (createdAt: string): string => {
   return `${Math.floor(hours / 24)}d ago`;
 };
 
+export function formatDate(dateInput: string | Date): string {
+  let year: number, month: number, day: number;
+
+  if (typeof dateInput === "string") {
+    // Parse YYYY-MM-DD directly to avoid UTC shifting
+    const [y, m, d] = dateInput.split("T")[0].split("-").map(Number);
+    year = y;
+    month = m - 1;
+    day = d;
+  } else {
+    year = dateInput.getFullYear();
+    month = dateInput.getMonth();
+    day = dateInput.getDate();
+  }
+
+  const date = new Date(year, month, day); // local time, no UTC shift
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  const isSameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+
+  if (isSameDay(date, today)) return "Today";
+  if (isSameDay(date, yesterday)) return "Yesterday";
+
+  const sameYear = year === today.getFullYear();
+
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: sameYear ? undefined : "numeric",
+  });
+}
 export const daysAgo = (timestamp: string): string => {
   const now = new Date();
 

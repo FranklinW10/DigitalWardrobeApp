@@ -1,295 +1,642 @@
+import { useAuth } from "@/context/AuthContext";
 import { Post } from "@/hooks/usePosts";
-import { StyleSheet, Text, View } from "react-native";
+import { supabase } from "@/lib/supabase/client";
+import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import { router } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 
-interface PostCardProps {
-  post: Post;
-  currentUserId?: string;
-}
+import {
+  Animated,
+  Dimensions,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-export default function Warderobe() {
-  // const postUser = post.profiles;
-  // const isOwnPost = post.user_id === currentUserId;
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const CELL_SIZE = Math.floor((SCREEN_WIDTH - 32) / 7);
+
+const MonthBlock = ({
+  month,
+  year,
+  postByDay,
+  onSelectPost,
+  onSelectEmptyDay,
+}: {
+  month: number;
+  year: number;
+  postByDay: Record<number, Post>;
+  onSelectPost: (post: Post) => void;
+  onSelectEmptyDay: (date: Date) => void;
+}) => {
+  const firstDayOfMonth = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = new Date();
+
+  const isToday = (day: number) =>
+    day === today.getDate() &&
+    month === today.getMonth() &&
+    year === today.getFullYear();
+
+  const cells = [
+    ...Array(firstDayOfMonth).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+
+  const rows = [];
+  for (let i = 0; i < cells.length; i += 7) {
+    rows.push(cells.slice(i, i + 7));
+  }
+
   return (
-    <View style={styles.container}>
-      <Text>Under Construction</Text>
+    <View style={styles.monthBlock}>
+      <Text style={styles.monthTitle}>
+        {MONTHS[month]} {year}
+      </Text>
+
+      <View style={styles.dayLabelsRow}>
+        {DAYS.map((d) => (
+          <Text key={d} style={styles.dayLabel}>
+            {d}
+          </Text>
+        ))}
+      </View>
+
+      {rows.map((row, ri) => (
+        <View key={ri} style={styles.row}>
+          {[...row, ...Array(7 - row.length).fill(null)].map((day, ci) => (
+            <TouchableOpacity
+              key={ci}
+              style={[styles.cell, { position: "relative" }]}
+              onPress={() => {
+                if (day && postByDay[day]) {
+                  onSelectPost(postByDay[day]);
+                }
+                if (day && !postByDay[day]) {
+                  onSelectEmptyDay(new Date(year, month, day));
+                }
+              }}
+              disabled={!day}
+            >
+              {day !== null && (
+                <>
+                  {postByDay[day] ? (
+                    <Image
+                      source={{
+                        uri:
+                          postByDay[day].images?.[0]?.image_url ??
+                          postByDay[day].image_url,
+                      }}
+                      style={[
+                        styles.dayThumb,
+                        isToday(day) && styles.todayThumb,
+                      ]}
+                      contentFit="cover"
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.dayCircle,
+                        isToday(day) && styles.todayCircle,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.dayText,
+                          isToday(day) && styles.todayText,
+                        ]}
+                      >
+                        {day}
+                      </Text>
+                    </View>
+                  )}
+                  {/* Always show day number on top of image */}
+                  {postByDay[day] && (
+                    <Text style={styles.dayOverlay}>{day}</Text>
+                  )}
+                </>
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+      ))}
     </View>
+  );
+};
+
+export default function WardrobeScreen() {
+  const { user } = useAuth();
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [activeTab, setActiveTab] = useState<"wardrobe" | "hauls">("wardrobe");
+  const tabsTranslateY = useRef(new Animated.Value(0)).current;
+  const tabsOpacity = useRef(new Animated.Value(1)).current;
+  const lastScrollY = useRef(0);
+  const tabsHidden = useRef(false);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null); // calendar scroll
+  const tabScrollRef = useRef<ScrollView>(null); // tab pager
+
+  useEffect(() => {
+    loadPosts();
+  }, [user?.id]);
+
+  const loadPosts = async () => {
+    if (!user?.id) return;
+    try {
+      const { data: postsData, error: postsError } = await supabase
+        .from("posts")
+        .select("*, profiles(*), images(*)")
+        .eq("isoutfit_post", true)
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("post_date", { ascending: false });
+      if (postsError) throw postsError;
+      setPosts(postsData ?? []);
+    } catch (error) {
+      console.error("Error loading posts:", error);
+    }
+  };
+
+  const ownPosts = posts.filter((p) => p.user_id === user?.id);
+
+  // Generate last 12 months + next 1 month
+  const startYear = 2026;
+  const startMonth = 3; // June (0-indexed)
+
+  const today = new Date();
+  const monthsCount =
+    (today.getFullYear() - startYear) * 12 +
+    (today.getMonth() - startMonth) +
+    1;
+
+  const months = Array.from({ length: monthsCount }, (_, i) => {
+    const d = new Date(startYear, startMonth, 1);
+    d.setMonth(d.getMonth() + i);
+    return { month: d.getMonth(), year: d.getFullYear() };
+  });
+  const getPostByDay = (month: number, year: number) =>
+    ownPosts.reduce<Record<number, Post>>((acc, p) => {
+      const [y, m, d] = p.post_date.split("-").map(Number);
+      if (m - 1 === month && y === year) {
+        acc[d] = p;
+      }
+      return acc;
+    }, {});
+
+  const showTabs = () => {
+    if (!tabsHidden.current) return;
+    tabsHidden.current = false;
+    Animated.parallel([
+      Animated.timing(tabsTranslateY, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(tabsOpacity, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const hideTabs = () => {
+    if (tabsHidden.current) return;
+    tabsHidden.current = true;
+    Animated.parallel([
+      Animated.timing(tabsTranslateY, {
+        toValue: -80,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(tabsOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+  const handleCalendarScroll = (event: any) => {
+    const currentY = event.nativeEvent.contentOffset.y;
+    const diff = currentY - lastScrollY.current;
+
+    if (currentY <= 0) {
+      showTabs();
+    } else if (diff > 6) {
+      hideTabs();
+    } else if (diff < -6) {
+      showTabs();
+    }
+
+    lastScrollY.current = currentY;
+  };
+  const handleSelectEmptyDay = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+
+    if (date > today) return; // block future dates
+    if (date.getTime() === today.getTime()) {
+      router.push({ pathname: "/(post)/fit" });
+      return; // ← stop here
+    }
+    router.push({
+      pathname: "/(post)/fitArchive",
+      params: { postDate: date.toISOString() },
+    });
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={styles.topHeader}>
+        <Text style={styles.topHeaderUsername}>@{user?.username}</Text>
+        <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
+          <Ionicons name="menu" size={26} color="#000" />
+        </TouchableOpacity>
+      </View>
+      <Animated.View
+        style={[
+          styles.floatingTabsWrapper,
+          {
+            transform: [{ translateY: tabsTranslateY }],
+            opacity: tabsOpacity,
+          },
+        ]}
+        pointerEvents="box-none"
+      >
+        <View style={styles.floatingTabs}>
+          <TouchableOpacity
+            style={[
+              styles.floatingTabPill,
+              activeTab === "wardrobe" && styles.floatingTabPillActive,
+            ]}
+            onPress={() => {
+              setActiveTab("wardrobe");
+              tabScrollRef.current?.scrollTo({ x: 0, animated: true });
+            }}
+          >
+            <Text
+              style={[
+                styles.floatingTabText,
+                activeTab === "wardrobe" && styles.floatingTabActive,
+              ]}
+            >
+              Fits
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.floatingTabPill,
+              activeTab === "hauls" && styles.floatingTabPillActive,
+            ]}
+            onPress={() => {
+              setActiveTab("hauls");
+              tabScrollRef.current?.scrollTo({
+                x: SCREEN_WIDTH,
+                animated: true,
+              });
+            }}
+          >
+            <Text
+              style={[
+                styles.floatingTabText,
+                activeTab === "hauls" && styles.floatingTabActive,
+              ]}
+            >
+              Hauls
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+
+      {/* Paged content */}
+      <ScrollView
+        ref={tabScrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onMomentumScrollEnd={(e) => {
+          const page = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+          setActiveTab(page === 0 ? "wardrobe" : "hauls");
+        }}
+        style={{ flex: 1 }}
+      >
+        {/* Page 1 — Calendar */}
+        <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
+          <ScrollView
+            ref={scrollViewRef}
+            onScroll={handleCalendarScroll}
+            scrollEventThrottle={16}
+            onContentSizeChange={(w, h) => {
+              scrollViewRef.current?.scrollTo({ y: h, animated: false });
+            }}
+          >
+            {months.map(({ month, year }, index) => (
+              <MonthBlock
+                key={`${year}-${month}-${index}`}
+                month={month}
+                year={year}
+                postByDay={getPostByDay(month, year)}
+                onSelectPost={setSelectedPost}
+                onSelectEmptyDay={handleSelectEmptyDay}
+              />
+            ))}
+            <View style={styles.whitespace} />
+          </ScrollView>
+        </View>
+
+        {/* Page 2 — Hauls */}
+        <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
+          <View style={styles.emptyContent}>
+            <Text style={styles.emptyText}>Hauls coming soon</Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Selected post modal */}
+      {selectedPost && (
+        <Modal
+          visible
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedPost(null)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            onPress={() => setSelectedPost(null)}
+          >
+            <View style={styles.modalContent}>
+              <Image
+                source={{
+                  uri:
+                    selectedPost.images?.[0]?.image_url ??
+                    selectedPost.image_url,
+                }}
+                style={styles.selectedImage}
+                contentFit="cover"
+              />
+              {selectedPost.description && (
+                <Text style={styles.selectedDescription}>
+                  {selectedPost.description}
+                </Text>
+              )}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+    </SafeAreaView>
   );
 }
 
-//     <View style={styles.postContainer}>
-//       <View style={styles.postHeader}>
-//         <View style={styles.userInfo}>
-//           {postUser?.profile_image_url ? (
-//             <Image
-//               cachePolicy={"memory"}
-//               source={{ uri: postUser.profile_image_url }}
-//               style={styles.avatar}
-//             />
-//           ) : (
-//             <View style={[styles.avatar, styles.avatarPlaceholder]}>
-//               <Text style={styles.avatarText}>
-//                 {postUser?.name?.[0]?.toUpperCase() || "U"}
-//               </Text>
-//             </View>
-//           )}
-
-//           <View>
-//             <Text style={styles.username}>
-//               {isOwnPost ? "You" : `@${postUser?.username}`}
-//             </Text>
-//             <Text style={styles.timeAgo}>{formatTimeAgo(post.created_at)}</Text>
-//           </View>
-//         </View>
-//         {/*Post content*/}
-//       </View>
-//       <Image
-//         cachePolicy={"memory-disk"}
-//         source={{ uri: post.image_url }}
-//         style={styles.postImage}
-//         contentFit="cover"
-//       />
-
-//       <View style={styles.postFooter}>
-//         {post.description && (
-//           <Text style={styles.postDescription}>{post.description}</Text>
-//         )}
-//         <Text style={styles.postInfo}>
-//           {isOwnPost ? "Your Post" : `${postUser?.name}'post`} -{" "}
-//           {formatTimeAgo(post.created_at)}
-//         </Text>
-//       </View>
-//     </View>
-//   );
-// };
-
-// export default function Wardrobe() {
-//   const [showPreview, setShowPreview] = useState(false);
-//   const [previewImage, setPreviewImage] = useState<string | null>(null);
-//   const [description, setDescription] = useState<string>("");
-//   const router = useRouter();
-//   const [isUploading, setIsUploading] = useState(false);
-//   const { posts, refreshOwnPosts } = usePosts();
-//   const { user } = useAuth();
-//   const [refreshing, setRefreshing] = useState(false);
-
-//   //Check if user has an active post
-//   // const userActivePost = (posts ?? []).find(
-//   //   (post) => post.user_id === user?.id && post.is_active && post.is_public,
-//   // );
-
-//   // const hasActivePost = !!userActivePost;
-
-//   const onRefresh = async () => {
-//     setRefreshing(true);
-//     try {
-//       await refreshOwnPosts();
-//     } catch (error) {
-//       console.error("Error refreshing posts:", error);
-//     } finally {
-//       setRefreshing(false);
-//     }
-//   };
-
-//   const renderPost = ({ item }: { item: Post }) => (
-//     <PostCard post={item} currentUserId={user?.id} />
-//   );
-
-//   return (
-//     <SafeAreaView style={styles.container} edges={["bottom", "top"]}>
-//       {/*List*/}
-//       <FlatList
-//         data={posts}
-//         renderItem={renderPost}
-//         keyExtractor={(item) => item.id}
-//         contentContainerStyle={
-//           posts.length === 0 ? styles.emptyContent : styles.content
-//         }
-//         ListEmptyComponent={<Text>No posts found</Text>}
-//         refreshControl={
-//           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-//         }
-//       />
-//     </SafeAreaView>
-//   );
-// }
-
 const styles = StyleSheet.create({
+  floatingTabsWrapper: {
+    position: "absolute",
+    top: 130,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 20,
+  },
+  floatingTabs: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  floatingTabPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  floatingTabPillActive: {
+    backgroundColor: "#f0f0f0",
+  },
+  floatingTabText: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: "#bbb",
+  },
+  floatingTabActive: {
+    color: "#000",
+    fontWeight: "700",
+  },
+  whitespace: {
+    padding: 50,
+  },
   container: {
     flex: 1,
+    backgroundColor: "#fff",
+  },
+  header: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
   },
-  fab: {
-    position: "absolute",
-    bottom: 104,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#000",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+  navBtn: {
+    padding: 8,
   },
-  fabtext: {
-    color: "#fff",
-    fontSize: 32,
-    fontWeight: "300",
-    lineHeight: 32,
+  navArrow: {
+    fontSize: 28,
+    color: "#555",
   },
-  modalContainer: {
+  dayLabelsRow: {
+    flexDirection: "row",
+    paddingHorizontal: 8,
+    paddingVertical: 8,
+  },
+  dayLabel: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    textAlign: "center",
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#999",
+  },
+  row: {
+    flexDirection: "row",
+    paddingHorizontal: 8,
+  },
+  cell: {
+    width: CELL_SIZE,
+    height: CELL_SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 2,
+  },
+  dayCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  todayCircle: {
+    backgroundColor: "#111",
+  },
+  dayText: {
+    fontSize: 14,
+    color: "#111",
+  },
+  todayText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
+  dayThumb: {
+    width: CELL_SIZE - 6,
+    height: CELL_SIZE - 6,
+    borderRadius: 8,
+  },
+  todayThumb: {
+    borderWidth: 2,
+    borderColor: "#111",
+  },
+  dayOverlay: {
+    position: "absolute",
+    top: 17,
+    left: 17,
+    fontSize: 15,
+    color: "#1f1e1e",
+    fontWeight: "400",
+    textShadowColor: "rgba(34, 33, 33, 0.5)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  segmentedControlContainer: {
+    alignItems: "center",
+    paddingVertical: 10,
+  },
+  segmentedControl: {
+    width: 160, // ← adjust to taste
+    height: 32,
+
+    backgroundColor: "transparent",
+  },
+  selectedPost: {
+    margin: 16,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#f9f9f9",
+  },
+  closeSelected: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    zIndex: 10,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    borderRadius: 16,
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  closeText: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  topHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  topHeaderUsername: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+  monthBlock: {
+    paddingHorizontal: 8,
+    paddingBottom: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+    marginBottom: 8,
+  },
+  monthTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+    color: "#111",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
   },
   modalContent: {
-    backgroundColor: "#fff",
+    width: "90%",
     borderRadius: 16,
-    padding: 24,
-    width: "100%",
-    maxWidth: 400,
+    overflow: "hidden",
+    backgroundColor: "#fff",
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  previewImage: {
+  selectedImage: {
     width: "100%",
-    aspectRatio: 1,
-    borderRadius: 12,
-    marginBottom: 16,
+    height: 400,
   },
-  descriptionInput: {
-    width: "100%",
-    minHeight: 80,
-    maxHeight: 120,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
+  selectedDescription: {
     padding: 12,
-    fontSize: 16,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    color: "#000",
+    fontSize: 14,
+    color: "#333",
   },
-  modalButtons: {
-    flexDirection: "row",
-    gap: 12,
-  },
-  modalButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  cancelButton: {
-    backgroundColor: "#f5f5f5",
-  },
-  cancelButtonText: {
-    color: "#000",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  postButton: {
+
+  tab: { flex: 1, paddingVertical: 12, alignItems: "center" },
+  tabText: { fontSize: 15, fontWeight: "500", color: "#999" },
+  tabTextActive: { color: "#000", fontWeight: "700" },
+  indicator: {
+    position: "absolute",
+    bottom: 0,
+    width: "50%",
+    height: 2,
     backgroundColor: "#000",
   },
-  postButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 100,
-  },
+  // keep your existing monthBlock, row, cell, etc styles
+
   emptyContent: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    padding: 16,
+    paddingTop: 60,
   },
-  postContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    overflow: "hidden",
-
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  postHeader: {
+  emptyText: { color: "#999", fontSize: 15 },
+  tabBar: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-  },
-  userInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  avatarPlaceholder: {
-    backgroundColor: "#f0f0f0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#666",
-  },
-  username: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-  },
-  timeAgo: {
-    fontSize: 12,
-    color: "#666",
-  },
-  timeRemainingBadge: {
-    backgroundColor: "#000",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  timeRemainingText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  postImage: {
-    width: "100%",
-    aspectRatio: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  postFooter: {
-    padding: 16,
-  },
-  postDescription: {
-    fontSize: 15,
-    color: "#000",
-    marginBottom: 8,
-    lineHeight: 20,
-  },
-  postInfo: {
-    fontSize: 14,
-    color: "#666",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#e0e0e0",
+    position: "relative",
   },
 });

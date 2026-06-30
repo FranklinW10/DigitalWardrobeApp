@@ -27,6 +27,8 @@ export interface Post {
   is_post_today: boolean;
   profiles?: PostUser;
   images?: PostImage[];
+  post_date: string;
+  ispostedontime: boolean;
 }
 
 export const usePosts = () => {
@@ -155,6 +157,7 @@ export const usePosts = () => {
         is_public: isPublic,
         isoutfit_post: isOutfitPost || false,
         is_post_today: true,
+        post_date: new Date().toISOString().split("T")[0], // ← "YYYY-MM-DD"
       });
 
       const { data: post, error: fetchError } = await supabase
@@ -186,6 +189,60 @@ export const usePosts = () => {
       //Refresh posts
       else if (imageUri) {
         // fit post — upload single image and update image_url
+        const imageUrl = await uploadPostImage(user.id, imageUri, post.id);
+        await supabase
+          .from("posts")
+          .update({ image_url: imageUrl })
+          .eq("id", post.id);
+      }
+    } catch (error) {
+      console.error("Error in createPost:", error);
+      throw error;
+    }
+  };
+
+  const createoldPost = async (
+    imageUri?: string,
+    description?: string,
+    isOutfitPost?: boolean,
+    imageUris?: string[],
+    postDate?: string,
+  ) => {
+    if (!user) throw new Error("User Not Authenticated");
+
+    const dateToUse = postDate ?? new Date().toISOString();
+
+    try {
+      // Only deactivate today's post if this is a today post, not a backdated one
+
+      const { error } = await supabase.from("posts").insert({
+        user_id: user.id,
+        image_url: null,
+        description: description || null,
+        is_active: true,
+        is_public: false,
+        isoutfit_post: isOutfitPost || false,
+        is_post_today: false,
+        post_date: dateToUse,
+        ispostedontime: false,
+      });
+
+      if (error) throw error;
+
+      const { data: post, error: fetchError } = await supabase
+        .from("posts")
+        .select()
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      if (imageUris && imageUris.length > 0) {
+        await uploadHaulImages(user.id, post.id, imageUris);
+      } else if (imageUri) {
         const imageUrl = await uploadPostImage(user.id, imageUri, post.id);
         await supabase
           .from("posts")
@@ -241,5 +298,5 @@ export const usePosts = () => {
     await loadOwnPosts();
   };
 
-  return { createPost, refreshPosts, posts, refreshOwnPosts };
+  return { createPost, refreshPosts, posts, refreshOwnPosts, createoldPost };
 };
