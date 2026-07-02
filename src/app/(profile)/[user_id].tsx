@@ -41,12 +41,14 @@ interface ProfileUser {
 
 export default function UserProfileScreen() {
   const { user, updateUser, signOut } = useAuth();
+  const [isPrivate, setIsPrivate] = useState(false);
 
   const { user_id } = useLocalSearchParams<{ user_id: string }>();
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+  const [postsCount, setPostsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const { addFollow, unfollowUser, isFollowing, loadFollowing } = useFollows();
   const [activeTab, setActiveTab] = useState<"fits" | "hauls">("fits");
@@ -80,11 +82,15 @@ export default function UserProfileScreen() {
     activeTab === "fits" ? post.isoutfit_post : !post.isoutfit_post,
   );
   useEffect(() => {
-    loadProfile();
-  }, [user_id]);
-
-  useEffect(() => {
-    loadFollowing();
+    const init = async () => {
+      // Make sure we know the current follow state BEFORE deciding whether
+      // this private account's posts/follow-list are visible — otherwise
+      // isFollowing() can read stale/empty data and the privacy check below
+      // becomes unreliable.
+      await loadFollowing();
+      await loadProfile();
+    };
+    init();
   }, [user_id]);
 
   const renderExplorePost = ({ item }: { item: Post }) => (
@@ -101,36 +107,56 @@ export default function UserProfileScreen() {
       // Load profile
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id, name, username, profile_image_url")
+        .select("id, name, username, profile_image_url, isPrivate")
         .eq("id", user_id)
         .single();
       if (profileError) throw profileError;
       setProfileUser(profile);
+      setIsPrivate(profile.isPrivate ?? false);
 
-      // Load posts
-      const { data: postsData, error: postsError } = await supabase
-        .from("posts")
-        .select("*, profiles(*), images(*)")
-        .eq("user_id", user_id)
-        .eq("is_active", true)
-        .eq("is_public", true)
-        .order("created_at", { ascending: false });
-      if (postsError) throw postsError;
-      setPosts(postsData ?? []);
+      const canView = !profile.isPrivate || isFollowing(user_id);
 
-      // Load follower count
+      // Counts are always visible (just not tappable/viewable in detail when
+      // private) — fetch them as lightweight count-only queries regardless
+      // of privacy, independent of whether we load the actual post content.
       const { count: followers } = await supabase
         .from("follows")
         .select("*", { count: "exact", head: true })
         .eq("following_id", user_id);
       setFollowerCount(followers ?? 0);
 
-      // Load following count
       const { count: following } = await supabase
         .from("follows")
         .select("*", { count: "exact", head: true })
         .eq("follower_id", user_id);
       setFollowingCount(following ?? 0);
+
+      const { count: postCount } = await supabase
+        .from("posts")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user_id)
+        .eq("is_active", true)
+        .eq("is_public", true);
+      setPostsCount(postCount ?? 0);
+
+      // Only load the actual post content if the account is public, or
+      // it's private but the viewer already follows it.
+      if (canView) {
+        const { data: postsData, error: postsError } = await supabase
+          .from("posts")
+          .select("*, profiles(*), images(*)")
+          .eq("user_id", user_id)
+          .eq("is_active", true)
+          .eq("is_public", true)
+          .order("created_at", { ascending: false });
+        if (postsError) throw postsError;
+        setPosts(postsData ?? []);
+      } else {
+        // Important: clear out any posts left over from a previously
+        // viewed (public/followed) profile — otherwise navigating from
+        // one profile to a private one leaves the old grid on screen.
+        setPosts([]);
+      }
     } catch (error) {
       console.error("Error loading profile:", error);
     } finally {
@@ -141,6 +167,10 @@ export default function UserProfileScreen() {
   if (isLoading) {
     return <ActivityIndicator style={{ flex: 1 }} />;
   }
+
+  // Followers/following list (and post grid) should only be visible if the
+  // account is public, or it's private but the current user already follows it.
+  const canViewContent = !isPrivate || isFollowing(user_id);
 
   const tabSwitcher = (
     <View style={styles.tabSwitcher}>
@@ -232,10 +262,10 @@ export default function UserProfileScreen() {
       </View>
       <FlatList
         key={activeTab}
-        numColumns={3}
-        data={filteredPosts}
+        numColumns={canViewContent ? 3 : 1}
+        data={canViewContent ? filteredPosts : null}
         keyExtractor={(item) => item.id}
-        columnWrapperStyle={{ gap: 2 }}
+        columnWrapperStyle={canViewContent ? { gap: 2 } : undefined}
         ListHeaderComponent={
           <View style={styles.header}>
             {/* Avatar */}
@@ -257,17 +287,36 @@ export default function UserProfileScreen() {
             <Text style={styles.username}>@{profileUser?.username}</Text>
 
             {/* Follower counts */}
+
             <View style={styles.statsRow}>
+              <TouchableOpacity
+                onPress={() => {
+                  if (!canViewContent) return;
+                  router.push("/(profile)/followList");
+                }}
+                disabled={!canViewContent}
+                style={!canViewContent && styles.statLocked}
+              >
+                <View style={styles.stat}>
+                  <Text style={styles.statNumber}>{followerCount}</Text>
+                  <Text style={styles.statLabel}>Followers</Text>
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  if (!canViewContent) return;
+                  router.push("/(profile)/followList");
+                }}
+                disabled={!canViewContent}
+                style={!canViewContent && styles.statLocked}
+              >
+                <View style={styles.stat}>
+                  <Text style={styles.statNumber}>{followingCount}</Text>
+                  <Text style={styles.statLabel}>Following</Text>
+                </View>
+              </TouchableOpacity>
               <View style={styles.stat}>
-                <Text style={styles.statNumber}>{followerCount}</Text>
-                <Text style={styles.statLabel}>Followers</Text>
-              </View>
-              <View style={styles.stat}>
-                <Text style={styles.statNumber}>{followingCount}</Text>
-                <Text style={styles.statLabel}>Following</Text>
-              </View>
-              <View style={styles.stat}>
-                <Text style={styles.statNumber}>{posts.length}</Text>
+                <Text style={styles.statNumber}>{postsCount}</Text>
                 <Text style={styles.statLabel}>Posts</Text>
               </View>
             </View>
@@ -298,13 +347,42 @@ export default function UserProfileScreen() {
           </View>
         }
         renderItem={renderExplorePost}
-        ListEmptyComponent={<Text style={styles.emptyText}>No posts yet</Text>}
+        ListEmptyComponent={
+          !canViewContent ? (
+            <View style={styles.privateNotice}>
+              <Ionicons name="lock-closed" size={32} color="#999" />
+              <Text style={styles.privateTitle}>This account is private</Text>
+              <Text style={styles.privateSubtitle}>
+                Follow this account to see their posts
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>No posts yet</Text>
+          )
+        }
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  privateNotice: {
+    alignItems: "center",
+    paddingTop: 48,
+    gap: 8,
+  },
+  privateTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#000",
+    marginTop: 8,
+  },
+  privateSubtitle: {
+    fontSize: 14,
+    color: "#888",
+    textAlign: "center",
+    paddingHorizontal: 32,
+  },
   container: {
     flex: 1,
     backgroundColor: "#fff",
@@ -357,6 +435,9 @@ const styles = StyleSheet.create({
   },
   stat: {
     alignItems: "center",
+  },
+  statLocked: {
+    opacity: 0.4,
   },
   statNumber: {
     fontSize: 18,
@@ -430,21 +511,29 @@ const styles = StyleSheet.create({
 
   tabSwitcher: {
     flexDirection: "row",
-    marginHorizontal: 16,
-    marginBottom: 12,
+    marginHorizontal: -26,
+    marginBottom: 9,
+
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#e0e0e0",
 
-    padding: 4,
+    padding: 1,
+  },
+  activeTab: {
+    flex: 1,
+    paddingVertical: 6,
+    alignItems: "center",
+    borderRadius: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#000",
   },
   tab: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 6,
     alignItems: "center",
     borderRadius: 8,
   },
-  activeTab: {
-    marginBottom: -1,
-  },
+
   tabText: {
     fontSize: 20,
     fontWeight: "500",

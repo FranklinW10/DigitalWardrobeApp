@@ -131,10 +131,10 @@ const MonthBlock = ({
                       </Text>
                     </View>
                   )}
-                  {/* Always show day number on top of image */}
+                  {/* Always show day number on top of image
                   {postByDay[day] && (
                     <Text style={styles.dayOverlay}>{day}</Text>
-                  )}
+                  )} */}
                 </>
               )}
             </TouchableOpacity>
@@ -156,10 +156,43 @@ export default function WardrobeScreen() {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const scrollViewRef = useRef<ScrollView>(null); // calendar scroll
   const tabScrollRef = useRef<ScrollView>(null); // tab pager
+  const [haulPosts, setHaulPosts] = useState<Post[]>([]);
+  const [showInfo, setShowInfo] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
+  const userActivePost = (posts ?? []).find(
+    (post) =>
+      post.user_id === user?.id &&
+      post.is_active &&
+      post.is_post_today &&
+      post.isoutfit_post,
+  );
+
+  const hasActivePost = !!userActivePost;
   useEffect(() => {
     loadPosts();
   }, [user?.id]);
+
+  const haulImages = haulPosts.flatMap((post) =>
+    (post.images ?? [])
+      .sort((a, b) => a.order_index - b.order_index)
+      .map((img) => ({ ...img, post })),
+  );
+  const groupedByMonth = haulImages.reduce<Record<string, typeof haulImages>>(
+    (acc, img) => {
+      const date = new Date(img.post.created_at);
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(img);
+      return acc;
+    },
+    {},
+  );
+
+  const monthGroups = Object.entries(groupedByMonth).map(([key, images]) => {
+    const [year, month] = key.split("-").map(Number);
+    return { year, month, images };
+  });
 
   const loadPosts = async () => {
     if (!user?.id) return;
@@ -173,6 +206,14 @@ export default function WardrobeScreen() {
         .order("post_date", { ascending: false });
       if (postsError) throw postsError;
       setPosts(postsData ?? []);
+      const { data: haulData } = await supabase
+        .from("posts")
+        .select("*, profiles(*), images(*)")
+        .eq("isoutfit_post", false)
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
+      setHaulPosts(haulData ?? []);
     } catch (error) {
       console.error("Error loading posts:", error);
     }
@@ -270,9 +311,12 @@ export default function WardrobeScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.topHeader}>
-        <Text style={styles.topHeaderUsername}>@{user?.username}</Text>
-        <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
-          <Ionicons name="menu" size={26} color="#000" />
+        <TouchableOpacity onPress={() => setShowModal(true)}>
+          <Text style={styles.newPost}>+</Text>
+        </TouchableOpacity>
+        <Text style={styles.topHeaderUsername}>Wardrobe</Text>
+        <TouchableOpacity onPress={() => setShowInfo(true)}>
+          <Ionicons name="information" size={26} color="#000" />
         </TouchableOpacity>
       </View>
       <Animated.View
@@ -368,10 +412,63 @@ export default function WardrobeScreen() {
         </View>
 
         {/* Page 2 — Hauls */}
+
         <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
-          <View style={styles.emptyContent}>
-            <Text style={styles.emptyText}>Hauls coming soon</Text>
-          </View>
+          <ScrollView
+            ref={scrollViewRef}
+            onScroll={handleCalendarScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={{ paddingBottom: 100 }}
+            onContentSizeChange={(w, h) => {
+              scrollViewRef.current?.scrollTo({ y: h, animated: false });
+            }}
+          >
+            {monthGroups.map(({ year, month, images }) => (
+              <View key={`${year}-${month}`}>
+                {/* Month header */}
+                <Text style={styles.photoMonthHeader}>
+                  {MONTHS[month]} {year}
+                </Text>
+
+                {/* Hero image — first image full width */}
+                <TouchableOpacity
+                  onPress={() => setSelectedPost(images[0].post)}
+                >
+                  <Image
+                    source={{ uri: images[0].image_url }}
+                    style={styles.heroImage}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                  />
+                </TouchableOpacity>
+
+                {/* Rest in 3-column grid */}
+                {images.length > 1 && (
+                  <View style={styles.haulGrid}>
+                    {images.slice(1).map((img, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        onPress={() => setSelectedPost(img.post)}
+                      >
+                        <Image
+                          source={{ uri: img.image_url }}
+                          style={styles.haulGridImage}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ))}
+
+            {haulImages.length === 0 && (
+              <View style={styles.emptyContent}>
+                <Text style={styles.emptyText}>No haul posts yet</Text>
+              </View>
+            )}
+          </ScrollView>
         </View>
       </ScrollView>
 
@@ -406,11 +503,138 @@ export default function WardrobeScreen() {
           </TouchableOpacity>
         </Modal>
       )}
+      <Modal visible={showInfo} transparent animationType="fade">
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          onPress={() => setShowInfo(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.infoModal}>
+            <Text style={styles.infoTitle}>Your Wardrobe</Text>
+            <Text style={styles.infoBody}>
+              Your wardrobe is your personal style archive. Every fit you post
+              gets saved here so you can look back at what you wore on any given
+              day.{"\n\n"}
+              Tap an empty day to add a fit for that date. Tap a day with a
+              photo to view that outfit.{"\n\n"}
+              The Hauls tab keeps all your haul posts in one place as a photo
+              gallery.
+            </Text>
+            <TouchableOpacity
+              style={styles.infoButton}
+              onPress={() => setShowInfo(false)}
+            >
+              <Text style={styles.infoButtonText}>Got it</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
+
+      <Modal visible={showModal} transparent animationType="fade">
+        <View style={styles.modalContainer}>
+          <View style={styles.postmodalContent}>
+            <TouchableOpacity
+              style={styles.modalTitle}
+              onPress={() => {
+                setShowModal(false);
+                router.push({
+                  pathname: "/(post)/fit",
+                  params: { hasActivePost: hasActivePost ? "true" : "false" },
+                });
+              }}
+            >
+              <Text style={styles.modalTitle}>
+                {" "}
+                {hasActivePost ? "Replace your post" : "Post your Fit"}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalTitle}
+              onPress={() => {
+                setShowModal(false);
+                router.push("/(post)/haul");
+              }}
+            >
+              <Text style={styles.modalTitle}>Post your Haul</Text>
+            </TouchableOpacity>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => {
+                  setShowModal(false);
+                }}
+              >
+                <Text style={styles.cancelButtonText}> Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  infoModal: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 24,
+    marginHorizontal: 32,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  infoTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#000",
+    marginBottom: 12,
+  },
+  infoBody: {
+    fontSize: 15,
+    color: "#555",
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  infoButton: {
+    backgroundColor: "#000",
+    borderRadius: 12,
+    padding: 14,
+    alignItems: "center",
+  },
+  infoButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  photoMonthHeader: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#111",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  heroImage: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH * 0.7,
+    marginBottom: 2,
+  },
+  haulGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 2,
+  },
+  haulGridImage: {
+    width: (SCREEN_WIDTH - 4) / 3,
+    height: (SCREEN_WIDTH - 4) / 3,
+  },
+
+  haulGridItem: {
+    width: (SCREEN_WIDTH - 4) / 3, // 3 columns with 2px gaps
+  },
+
   floatingTabsWrapper: {
     position: "absolute",
     top: 130,
@@ -570,13 +794,18 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#f0f0f0",
   },
   topHeaderUsername: {
-    fontSize: 18,
+    marginBottom: -4,
+    fontSize: 20,
     fontWeight: "700",
+  },
+  newPost: {
+    fontSize: 30,
+    fontWeight: "300",
   },
   monthBlock: {
     paddingHorizontal: 8,
@@ -638,5 +867,44 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#e0e0e0",
     position: "relative",
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  postmodalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    gap: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#000",
+    textAlign: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+  },
+  modalButtons: {
+    marginTop: 8,
+  },
+  modalButton: {
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  cancelButton: {
+    backgroundColor: "#f5f5f5",
+  },
+  cancelButtonText: {
+    color: "#000",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

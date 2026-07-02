@@ -83,6 +83,39 @@ export const usePosts = () => {
     }
   };
 
+  const loadPublicPosts = async () => {
+    if (!user) return;
+    setIsLoading(true);
+
+    try {
+      const { data: postsData, error: postsError } = await supabase
+        .from("posts")
+        .select(
+          `
+        *,
+        profiles(id, name, username, profile_image_url, isPrivate),
+        images(id, post_id, image_url, order_index)
+      `,
+        )
+        .eq("is_active", true)
+        .eq("is_public", true)
+        .order("created_at", { ascending: false });
+
+      if (postsError) throw postsError;
+
+      const filtered = (postsData ?? []).filter(
+        (post) => !post.profiles?.isPrivate,
+      );
+
+      setPosts(filtered);
+    } catch (error) {
+      console.error("Error in loadPublicPosts:", error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const loadOwnPosts = async () => {
     if (!user) return;
     setIsLoading(true);
@@ -294,9 +327,19 @@ export const usePosts = () => {
   const refreshPosts = async () => {
     await loadPosts();
   };
+  const refreshExplorePosts = async () => {
+    await loadPublicPosts();
+  };
   const refreshOwnPosts = async () => {
     await loadOwnPosts();
   };
 
-  return { createPost, refreshPosts, posts, refreshOwnPosts, createoldPost };
+  return {
+    createPost,
+    refreshPosts,
+    posts,
+    refreshOwnPosts,
+    createoldPost,
+    refreshExplorePosts,
+  };
 };

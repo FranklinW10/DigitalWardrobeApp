@@ -69,7 +69,7 @@ export const useFollows = () => {
         .select("follower_id")
         .eq("following_id", user.id);
       if (error) throw error;
-      setFollowing(
+      setFollowers(
         (data ?? []).map((f: { follower_id: string }) => f.follower_id),
       );
     } catch (error) {

@@ -1,17 +1,19 @@
 import { supabase } from "@/lib/supabase/client";
 import {
-    createContext,
-    ReactNode,
-    useContext,
-    useEffect,
-    useState,
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
 } from "react";
 export interface User {
   id: string;
   name: string;
   email: string;
+  phone: string;
   username: string;
   profileImage?: string;
+  isPrivate?: boolean;
   onboardingCompleated?: boolean;
 }
 
@@ -19,6 +21,8 @@ interface AuthContextType {
   user: User | null;
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithPhoneOtp: (phone: string) => Promise<void>;
+  verifyPhoneOtp: (phone: string, token: string) => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
   isLoading: boolean;
   signOut: () => Promise<void>;
@@ -82,7 +86,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         name: data.name,
         username: data.username,
         email: authUser.data.user.email || "",
+        phone: authUser.data.user.phone || "",
         profileImage: data.profile_image_url,
+        isPrivate: data.isPrivate,
         onboardingCompleated: data.on_boarding_completed,
       };
     } catch (error) {
@@ -98,6 +104,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (error) throw error;
 
+    if (data.user) {
+      const profile = await fetchUserProfile(data.user.id);
+      setUser(profile);
+    }
+  };
+
+  const signInWithPhoneOtp = async (phone: string) => {
+    const { error } = await supabase.auth.signInWithOtp({ phone });
+    if (error) throw error;
+  };
+
+  // Confirms the SMS code and completes the session.
+  const verifyPhoneOtp = async (phone: string, token: string) => {
+    const { data, error } = await supabase.auth.verifyOtp({
+      phone,
+      token,
+      type: "sms",
+    });
+    if (error) throw error;
     if (data.user) {
       const profile = await fetchUserProfile(data.user.id);
       setUser(profile);
@@ -125,6 +150,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         updateData.username = userData.username;
       if (userData.profileImage !== undefined)
         updateData.profile_image_url = userData.profileImage;
+      if (userData.isPrivate !== undefined)
+        updateData.isPrivate = userData.isPrivate;
       if (userData.onboardingCompleated !== undefined)
         updateData.on_boarding_completed = userData.onboardingCompleated;
       const { error, data } = await supabase
@@ -145,7 +172,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
   return (
     <AuthContext.Provider
-      value={{ user, signUp, updateUser, signIn, isLoading, signOut }}
+      value={{
+        user,
+        signUp,
+        signIn,
+        signInWithPhoneOtp,
+        verifyPhoneOtp,
+        updateUser,
+        isLoading,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>

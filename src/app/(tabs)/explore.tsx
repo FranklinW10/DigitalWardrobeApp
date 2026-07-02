@@ -36,7 +36,7 @@ export default function SearchScreen() {
   const { addFollow, unfollowUser, isFollowing, loadFollowing } = useFollows();
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  const { posts, refreshPosts } = usePosts();
+  const { posts, refreshPosts, refreshExplorePosts } = usePosts();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -93,7 +93,7 @@ export default function SearchScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      refreshPosts();
+      refreshExplorePosts();
     }, []),
   );
   useEffect(() => {
@@ -103,7 +103,7 @@ export default function SearchScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await refreshPosts();
+      await refreshExplorePosts();
     } catch (error) {
       console.error("Error refreshing posts:", error);
     } finally {

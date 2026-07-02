@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -18,6 +19,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SignUpScreen() {
+  const [isPrivate, setIsPrivate] = useState(false);
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -119,6 +121,7 @@ export default function SignUpScreen() {
         name,
         username,
         profileImage: profileImageUrl,
+        isPrivate,
         onboardingCompleated: true,
       });
       router.replace("/(tabs)");
@@ -178,6 +181,15 @@ export default function SignUpScreen() {
             onChangeText={setUsername}
             style={styles.input}
           />
+          <View style={styles.privacyRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.privacyLabel}>Private Account</Text>
+              <Text style={styles.privacyHint}>
+                Only approved followers can see your posts
+              </Text>
+            </View>
+            <Switch value={isPrivate} onValueChange={setIsPrivate} />
+          </View>
           <TouchableOpacity style={styles.button} onPress={handleCompleate}>
             {isLoading ? (
               <ActivityIndicator size={24} color="#fff" />
@@ -192,6 +204,14 @@ export default function SignUpScreen() {
 }
 
 const styles = StyleSheet.create({
+  privacyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    marginBottom: 10,
+  },
+  privacyLabel: { fontSize: 15, fontWeight: "600" },
+  privacyHint: { fontSize: 12, color: "#999" },
   container: {
     flex: 1,
   },

@@ -31,12 +31,18 @@ export default function Index() {
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const headerVisible = useRef(new Animated.Value(1)).current;
   const [activeTab, setActiveTab] = useState<"fits" | "hauls">("fits");
+
   // Check if user has an active post
   const userActivePost = (posts ?? []).find(
-    (post) => post.user_id === user?.id && post.is_active && post.is_post_today,
+    (post) =>
+      post.user_id === user?.id &&
+      post.is_active &&
+      post.is_post_today &&
+      post.isoutfit_post,
   );
 
   const hasActivePost = !!userActivePost;
@@ -110,6 +116,9 @@ export default function Index() {
       },
     },
   );
+  const followingHaulPosts = followingPosts.filter(
+    (post) => !post.isoutfit_post,
+  );
 
   const headerHeight = headerVisible.interpolate({
     inputRange: [0, 1],
@@ -165,9 +174,7 @@ export default function Index() {
             <Ionicons name="notifications-outline" size={24} color="#000" />
           </TouchableOpacity>
         </Animated.View>
-
         {/*List*/}
-
         <Animated.View style={{ height: tabHeight, overflow: "hidden" }}>
           {tabSwitcher}
         </Animated.View>
@@ -177,7 +184,7 @@ export default function Index() {
             sections={sections}
             keyExtractor={(item) => item.id}
             renderItem={renderPost}
-            // stickySectionHeadersEnabled={false} This makes the headers nt move
+            stickySectionHeadersEnabled={false} //This makes the headers nt move
             renderSectionHeader={({ section: { title } }) => (
               <Text style={styles.sectionHeader}>{title}</Text>
             )}
@@ -187,7 +194,17 @@ export default function Index() {
             }
             ListEmptyComponent={
               <View style={styles.emptyContent}>
-                <Text>No posts yet</Text>
+                <Text style={styles.emptyTitle}>No posts yet</Text>
+                <Text style={styles.emptySubtitle}>
+                  Follow people to see their fits here
+                </Text>
+                <TouchableOpacity
+                  style={styles.findFriendsButton}
+                  onPress={() => router.push("/(tabs)/explore")}
+                >
+                  <Ionicons name="person-add-outline" size={16} color="#fff" />
+                  <Text style={styles.findFriendsText}>Find Friends</Text>
+                </TouchableOpacity>
               </View>
             }
             contentContainerStyle={
@@ -196,8 +213,13 @@ export default function Index() {
           />
         ) : (
           <FlatList
-            data={followingPosts}
+            data={followingHaulPosts}
             style={{ width: "100%" }}
+            ListHeaderComponent={
+              followingHaulPosts.length > 0 ? (
+                <Text style={styles.sectionHeader}>Recent Hauls</Text>
+              ) : null
+            }
             renderItem={renderHaulPost}
             keyExtractor={(item) => item.id}
             onScroll={handleScroll}
@@ -206,7 +228,17 @@ export default function Index() {
             }
             ListEmptyComponent={
               <View style={styles.emptyContent}>
-                <Text>No posts found</Text>
+                <Text style={styles.emptyTitle}>No posts yet</Text>
+                <Text style={styles.emptySubtitle}>
+                  Follow people to see their hauls here
+                </Text>
+                <TouchableOpacity
+                  style={styles.findFriendsButton}
+                  onPress={() => router.push("/(tabs)/explore")}
+                >
+                  <Ionicons name="person-add-outline" size={16} color="#fff" />
+                  <Text style={styles.findFriendsText}>Find Friends</Text>
+                </TouchableOpacity>
               </View>
             }
             refreshControl={
@@ -231,12 +263,103 @@ export default function Index() {
             // }
           />
         )}
+        {!hasActivePost && !bannerDismissed && (
+          <View style={styles.postTodayBanner}>
+            <TouchableOpacity
+              style={styles.postTodayInner}
+              onPress={() => router.push("/(post)/fit")}
+            >
+              <Ionicons name="camera-outline" size={20} color="#fff" />
+              <Text style={styles.postTodayText}>Post your fit for today</Text>
+              <Ionicons name="chevron-forward" size={16} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.bannerDismiss}
+              onPress={() => setBannerDismissed(true)}
+              hitSlop={4}
+            >
+              <Ionicons name="close" size={12} color="#000" />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#000",
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: "#888",
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  findFriendsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#000",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 20,
+  },
+  findFriendsText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  postTodayBanner: {
+    position: "absolute",
+    bottom: 100,
+    left: 16,
+    right: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#000",
+    borderRadius: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+    zIndex: 10,
+  },
+  postTodayInner: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 14,
+    paddingLeft: 16,
+  },
+  postTodayText: {
+    flex: 1,
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  bannerDismiss: {
+    position: "absolute",
+    top: -8,
+    left: -8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
   container: {
     flex: 1,
     alignItems: "center",
@@ -270,6 +393,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 16,
+    marginBottom: 90,
   },
   postContainer: {
     backgroundColor: "#fff",

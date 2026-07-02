@@ -15,21 +15,26 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   FlatList,
   Modal,
   RefreshControl,
+  ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 interface ProfileUser {
   id: string;
@@ -60,6 +65,10 @@ export default function Profile() {
     activeTab === "fits" ? post.isoutfit_post : !post.isoutfit_post,
   );
   const [likerPostId, setLikerPostId] = useState<string | null>(null);
+  const tabScrollRef = useRef<ScrollView>(null); // tab pager
+  const [showOptions, setShowOptions] = useState(false);
+  const [filter, setFilter] = useState<"all" | "public" | "private">("all");
+  const [isPrivate, setIsPrivate] = useState(user?.isPrivate ?? false);
   const [likers, setLikers] = useState<Liker[]>([]);
   const [isLoadingLikers, setIsLoadingLikers] = useState(false);
   const [commentPost, setCommentPost] = useState<Post | null>(null);
@@ -78,6 +87,15 @@ export default function Profile() {
       setRefreshing(false);
     }
   };
+  const choosefilteredPosts = posts
+    .filter((post) =>
+      activeTab === "fits" ? post.isoutfit_post : !post.isoutfit_post,
+    )
+    .filter((post) => {
+      if (filter === "public") return post.is_public;
+      if (filter === "private") return !post.is_public;
+      return true;
+    });
 
   const handleOpenLikers = async (postId: string) => {
     setLikerPostId(postId);
@@ -104,6 +122,13 @@ export default function Profile() {
       onPress={() => setSelectedPost(item)}
     />
   );
+  useEffect(() => {
+    if (showModal && user) {
+      setName(user.name);
+      setUsername(user.username);
+      setIsPrivate(user.isPrivate ?? false);
+    }
+  }, [showModal, user]);
 
   const handleUpdateProfileImage = async () => {
     if (!user) return;
@@ -199,7 +224,10 @@ export default function Profile() {
     <View style={styles.tabSwitcher}>
       <TouchableOpacity
         style={[styles.tab, activeTab === "fits" && styles.activeTab]}
-        onPress={() => setActiveTab("fits")}
+        onPress={() => {
+          setActiveTab("fits");
+          tabScrollRef.current?.scrollTo({ x: 0, animated: true });
+        }}
       >
         <Text
           style={[styles.tabText, activeTab === "fits" && styles.activeTabText]}
@@ -209,7 +237,13 @@ export default function Profile() {
       </TouchableOpacity>
       <TouchableOpacity
         style={[styles.tab, activeTab === "hauls" && styles.activeTab]}
-        onPress={() => setActiveTab("hauls")}
+        onPress={() => {
+          setActiveTab("hauls");
+          tabScrollRef.current?.scrollTo({
+            x: SCREEN_WIDTH,
+            animated: true,
+          });
+        }}
       >
         <Text
           style={[
@@ -255,8 +289,11 @@ export default function Profile() {
       await updateUser({
         name,
         username,
+        isPrivate,
       });
-      setProfileUser((prev) => (prev ? { ...prev, name, username } : prev));
+      setProfileUser((prev) =>
+        prev ? { ...prev, name, username, isPrivate } : prev,
+      );
       setShowModal(false); // ← close modal on success
     } catch (error) {
       Alert.alert("Error", "Failed to complete setup. Please try again.");
@@ -317,7 +354,7 @@ export default function Profile() {
 
     Alert.alert("Post Options", "", options);
   };
-
+  console.log("user.isPrivate:", user?.isPrivate);
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {selectedPost && (
@@ -384,91 +421,91 @@ export default function Profile() {
           <Ionicons name="menu" size={26} color="#000" />
         </TouchableOpacity>
       </View>
+      <View style={{ flex: 1 }}>
+        <FlatList
+          key={activeTab + filter}
+          numColumns={3}
+          data={choosefilteredPosts}
+          keyExtractor={(item) => item.id}
+          columnWrapperStyle={{ gap: 2 }}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          ListHeaderComponent={
+            <View style={styles.header}>
+              <TouchableOpacity
+                onPress={handleUpdateProfileImage}
+                disabled={isUpdating}
+              >
+                <View>
+                  {user?.profileImage ? (
+                    <Image
+                      source={{ uri: user.profileImage }}
+                      style={styles.profileImage}
+                      cachePolicy={"memory"}
+                    />
+                  ) : (
+                    <View
+                      style={[
+                        styles.profileImage,
+                        styles.profileImagePlaceholder,
+                      ]}
+                    >
+                      <Text style={styles.profileImageText}>
+                        {user?.name?.[0]?.toUpperCase() || "U"}
+                      </Text>
+                    </View>
+                  )}
 
-      <FlatList
-        key={activeTab}
-        numColumns={3}
-        data={filteredPosts}
-        keyExtractor={(item) => item.id}
-        columnWrapperStyle={{ gap: 2 }}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        ListHeaderComponent={
-          <View style={styles.header}>
-            <TouchableOpacity
-              onPress={handleUpdateProfileImage}
-              disabled={isUpdating}
-            >
-              <View>
-                {user?.profileImage ? (
-                  <Image
-                    source={{ uri: user.profileImage }}
-                    style={styles.profileImage}
-                    cachePolicy={"memory"}
-                  />
-                ) : (
-                  <View
-                    style={[
-                      styles.profileImage,
-                      styles.profileImagePlaceholder,
-                    ]}
-                  >
-                    <Text style={styles.profileImageText}>
-                      {user?.name?.[0]?.toUpperCase() || "U"}
-                    </Text>
+                  <View style={styles.editBadge}>
+                    <Text style={styles.editBadgeText}>Edit</Text>
                   </View>
-                )}
-
-                <View style={styles.editBadge}>
-                  <Text style={styles.editBadgeText}>Edit</Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-
-            {/* Name + username */}
-            <Text style={styles.name}>{profileUser?.name}</Text>
-            <Text style={styles.username}>@{profileUser?.username}</Text>
-
-            {/* Follower counts */}
-            <View style={styles.statsRow}>
-              <TouchableOpacity
-                onPress={() => router.push("/(profile)/followList")}
-              >
-                <View style={styles.stat}>
-                  <Text style={styles.statNumber}>{followerCount}</Text>
-                  <Text style={styles.statLabel}>Followers</Text>
                 </View>
               </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => router.push("/(profile)/followList")}
-              >
+
+              {/* Name + username */}
+              <Text style={styles.name}>{profileUser?.name}</Text>
+              <Text style={styles.username}>@{profileUser?.username}</Text>
+
+              {/* Follower counts */}
+              <View style={styles.statsRow}>
+                <TouchableOpacity
+                  onPress={() => router.push("/(profile)/followList")}
+                >
+                  <View style={styles.stat}>
+                    <Text style={styles.statNumber}>{followerCount}</Text>
+                    <Text style={styles.statLabel}>Followers</Text>
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => router.push("/(profile)/followList")}
+                >
+                  <View style={styles.stat}>
+                    <Text style={styles.statNumber}>{followingCount}</Text>
+                    <Text style={styles.statLabel}>Following</Text>
+                  </View>
+                </TouchableOpacity>
                 <View style={styles.stat}>
-                  <Text style={styles.statNumber}>{followingCount}</Text>
-                  <Text style={styles.statLabel}>Following</Text>
+                  <Text style={styles.statNumber}>{posts.length}</Text>
+                  <Text style={styles.statLabel}>Posts</Text>
                 </View>
-              </TouchableOpacity>
-              <View style={styles.stat}>
-                <Text style={styles.statNumber}>{posts.length}</Text>
-                <Text style={styles.statLabel}>Posts</Text>
               </View>
-            </View>
 
-            {/* Follow button */}
+              {/* Follow button */}
 
-            <TouchableOpacity
-              style={styles.followButton}
-              onPress={() => {
-                setName(profileUser?.name ?? "");
-                setUsername(profileUser?.username ?? "");
-                setShowModal(true);
-              }}
-            >
-              <Text style={styles.followButtonText}>{"Edit Profile"}</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.followButton}
+                onPress={() => {
+                  setName(profileUser?.name ?? "");
+                  setUsername(profileUser?.username ?? "");
+                  setShowModal(true);
+                }}
+              >
+                <Text style={styles.followButtonText}>{"Edit Profile"}</Text>
+              </TouchableOpacity>
 
-            {/* <TouchableOpacity
+              {/* <TouchableOpacity
               style={styles.followButton}
               onPress={() => setShowCalendar(true)}
             >
@@ -479,16 +516,48 @@ export default function Profile() {
               />
             </TouchableOpacity> */}
 
-            {tabSwitcher}
-          </View>
-        }
-        renderItem={renderExplorePost}
-        ListEmptyComponent={
-          <View>
-            <Text style={styles.emptyText}>No posts yet</Text>
-          </View>
-        }
-      />
+              {tabSwitcher}
+            </View>
+          }
+          renderItem={renderExplorePost}
+          ListEmptyComponent={
+            <View>
+              <Text style={styles.emptyText}>No posts yet</Text>
+            </View>
+          }
+        />
+        {/* Floating options button + pill dropdown */}
+        <View style={styles.optionsContainer}>
+          <TouchableOpacity
+            style={styles.optionsButton}
+            onPress={() => setShowOptions(!showOptions)}
+          >
+            <Ionicons name="options-outline" size={18} color="#000" />
+          </TouchableOpacity>
+          {showOptions && (
+            <View style={styles.optionsPill}>
+              {[
+                { value: "all", icon: "grid-outline" },
+                { value: "public", icon: "earth-outline" },
+                { value: "private", icon: "lock-closed-outline" },
+              ].map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={styles.pillOption}
+                  onPress={() => setFilter(opt.value as any)}
+                >
+                  {filter === opt.value && <View style={styles.pillSelector} />}
+                  <Ionicons
+                    name={opt.icon as any}
+                    size={16}
+                    color={filter === opt.value ? "#fff" : "#888"}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      </View>
 
       <Modal visible={showModal} transparent animationType="slide">
         {/* ← Backdrop — closes modal on press */}
@@ -518,9 +587,11 @@ export default function Profile() {
                     <Text style={styles.placeholderText}>+</Text>
                   </View>
                 )}
-                <View style={styles.editEditBadge}>
-                  <Text style={styles.editBadgeText}>Edit</Text>
-                </View>
+                {user?.profileImage && (
+                  <View style={styles.editEditBadge}>
+                    <Text style={styles.editBadgeText}>Edit</Text>
+                  </View>
+                )}
               </TouchableOpacity>
               <Text style={styles.inputHeader}>Full Name</Text>
               <TextInput
@@ -540,6 +611,16 @@ export default function Profile() {
                 onChangeText={setUsername}
                 style={styles.input}
               />
+              <View style={styles.privacyRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputHeader}>Private Account</Text>
+                  <Text style={styles.privacyHint}>
+                    {" "}
+                    Only approved followers can see your posts
+                  </Text>
+                </View>
+                <Switch value={isPrivate} onValueChange={setIsPrivate} />
+              </View>
 
               <TouchableOpacity style={styles.button} onPress={handleComplete}>
                 {isSubmitting ? (
@@ -565,6 +646,60 @@ export default function Profile() {
 }
 
 const styles = StyleSheet.create({
+  optionsContainer: {
+    position: "absolute",
+    top: 350,
+    right: 8,
+    alignItems: "flex-end",
+    zIndex: 10,
+  },
+  optionsButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  optionsPill: {
+    backgroundColor: "rgba(240,240,240,0.95)",
+    borderRadius: 24,
+    marginTop: 6,
+    paddingVertical: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  pillOption: {
+    width: 36,
+    height: 36,
+    borderRadius: 16,
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  pillSelector: {
+    position: "absolute",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#000",
+  },
+  pillOptionActive: {
+    backgroundColor: "#000",
+  },
+  pillDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: "#e0e0e0",
+  },
   whitespace: {
     padding: 5,
   },
@@ -779,20 +914,35 @@ const styles = StyleSheet.create({
 
   tabSwitcher: {
     flexDirection: "row",
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderBottomColor: "#e0e0e0",
+    marginHorizontal: -26,
+    marginBottom: 9,
 
-    padding: 4,
+    padding: 1,
+  },
+  privacyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  privacyHint: {
+    fontSize: 12,
+    color: "#999",
+    marginTop: 2,
+  },
+  activeTab: {
+    flex: 1,
+    paddingVertical: 6,
+    alignItems: "center",
+    borderRadius: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#000",
   },
   tab: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 6,
     alignItems: "center",
     borderRadius: 8,
-  },
-  activeTab: {
-    marginBottom: -1,
   },
   tabText: {
     fontSize: 20,
