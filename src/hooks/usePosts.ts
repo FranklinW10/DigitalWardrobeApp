@@ -1,7 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase/client";
 import { uploadHaulImages, uploadPostImage } from "@/lib/supabase/storage";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 export interface PostUser {
   id: string;
   name: string;
@@ -35,12 +35,6 @@ export const usePosts = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
-
-  useEffect(() => {
-    if (user) {
-      loadPosts();
-    }
-  }, [user]);
 
   const loadPosts = async () => {
     if (!user) return;

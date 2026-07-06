@@ -43,7 +43,9 @@ export const uploadPostImage = async (
 
   try {
     const fileExtension = imageUri.split(".").pop() || "jpg";
-    const fileName = `${userId}/${postId}/${Date.now()}.${fileExtension}`;
+    const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    const fileName = `${userId}/${postId}/${uniqueSuffix}.${fileExtension}`;
     console.log("Uploading to path:", fileName);
     const base64 = await FileSystem.readAsStringAsync(imageUri, {
       encoding: FileSystem.EncodingType.Base64,

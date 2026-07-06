@@ -50,7 +50,8 @@ export default function UserProfileScreen() {
   const [followingCount, setFollowingCount] = useState(0);
   const [postsCount, setPostsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const { addFollow, unfollowUser, isFollowing, loadFollowing } = useFollows();
+  const { addFollow, unfollowUser, isFollowing, isPending, loadFollowing } =
+    useFollows();
   const [activeTab, setActiveTab] = useState<"fits" | "hauls">("fits");
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [likerPostId, setLikerPostId] = useState<string | null>(null);
@@ -122,13 +123,15 @@ export default function UserProfileScreen() {
       const { count: followers } = await supabase
         .from("follows")
         .select("*", { count: "exact", head: true })
-        .eq("following_id", user_id);
+        .eq("following_id", user_id)
+        .eq("status", true);
       setFollowerCount(followers ?? 0);
 
       const { count: following } = await supabase
         .from("follows")
         .select("*", { count: "exact", head: true })
-        .eq("follower_id", user_id);
+        .eq("follower_id", user_id)
+        .eq("status", true);
       setFollowingCount(following ?? 0);
 
       const { count: postCount } = await supabase
@@ -292,7 +295,10 @@ export default function UserProfileScreen() {
               <TouchableOpacity
                 onPress={() => {
                   if (!canViewContent) return;
-                  router.push("/(profile)/followList");
+                  router.push({
+                    pathname: "/(profile)/followList",
+                    params: { profile_id: user_id, initialTab: "followers" },
+                  });
                 }}
                 disabled={!canViewContent}
                 style={!canViewContent && styles.statLocked}
@@ -305,7 +311,10 @@ export default function UserProfileScreen() {
               <TouchableOpacity
                 onPress={() => {
                   if (!canViewContent) return;
-                  router.push("/(profile)/followList");
+                  router.push({
+                    pathname: "/(profile)/followList",
+                    params: { profile_id: user_id, initialTab: "following" },
+                  });
                 }}
                 disabled={!canViewContent}
                 style={!canViewContent && styles.statLocked}
@@ -326,20 +335,28 @@ export default function UserProfileScreen() {
               style={[
                 styles.followButton,
                 isFollowing(user_id) && styles.followingButton,
+                isPending(user_id) && styles.pendingButton,
               ]}
-              onPress={() =>
-                isFollowing(user_id)
-                  ? unfollowUser(user_id)
-                  : addFollow(user_id)
-              }
+              onPress={() => {
+                if (isFollowing(user_id) || isPending(user_id)) {
+                  unfollowUser(user_id);
+                } else {
+                  addFollow(user_id);
+                }
+              }}
             >
               <Text
                 style={[
                   styles.followButtonText,
-                  isFollowing(user_id) && styles.followingButtonText,
+                  (isFollowing(user_id) || isPending(user_id)) &&
+                    styles.followingButtonText,
                 ]}
               >
-                {isFollowing(user_id) ? "Following" : "Follow"}
+                {isFollowing(user_id)
+                  ? "Following"
+                  : isPending(user_id)
+                    ? "Requested"
+                    : "Follow"}
               </Text>
             </TouchableOpacity>
 
@@ -366,6 +383,9 @@ export default function UserProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  pendingButton: {
+    backgroundColor: "#ccc",
+  },
   privateNotice: {
     alignItems: "center",
     paddingTop: 48,

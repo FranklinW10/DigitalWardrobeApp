@@ -15,8 +15,8 @@ import { useFollows } from "@/hooks/useFollows";
 import { Post, usePosts } from "@/hooks/usePosts";
 import { SearchUser, useSearch } from "@/hooks/useSearch";
 import { Image } from "expo-image";
-import { router, useFocusEffect } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { router } from "expo-router";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -33,10 +33,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function SearchScreen() {
   const [query, setQuery] = useState("");
   const { results, isLoading, searchUsers } = useSearch();
-  const { addFollow, unfollowUser, isFollowing, loadFollowing } = useFollows();
+  const { addFollow, unfollowUser, isFollowing, loadFollowing, isPending } =
+    useFollows();
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  const { posts, refreshPosts, refreshExplorePosts } = usePosts();
+  const { posts, refreshExplorePosts } = usePosts();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -91,11 +92,11 @@ export default function SearchScreen() {
     searchUsers(text);
   };
 
-  useFocusEffect(
-    useCallback(() => {
+  useEffect(() => {
+    if (user) {
       refreshExplorePosts();
-    }, []),
-  );
+    }
+  }, [user]);
   useEffect(() => {
     loadFollowing();
   }, [user?.id]);
@@ -151,18 +152,28 @@ export default function SearchScreen() {
         style={[
           styles.followButton,
           isFollowing(item.id) && styles.followingButton,
+          isPending(item.id) && styles.pendingButton,
         ]}
-        onPress={() =>
-          isFollowing(item.id) ? unfollowUser(item.id) : addFollow(item.id)
-        }
+        onPress={() => {
+          if (isFollowing(item.id) || isPending(item.id)) {
+            unfollowUser(item.id);
+          } else {
+            addFollow(item.id);
+          }
+        }}
       >
         <Text
           style={[
             styles.followButtonText,
-            isFollowing(item.id) && styles.followingButtonText,
+            (isFollowing(item.id) || isPending(item.id)) &&
+              styles.followingButtonText,
           ]}
         >
-          {isFollowing(item.id) ? "Following" : "Follow"}
+          {isFollowing(item.id)
+            ? "Following"
+            : isPending(item.id)
+              ? "Requested"
+              : "Follow"}
         </Text>
       </TouchableOpacity>
     </TouchableOpacity>
@@ -338,6 +349,9 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
+  pendingButton: {
+    backgroundColor: "#ccc",
+  },
   container: {
     flex: 1,
     padding: 0,

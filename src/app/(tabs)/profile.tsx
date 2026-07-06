@@ -200,14 +200,16 @@ export default function Profile() {
       const { count: followers } = await supabase
         .from("follows")
         .select("*", { count: "exact", head: true })
-        .eq("following_id", user?.id);
+        .eq("following_id", user?.id)
+        .eq("status", true);
       setFollowerCount(followers ?? 0);
 
       // Load following count
       const { count: following } = await supabase
         .from("follows")
         .select("*", { count: "exact", head: true })
-        .eq("follower_id", user?.id);
+        .eq("follower_id", user?.id)
+        .eq("status", true);
       setFollowingCount(following ?? 0);
     } catch (error) {
       console.error("Error loading profile:", error);
@@ -471,7 +473,12 @@ export default function Profile() {
               {/* Follower counts */}
               <View style={styles.statsRow}>
                 <TouchableOpacity
-                  onPress={() => router.push("/(profile)/followList")}
+                  onPress={() => {
+                    router.push({
+                      pathname: "/(profile)/followList",
+                      params: { initialTab: "followers" },
+                    });
+                  }}
                 >
                   <View style={styles.stat}>
                     <Text style={styles.statNumber}>{followerCount}</Text>
@@ -479,7 +486,12 @@ export default function Profile() {
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => router.push("/(profile)/followList")}
+                  onPress={() => {
+                    router.push({
+                      pathname: "/(profile)/followList",
+                      params: { initialTab: "following" },
+                    });
+                  }}
                 >
                   <View style={styles.stat}>
                     <Text style={styles.statNumber}>{followingCount}</Text>

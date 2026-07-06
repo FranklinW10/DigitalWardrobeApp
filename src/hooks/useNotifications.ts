@@ -54,7 +54,7 @@ export const useNotifications = (userId?: string) => {
     const { data } = await supabase
       .from("notifications")
       .select(
-        "*, actor:profiles!actor_id(username, profile_image_url), posts(image_url)",
+        "*, actor:profiles!actor_id(username, profile_image_url, id), posts(image_url)",
       )
       .eq("recipient_id", userId)
       .order("created_at", { ascending: false })

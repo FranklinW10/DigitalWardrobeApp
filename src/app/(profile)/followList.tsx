@@ -2,44 +2,84 @@ import { useAuth } from "@/context/AuthContext";
 import { useFollows } from "@/hooks/useFollows";
 import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function followList() {
   const { user, updateUser, signOut } = useAuth();
+  const { profile_id, initialTab } = useLocalSearchParams<{
+    profile_id?: string;
+    initialTab?: "followers" | "following";
+  }>();
+  // Falls back to the logged-in user's own list when no profile_id is passed —
+  // keeps this screen working for both "my followers" and "someone else's followers"
+  const targetUserId = profile_id ?? user?.id;
+  const isOwnList = targetUserId === user?.id;
+
   const [search, setSearch] = useState("");
+  const [headerUsername, setHeaderUsername] = useState<string | null>(null);
   const {
     addFollow,
     unfollowUser,
     isFollowing,
+    isPending,
     loadFollowing: loadFollowingState,
   } = useFollows();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"followers" | "following">(
-    "followers",
+    initialTab === "following" ? "following" : "followers",
   );
   const [users, setUsers] = useState<any[]>([]);
+
+  // Keeps the tab in sync if this screen instance gets reused for a new
+  // navigation (e.g. tapping "Following" while "Followers" is already open)
+  // rather than fully remounting — the useState initializer above only runs once.
   useEffect(() => {
+    if (initialTab === "followers" || initialTab === "following") {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  useEffect(() => {
+    if (!targetUserId) return;
     if (activeTab === "followers") {
       loadFollowers();
     } else {
       loadFollowing();
     }
-  }, [activeTab, user?.id]);
+  }, [activeTab, targetUserId]);
 
   useEffect(() => {
     loadFollowingState();
   }, [user?.id]);
+
+  // Only need to fetch the header username separately when viewing someone
+  // else's list — for your own list, `user.username` already covers it.
+  useEffect(() => {
+    if (isOwnList || !targetUserId) {
+      setHeaderUsername(null);
+      return;
+    }
+    const loadHeaderUser = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", targetUserId)
+        .single();
+      setHeaderUsername(data?.username ?? null);
+    };
+    loadHeaderUser();
+  }, [isOwnList, targetUserId]);
 
   const filteredUsers = users.filter(
     (u) =>
@@ -48,7 +88,7 @@ export default function followList() {
   );
 
   const loadFollowers = async () => {
-    if (!user?.id) return;
+    if (!targetUserId) return;
 
     const { data, error } = await supabase
       .from("follows")
@@ -62,7 +102,8 @@ export default function followList() {
         )
         `,
       )
-      .eq("following_id", user.id);
+      .eq("following_id", targetUserId)
+      .eq("status", true);
 
     if (!error) {
       setUsers(data?.map((row: any) => row.follower) ?? []);
@@ -70,7 +111,7 @@ export default function followList() {
   };
 
   const loadFollowing = async () => {
-    if (!user?.id) return;
+    if (!targetUserId) return;
 
     const { data, error } = await supabase
       .from("follows")
@@ -84,7 +125,8 @@ export default function followList() {
         )
         `,
       )
-      .eq("follower_id", user.id);
+      .eq("follower_id", targetUserId)
+      .eq("status", true);
 
     if (!error) {
       setUsers(data?.map((row: any) => row.following) ?? []);
@@ -134,7 +176,9 @@ export default function followList() {
           >
             <Text style={styles.closeButtonText}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.topHeaderUsername}>@{user?.username}</Text>
+          <Text style={styles.topHeaderUsername}>
+            @{isOwnList ? user?.username : (headerUsername ?? "...")}
+          </Text>
           <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
             <Ionicons name="menu" size={26} color="#000" />
           </TouchableOpacity>
@@ -182,24 +226,34 @@ export default function followList() {
                 <Text style={styles.name}>{u.name}</Text>
                 <Text style={styles.username}>@{u.username}</Text>
               </View>
-              <TouchableOpacity
-                style={[
-                  styles.followButton,
-                  isFollowing(u.id) && styles.followingButton,
-                ]}
-                onPress={() =>
-                  isFollowing(u.id) ? unfollowUser(u.id) : addFollow(u.id)
-                }
-              >
-                <Text
+              {u.id !== user?.id && (
+                <TouchableOpacity
                   style={[
-                    styles.followButtonText,
-                    isFollowing(u.id) && styles.followingButtonText,
+                    styles.followButton,
+                    isFollowing(u.id) && styles.followingButton,
+                    isPending(u.id) && styles.pendingButton,
                   ]}
+                  onPress={() =>
+                    isFollowing(u.id) || isPending(u.id)
+                      ? unfollowUser(u.id)
+                      : addFollow(u.id)
+                  }
                 >
-                  {isFollowing(u.id) ? "Following" : "Follow"}
-                </Text>
-              </TouchableOpacity>
+                  <Text
+                    style={[
+                      styles.followButtonText,
+                      (isFollowing(u.id) || isPending(u.id)) &&
+                        styles.followingButtonText,
+                    ]}
+                  >
+                    {isFollowing(u.id)
+                      ? "Following"
+                      : isPending(u.id)
+                        ? "Requested"
+                        : "Follow"}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </TouchableOpacity>
           ))}
         </View>
@@ -207,8 +261,10 @@ export default function followList() {
     </SafeAreaView>
   );
 }
-
 const styles = StyleSheet.create({
+  pendingButton: {
+    backgroundColor: "#ccc",
+  },
   container: {
     flex: 1,
     backgroundColor: "#fff",

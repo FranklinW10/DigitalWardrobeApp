@@ -154,7 +154,8 @@ export default function WardrobeScreen() {
   const lastScrollY = useRef(0);
   const tabsHidden = useRef(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const scrollViewRef = useRef<ScrollView>(null); // calendar scroll
+  const calendarScrollRef = useRef<ScrollView>(null); // Fits/calendar page scroll
+  const haulsScrollRef = useRef<ScrollView>(null); // Hauls page scroll
   const tabScrollRef = useRef<ScrollView>(null); // tab pager
   const [haulPosts, setHaulPosts] = useState<Post[]>([]);
   const [showInfo, setShowInfo] = useState(false);
@@ -308,6 +309,24 @@ export default function WardrobeScreen() {
     });
   };
 
+  // Whenever the active tab changes — whether from tapping the pill or
+  // swiping the pager — jump the newly-visible page straight to its bottom.
+  useEffect(() => {
+    // Reset the floating-tab scroll tracker so switching tabs doesn't get
+    // compared against the OTHER page's last scroll position.
+    lastScrollY.current = 0;
+    showTabs();
+
+    const targetRef =
+      activeTab === "wardrobe" ? calendarScrollRef : haulsScrollRef;
+    // Slight delay lets the newly-focused page finish laying out first,
+    // otherwise scrollToEnd can fire before it knows its true content height.
+    const timeout = setTimeout(() => {
+      targetRef.current?.scrollToEnd({ animated: true });
+    }, 50);
+    return () => clearTimeout(timeout);
+  }, [activeTab]);
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.topHeader}>
@@ -390,11 +409,11 @@ export default function WardrobeScreen() {
         {/* Page 1 — Calendar */}
         <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
           <ScrollView
-            ref={scrollViewRef}
+            ref={calendarScrollRef}
             onScroll={handleCalendarScroll}
             scrollEventThrottle={16}
             onContentSizeChange={(w, h) => {
-              scrollViewRef.current?.scrollTo({ y: h, animated: false });
+              calendarScrollRef.current?.scrollTo({ y: h, animated: false });
             }}
           >
             {months.map(({ month, year }, index) => (
@@ -415,12 +434,12 @@ export default function WardrobeScreen() {
 
         <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
           <ScrollView
-            ref={scrollViewRef}
+            ref={haulsScrollRef}
             onScroll={handleCalendarScroll}
             scrollEventThrottle={16}
             contentContainerStyle={{ paddingBottom: 100 }}
             onContentSizeChange={(w, h) => {
-              scrollViewRef.current?.scrollTo({ y: h, animated: false });
+              haulsScrollRef.current?.scrollTo({ y: h, animated: false });
             }}
           >
             {monthGroups.map(({ year, month, images }) => (
