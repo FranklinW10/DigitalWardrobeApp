@@ -1,28 +1,53 @@
-import { AuthProvider } from "@/context/AuthContext";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { Stack, useRouter } from "expo-router";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { ActivityIndicator, View } from "react-native";
 
-export default function RootLayout() {
+function RouteGaurd() {
   const router = useRouter();
-  let isAuth = true;
+  const { user, isLoading } = useAuth();
+  const segments = useSegments();
+  const inAuthGroup = segments[0] === "(auth)";
+  const inTabsGroup = segments[0] === "(tabs)";
+  const inProfilesGroup = segments[0] === "(profile)";
+  console.log("User:", JSON.stringify(user));
+
   useEffect(() => {
-    if (!isAuth) {
-      router.replace("/login");
+    if (isLoading) return;
+    if (!user) {
+      if (!inAuthGroup) {
+        router.replace("/(auth)/login");
+      }
+    } else if (!user.onboardingCompleated) {
+      router.replace("/(auth)/onboarding");
+    } else {
+      if (!inTabsGroup && !inProfilesGroup && segments[0] !== "(post)") {
+        router.replace("/(tabs)");
+      }
     }
-  });
+  }, [user, segments, router, isLoading]);
+  // if (isLoading){
+  //   return null
+  // };
+
+  if (isLoading)
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <BottomSheetModalProvider>
-        <AuthProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(post)" />
-          </Stack>
-        </AuthProvider>
-      </BottomSheetModalProvider>
-    </GestureHandlerRootView>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="(auth)" />
+      <Stack.Screen name="(post)" />
+    </Stack>
+  );
+}
+export default function RootLayout() {
+  return (
+    <AuthProvider>
+      <RouteGaurd />
+    </AuthProvider>
   );
 }
