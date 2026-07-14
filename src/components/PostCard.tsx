@@ -21,6 +21,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SaveButton } from "./saveButton";
 
 interface PostCardProps {
   post: Post;
@@ -82,6 +83,7 @@ const PostActions = ({
   toggleLike,
   onCommentPress,
   onLikeCountPress,
+  onSavePress,
 }: {
   post: Post;
   currentUserId?: string;
@@ -91,6 +93,7 @@ const PostActions = ({
   toggleLike: () => void;
   onCommentPress: () => void;
   onLikeCountPress: () => void;
+  onSavePress?: () => void;
 }) => (
   <View style={styles.actions}>
     <LikeButton
@@ -109,6 +112,10 @@ const PostActions = ({
       <Ionicons name="chatbubble-outline" size={22} color="#000" />
       <Text style={styles.actionCount}>{commentCount}</Text>
     </TouchableOpacity>
+
+    <View style={{ marginLeft: "auto" }}>
+      <SaveButton postId={post.id} />
+    </View>
   </View>
 );
 
@@ -359,6 +366,7 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
         visible={showLikers}
         onClose={() => setShowLikers(false)}
       />
+      <SaveButton postId={post.id} />
     </View>
   );
 };

@@ -1,5 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import { Post } from "@/hooks/usePosts";
+import { useSavedPosts } from "@/hooks/useSavedPosts";
 import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -148,7 +149,10 @@ const MonthBlock = ({
 export default function WardrobeScreen() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
-  const [activeTab, setActiveTab] = useState<"wardrobe" | "hauls">("wardrobe");
+  const [activeTab, setActiveTab] = useState<"wardrobe" | "hauls" | "Saved">(
+    "wardrobe",
+  );
+  const savedScrollRef = useRef<ScrollView>(null);
   const tabsTranslateY = useRef(new Animated.Value(0)).current;
   const tabsOpacity = useRef(new Animated.Value(1)).current;
   const lastScrollY = useRef(0);
@@ -160,6 +164,37 @@ export default function WardrobeScreen() {
   const [haulPosts, setHaulPosts] = useState<Post[]>([]);
   const [showInfo, setShowInfo] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const {
+    collections,
+    loadCollections,
+    createCollection,
+    loadPostsInCollection,
+  } = useSavedPosts();
+  const [selectedCollectionId, setSelectedCollectionId] = useState<
+    string | null
+  >(null);
+  const [selectedCollectionName, setSelectedCollectionName] =
+    useState<string>("");
+  const [collectionPosts, setCollectionPosts] = useState<Post[]>([]);
+  const [isLoadingCollectionPosts, setIsLoadingCollectionPosts] =
+    useState(false);
+  useEffect(() => {
+    if (activeTab === "Saved") {
+      loadCollections();
+    }
+  }, [activeTab]);
+
+  const handleOpenCollection = async (id: string, name: string) => {
+    setSelectedCollectionId(id);
+    setSelectedCollectionName(name);
+    setIsLoadingCollectionPosts(true);
+    try {
+      const posts = await loadPostsInCollection(id);
+      setCollectionPosts(posts);
+    } finally {
+      setIsLoadingCollectionPosts(false);
+    }
+  };
 
   const userActivePost = (posts ?? []).find(
     (post) =>
@@ -390,6 +425,28 @@ export default function WardrobeScreen() {
               Hauls
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.floatingTabPill,
+              activeTab === "Saved" && styles.floatingTabPillActive,
+            ]}
+            onPress={() => {
+              setActiveTab("Saved");
+              tabScrollRef.current?.scrollTo({
+                x: SCREEN_WIDTH * 2,
+                animated: true,
+              });
+            }}
+          >
+            <Text
+              style={[
+                styles.floatingTabText,
+                activeTab === "Saved" && styles.floatingTabActive,
+              ]}
+            >
+              Saved
+            </Text>
+          </TouchableOpacity>
         </View>
       </Animated.View>
 
@@ -402,7 +459,9 @@ export default function WardrobeScreen() {
         scrollEventThrottle={16}
         onMomentumScrollEnd={(e) => {
           const page = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-          setActiveTab(page === 0 ? "wardrobe" : "hauls");
+          setActiveTab(
+            page === 0 ? "wardrobe" : page === 1 ? "hauls" : "Saved",
+          );
         }}
         style={{ flex: 1 }}
       >
@@ -486,6 +545,93 @@ export default function WardrobeScreen() {
               <View style={styles.emptyContent}>
                 <Text style={styles.emptyText}>No haul posts yet</Text>
               </View>
+            )}
+          </ScrollView>
+        </View>
+
+        {/* Page 3 — Saved */}
+        <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
+          <ScrollView
+            ref={savedScrollRef}
+            onScroll={handleCalendarScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={{ paddingBottom: 100 }}
+          >
+            {selectedCollectionId ? (
+              <>
+                <View style={styles.savedCollectionHeader}>
+                  <TouchableOpacity
+                    onPress={() => setSelectedCollectionId(null)}
+                  >
+                    <Text style={styles.backText}>
+                      ← {selectedCollectionName}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {isLoadingCollectionPosts ? (
+                  <View style={styles.emptyContent}>
+                    <Text style={styles.emptyText}>Loading...</Text>
+                  </View>
+                ) : collectionPosts.length === 0 ? (
+                  <View style={styles.emptyContent}>
+                    <Text style={styles.emptyText}>
+                      No posts saved here yet
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.savedGrid}>
+                    {collectionPosts.map((post) => (
+                      <TouchableOpacity
+                        key={post.id}
+                        onPress={() => setSelectedPost(post)}
+                      >
+                        <Image
+                          source={{
+                            uri: post.images?.[0]?.image_url ?? post.image_url,
+                          }}
+                          style={styles.savedGridImage}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </>
+            ) : (
+              <>
+                <Text style={styles.photoMonthHeader}>Collections</Text>
+                {collections.length === 0 ? (
+                  <View style={styles.emptyContent}>
+                    <Text style={styles.emptyText}>
+                      Save a post to create your first collection
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.collectionsGrid}>
+                    {collections.map((c) => (
+                      <TouchableOpacity
+                        key={c.id}
+                        style={styles.collectionTile}
+                        onPress={() => handleOpenCollection(c.id, c.name)}
+                      >
+                        <Ionicons
+                          name="folder-outline"
+                          size={28}
+                          color="#000"
+                        />
+                        <Text
+                          style={styles.collectionTileText}
+                          numberOfLines={1}
+                        >
+                          {c.name}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </>
             )}
           </ScrollView>
         </View>
@@ -873,6 +1019,45 @@ const styles = StyleSheet.create({
     backgroundColor: "#000",
   },
   // keep your existing monthBlock, row, cell, etc styles
+  savedCollectionHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  backText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  savedGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 8,
+    gap: 2,
+  },
+  savedGridImage: {
+    width: (SCREEN_WIDTH - 16) / 3,
+    height: (SCREEN_WIDTH - 16) / 3,
+  },
+  collectionsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  collectionTile: {
+    width: (SCREEN_WIDTH - 32 - 24) / 3,
+    aspectRatio: 1,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 6,
+    padding: 8,
+  },
+  collectionTileText: {
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+  },
 
   emptyContent: {
     flex: 1,
