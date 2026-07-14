@@ -20,6 +20,8 @@ function RouteGaurd() {
       }
     } else if (!user.onboardingCompleated) {
       router.replace("/(auth)/onboarding");
+    } else if (!user.friendsStepCompleted) {
+      router.replace("/(auth)/addFriends");
     } else {
       if (!inTabsGroup && !inProfilesGroup && segments[0] !== "(post)") {
         router.replace("/(tabs)");

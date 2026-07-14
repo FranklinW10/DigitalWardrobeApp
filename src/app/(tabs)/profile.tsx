@@ -418,6 +418,11 @@ export default function Profile() {
         onClose={() => setLikerPostId(null)}
       />
       <View style={styles.topHeader}>
+        <TouchableOpacity
+          onPress={() => router.push("/(profile)/suggestedFriends")}
+        >
+          <Ionicons name="person-add-outline" size={20} color="#000" />
+        </TouchableOpacity>
         <Text style={styles.topHeaderUsername}>@{user?.username}</Text>
         <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
           <Ionicons name="menu" size={26} color="#000" />

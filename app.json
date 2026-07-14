@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "my-app",
-    "slug": "my-app",
+    "name": "fit check",
+    "slug": "fit check",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/IMG_20260713_141034 copy 2.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/IMG_20260713_141034 copy 2.png",
       "bundleIdentifier": "com.anonymous.myapp"
     },
     "android": {

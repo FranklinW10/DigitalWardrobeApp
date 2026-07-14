@@ -200,7 +200,7 @@ export default function Index() {
                 </Text>
                 <TouchableOpacity
                   style={styles.findFriendsButton}
-                  onPress={() => router.push("/(tabs)/explore")}
+                  onPress={() => router.push("/(profile)/suggestedFriends")}
                 >
                   <Ionicons name="person-add-outline" size={16} color="#fff" />
                   <Text style={styles.findFriendsText}>Find Friends</Text>
@@ -234,7 +234,7 @@ export default function Index() {
                 </Text>
                 <TouchableOpacity
                   style={styles.findFriendsButton}
-                  onPress={() => router.push("/(tabs)/explore")}
+                  onPress={() => router.push("/(profile)/suggestedFriends")}
                 >
                   <Ionicons name="person-add-outline" size={16} color="#fff" />
                   <Text style={styles.findFriendsText}>Find Friends</Text>
