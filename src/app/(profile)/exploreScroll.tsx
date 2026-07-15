@@ -7,19 +7,19 @@ import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
 import {
-    Animated,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Animated,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 export default function ExploreFeedScreen() {
   const { following, loadFollowing } = useFollows();
   const router = useRouter();
-  const { posts, refreshPosts } = usePosts();
+  const { posts, refreshExplorePosts } = usePosts();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -28,12 +28,13 @@ export default function ExploreFeedScreen() {
 
   useEffect(() => {
     loadFollowing();
+    refreshExplorePosts();
   }, [user?.id]);
 
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      await refreshPosts();
+      await refreshExplorePosts();
     } catch (error) {
       console.error("Error refreshing posts:", error);
     } finally {

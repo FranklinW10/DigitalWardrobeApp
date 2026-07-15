@@ -366,7 +366,6 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
         visible={showLikers}
         onClose={() => setShowLikers(false)}
       />
-      <SaveButton postId={post.id} />
     </View>
   );
 };

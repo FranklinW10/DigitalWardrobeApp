@@ -1,3 +1,4 @@
+import { ModalHaulPostCard, ModalPostCard } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
 import { Post } from "@/hooks/usePosts";
 import { useSavedPosts } from "@/hooks/useSavedPosts";
@@ -7,9 +8,13 @@ import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
+import { CommentsSheet } from "@/components/CommentSheet";
+import { LikersSheet } from "@/components/LikerSheet";
+import { Liker } from "@/hooks/useLikes";
 import {
   Animated,
   Dimensions,
+  FlatList,
   Modal,
   ScrollView,
   StyleSheet,
@@ -164,6 +169,17 @@ export default function WardrobeScreen() {
   const [haulPosts, setHaulPosts] = useState<Post[]>([]);
   const [showInfo, setShowInfo] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [likerPostId, setLikerPostId] = useState<string | null>(null);
+  const [collectionPreviews, setCollectionPreviews] = useState<
+    Record<string, string[]>
+  >({});
+  const [likers, setLikers] = useState<Liker[]>([]);
+  const [isLoadingLikers, setIsLoadingLikers] = useState(false);
+  const [commentPost, setCommentPost] = useState<Post | null>(null);
+  const [commentPostId, setCommentPostId] = useState<string | null>(null);
+  const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
+    null,
+  );
   const {
     collections,
     loadCollections,
@@ -181,6 +197,7 @@ export default function WardrobeScreen() {
   useEffect(() => {
     if (activeTab === "Saved") {
       loadCollections();
+      loadCollectionPreviews();
     }
   }, [activeTab]);
 
@@ -194,6 +211,59 @@ export default function WardrobeScreen() {
     } finally {
       setIsLoadingCollectionPosts(false);
     }
+  };
+
+  const renderSavedPost = ({ item }: { item: Post }) => (
+    <TouchableOpacity onPress={() => setSelectedPost(item)}>
+      <Image
+        source={{ uri: item.images?.[0]?.image_url ?? item.image_url }}
+        style={styles.savedGridImage}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+      />
+    </TouchableOpacity>
+  );
+  const loadCollectionPreviews = async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("saved_posts")
+      .select(
+        `
+      collection_id,
+      posts(
+        image_url,
+        images(
+          image_url
+        )
+      )
+    `,
+      )
+      .eq("user_id", user.id)
+      .limit(100);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    const previews: Record<string, string[]> = {};
+
+    data?.forEach((item: any) => {
+      const image = item.posts?.images?.[0]?.image_url ?? item.posts?.image_url;
+
+      if (!image) return;
+
+      if (!previews[item.collection_id]) {
+        previews[item.collection_id] = [];
+      }
+
+      if (previews[item.collection_id].length < 4) {
+        previews[item.collection_id].push(image);
+      }
+    });
+
+    setCollectionPreviews(previews);
   };
 
   const userActivePost = (posts ?? []).find(
@@ -362,6 +432,24 @@ export default function WardrobeScreen() {
     return () => clearTimeout(timeout);
   }, [activeTab]);
 
+  const handleOpenLikers = async (postId: string) => {
+    setLikerPostId(postId);
+    setIsLoadingLikers(true);
+    const { data } = await supabase
+      .from("likes")
+      .select("user_id, profiles(username, name, profile_image_url)")
+      .eq("post_id", postId);
+    setLikers((data as any) ?? []);
+    setIsLoadingLikers(false);
+  };
+
+  // Pass a callback down into your modal post cards
+  const handleOpenComments = (postId: string, postOwnerId: string) => {
+    console.log("postId:", postId, "postOwnerId:", postOwnerId);
+    setCommentPostId(postId);
+    setCommentPostOwnerId(postOwnerId);
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.topHeader}>
@@ -373,82 +461,85 @@ export default function WardrobeScreen() {
           <Ionicons name="information" size={26} color="#000" />
         </TouchableOpacity>
       </View>
-      <Animated.View
-        style={[
-          styles.floatingTabsWrapper,
-          {
-            transform: [{ translateY: tabsTranslateY }],
-            opacity: tabsOpacity,
-          },
-        ]}
-        pointerEvents="box-none"
-      >
-        <View style={styles.floatingTabs}>
-          <TouchableOpacity
-            style={[
-              styles.floatingTabPill,
-              activeTab === "wardrobe" && styles.floatingTabPillActive,
-            ]}
-            onPress={() => {
-              setActiveTab("wardrobe");
-              tabScrollRef.current?.scrollTo({ x: 0, animated: true });
-            }}
-          >
-            <Text
+
+      {!selectedCollectionId && (
+        <Animated.View
+          style={[
+            styles.floatingTabsWrapper,
+            {
+              transform: [{ translateY: tabsTranslateY }],
+              opacity: tabsOpacity,
+            },
+          ]}
+          pointerEvents="box-none"
+        >
+          <View style={styles.floatingTabs}>
+            <TouchableOpacity
               style={[
-                styles.floatingTabText,
-                activeTab === "wardrobe" && styles.floatingTabActive,
+                styles.floatingTabPill,
+                activeTab === "wardrobe" && styles.floatingTabPillActive,
               ]}
+              onPress={() => {
+                setActiveTab("wardrobe");
+                tabScrollRef.current?.scrollTo({ x: 0, animated: true });
+              }}
             >
-              Fits
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.floatingTabPill,
-              activeTab === "hauls" && styles.floatingTabPillActive,
-            ]}
-            onPress={() => {
-              setActiveTab("hauls");
-              tabScrollRef.current?.scrollTo({
-                x: SCREEN_WIDTH,
-                animated: true,
-              });
-            }}
-          >
-            <Text
+              <Text
+                style={[
+                  styles.floatingTabText,
+                  activeTab === "wardrobe" && styles.floatingTabActive,
+                ]}
+              >
+                Fits
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[
-                styles.floatingTabText,
-                activeTab === "hauls" && styles.floatingTabActive,
+                styles.floatingTabPill,
+                activeTab === "hauls" && styles.floatingTabPillActive,
               ]}
+              onPress={() => {
+                setActiveTab("hauls");
+                tabScrollRef.current?.scrollTo({
+                  x: SCREEN_WIDTH,
+                  animated: true,
+                });
+              }}
             >
-              Hauls
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.floatingTabPill,
-              activeTab === "Saved" && styles.floatingTabPillActive,
-            ]}
-            onPress={() => {
-              setActiveTab("Saved");
-              tabScrollRef.current?.scrollTo({
-                x: SCREEN_WIDTH * 2,
-                animated: true,
-              });
-            }}
-          >
-            <Text
+              <Text
+                style={[
+                  styles.floatingTabText,
+                  activeTab === "hauls" && styles.floatingTabActive,
+                ]}
+              >
+                Hauls
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[
-                styles.floatingTabText,
-                activeTab === "Saved" && styles.floatingTabActive,
+                styles.floatingTabPill,
+                activeTab === "Saved" && styles.floatingTabPillActive,
               ]}
+              onPress={() => {
+                setActiveTab("Saved");
+                tabScrollRef.current?.scrollTo({
+                  x: SCREEN_WIDTH * 2,
+                  animated: true,
+                });
+              }}
             >
-              Saved
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
+              <Text
+                style={[
+                  styles.floatingTabText,
+                  activeTab === "Saved" && styles.floatingTabActive,
+                ]}
+              >
+                Saved
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
 
       {/* Paged content */}
       <ScrollView
@@ -580,23 +671,22 @@ export default function WardrobeScreen() {
                     </Text>
                   </View>
                 ) : (
-                  <View style={styles.savedGrid}>
-                    {collectionPosts.map((post) => (
-                      <TouchableOpacity
-                        key={post.id}
-                        onPress={() => setSelectedPost(post)}
-                      >
-                        <Image
-                          source={{
-                            uri: post.images?.[0]?.image_url ?? post.image_url,
-                          }}
-                          style={styles.savedGridImage}
-                          contentFit="cover"
-                          cachePolicy="memory-disk"
-                        />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
+                  <FlatList
+                    key="saved"
+                    data={collectionPosts}
+                    renderItem={renderSavedPost}
+                    numColumns={3}
+                    keyExtractor={(item) => item.id}
+                    columnWrapperStyle={{ gap: 2 }}
+                    scrollEnabled={false}
+                    ListEmptyComponent={
+                      <View style={styles.emptyContent}>
+                        <Text style={styles.emptyText}>
+                          No posts saved here yet
+                        </Text>
+                      </View>
+                    }
+                  />
                 )}
               </>
             ) : (
@@ -616,17 +706,43 @@ export default function WardrobeScreen() {
                         style={styles.collectionTile}
                         onPress={() => handleOpenCollection(c.id, c.name)}
                       >
+                        <View style={styles.collectionPreviewGrid}>
+                          {[0, 1, 2, 3].map((i) =>
+                            collectionPreviews[c.id]?.[i] ? (
+                              <Image
+                                key={i}
+                                source={{ uri: collectionPreviews[c.id][i] }}
+                                style={styles.collectionPreviewImage}
+                                contentFit="cover"
+                                cachePolicy="memory-disk"
+                              />
+                            ) : (
+                              <View
+                                key={i}
+                                style={[
+                                  styles.collectionPreviewImage,
+                                  styles.collectionPreviewPlaceholder,
+                                ]}
+                              />
+                            ),
+                          )}
+                        </View>
+                        <View style={styles.collectionTileInfo}>
+                          <Text
+                            style={styles.collectionTileText}
+                            numberOfLines={1}
+                          >
+                            {c.name}
+                          </Text>
+                          <Text style={styles.collectionTileCount}>
+                            {collectionPreviews[c.id]?.length ?? 0} posts
+                          </Text>
+                        </View>
                         <Ionicons
-                          name="folder-outline"
-                          size={28}
-                          color="#000"
+                          name="chevron-forward"
+                          size={16}
+                          color="#ccc"
                         />
-                        <Text
-                          style={styles.collectionTileText}
-                          numberOfLines={1}
-                        >
-                          {c.name}
-                        </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -639,34 +755,66 @@ export default function WardrobeScreen() {
 
       {/* Selected post modal */}
       {selectedPost && (
-        <Modal
-          visible
-          transparent
-          animationType="fade"
-          onRequestClose={() => setSelectedPost(null)}
-        >
-          <TouchableOpacity
-            style={styles.modalOverlay}
-            onPress={() => setSelectedPost(null)}
-          >
-            <View style={styles.modalContent}>
-              <Image
-                source={{
-                  uri:
-                    selectedPost.images?.[0]?.image_url ??
-                    selectedPost.image_url,
-                }}
-                style={styles.selectedImage}
-                contentFit="cover"
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setSelectedPost(null)}
+            >
+              <Text style={styles.closeText}>✕</Text>
+            </TouchableOpacity>
+
+            {selectedPost.isoutfit_post ? (
+              <ModalPostCard
+                post={selectedPost}
+                currentUserId={user?.id}
+                onNavigateAway={() => setSelectedPost(null)}
+                onOpenComments={handleOpenComments}
+                onOpenLikers={handleOpenLikers}
               />
-              {selectedPost.description && (
-                <Text style={styles.selectedDescription}>
-                  {selectedPost.description}
-                </Text>
-              )}
-            </View>
+            ) : (
+              <ModalHaulPostCard
+                post={selectedPost}
+                currentUserId={user?.id}
+                onNavigateAway={() => setSelectedPost(null)}
+                onOpenComments={handleOpenComments}
+                onOpenLikers={handleOpenLikers}
+              />
+            )}
+          </View>
+          <TouchableOpacity
+            style={styles.exploreButton}
+            onPress={() =>
+              router.push({
+                pathname: "/(profile)/collectionScroll",
+                params: {
+                  collection_id: selectedCollectionId,
+                  collection_name: selectedCollectionName,
+                },
+              })
+            }
+          >
+            <Ionicons name="grid-outline" size={16} color="#fff" />
+            <Text style={styles.exploreButtonText}>
+              Scroll {selectedCollectionName} Posts →
+            </Text>
           </TouchableOpacity>
-        </Modal>
+          <CommentsSheet
+            postId={commentPostId ?? ""}
+            postOwnerId={commentPostOwnerId ?? ""}
+            visible={commentPostId !== null}
+            onClose={() => {
+              setCommentPostId(null);
+              setCommentPostOwnerId(null);
+            }}
+          />
+          <LikersSheet
+            likers={likers}
+            isLoading={isLoadingLikers}
+            visible={likerPostId !== null}
+            onClose={() => setLikerPostId(null)}
+          />
+        </View>
       )}
       <Modal visible={showInfo} transparent animationType="fade">
         <TouchableOpacity
@@ -740,6 +888,86 @@ export default function WardrobeScreen() {
 }
 
 const styles = StyleSheet.create({
+  modalOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 10,
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    width: "95%",
+    maxHeight: "85%",
+    overflow: "hidden",
+  },
+  collectionsGrid: {
+    width: "100%",
+    paddingHorizontal: 16,
+    gap: 0,
+  },
+  collectionTile: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    gap: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#f0f0f0",
+  },
+  collectionPreviewGrid: {
+    width: 64,
+    height: 64,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  collectionPreviewImage: {
+    width: 32,
+    height: 32,
+  },
+  collectionPreviewPlaceholder: {
+    backgroundColor: "#f0f0f0",
+  },
+  collectionTileInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  collectionTileText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#000",
+  },
+  collectionTileCount: {
+    fontSize: 13,
+    color: "#999",
+  },
+  previewGrid: {
+    flex: 1,
+    flexDirection: "row",
+    flexWrap: "wrap",
+  },
+
+  previewImage: {
+    width: "50%",
+    height: "50%",
+  },
+
+  collectionTileWrapper: {
+    width: "100%",
+    height: (SCREEN_WIDTH - 80) / 3,
+    marginBottom: 12,
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+    justifyContent: "center",
+    gap: 6,
+    padding: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+
   infoModal: {
     backgroundColor: "#fff",
     borderRadius: 20,
@@ -774,12 +1002,44 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
   },
+  closeButton: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    zIndex: 10,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    borderRadius: 20,
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  exploreButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 16,
+    backgroundColor: "#000",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.4)",
+  },
+  exploreButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+  },
   photoMonthHeader: {
-    fontSize: 16,
-    fontWeight: "700",
+    marginTop: 0,
+    fontSize: 24,
+    fontWeight: "600",
     color: "#111",
     paddingHorizontal: 12,
     paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
   },
   heroImage: {
     width: SCREEN_WIDTH,
@@ -986,18 +1246,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     color: "#111",
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalContent: {
-    width: "90%",
-    borderRadius: 16,
-    overflow: "hidden",
-    backgroundColor: "#fff",
-  },
+
   selectedImage: {
     width: "100%",
     height: 400,
@@ -1024,8 +1273,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   backText: {
-    fontSize: 16,
-    fontWeight: "600",
+    fontSize: 24,
+    fontWeight: "500",
+    marginBottom: 8,
   },
   savedGrid: {
     flexDirection: "row",
@@ -1034,31 +1284,9 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   savedGridImage: {
-    width: (SCREEN_WIDTH - 16) / 3,
-    height: (SCREEN_WIDTH - 16) / 3,
+    width: (SCREEN_WIDTH - 4) / 3,
+    height: (SCREEN_WIDTH - 4) / 3,
   },
-  collectionsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  collectionTile: {
-    width: (SCREEN_WIDTH - 32 - 24) / 3,
-    aspectRatio: 1,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-    padding: 8,
-  },
-  collectionTileText: {
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-
   emptyContent: {
     flex: 1,
     justifyContent: "center",

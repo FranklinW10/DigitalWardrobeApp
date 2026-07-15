@@ -1,6 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase/client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export interface SavedCollection {
   id: string;
@@ -15,6 +15,12 @@ export const useSavedPosts = () => {
   // isSaved() can answer "is this post saved anywhere at all"
   const [savedMap, setSavedMap] = useState<Record<string, string[]>>({});
 
+  useEffect(() => {
+    if (user) {
+      loadCollections();
+      loadSavedMap();
+    }
+  }, [user]);
   const loadCollections = async () => {
     if (!user) return;
     try {

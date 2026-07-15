@@ -61,6 +61,7 @@ export default function Profile() {
   const [showModal, setShowModal] = useState(false);
   // Separate loading state for the form submit
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showFilter, setShowFilter] = useState(true);
   const filteredPosts = posts.filter((post) =>
     activeTab === "fits" ? post.isoutfit_post : !post.isoutfit_post,
   );
@@ -119,7 +120,9 @@ export default function Profile() {
     <ProfilePostCard
       post={item}
       currentUserId={user?.id}
-      onPress={() => setSelectedPost(item)}
+      onPress={() => {
+        (setSelectedPost(item), setShowFilter(false));
+      }}
     />
   );
   useEffect(() => {
@@ -544,36 +547,41 @@ export default function Profile() {
           }
         />
         {/* Floating options button + pill dropdown */}
-        <View style={styles.optionsContainer}>
-          <TouchableOpacity
-            style={styles.optionsButton}
-            onPress={() => setShowOptions(!showOptions)}
-          >
-            <Ionicons name="options-outline" size={18} color="#000" />
-          </TouchableOpacity>
-          {showOptions && (
-            <View style={styles.optionsPill}>
-              {[
-                { value: "all", icon: "grid-outline" },
-                { value: "public", icon: "earth-outline" },
-                { value: "private", icon: "lock-closed-outline" },
-              ].map((opt) => (
-                <TouchableOpacity
-                  key={opt.value}
-                  style={styles.pillOption}
-                  onPress={() => setFilter(opt.value as any)}
-                >
-                  {filter === opt.value && <View style={styles.pillSelector} />}
-                  <Ionicons
-                    name={opt.icon as any}
-                    size={16}
-                    color={filter === opt.value ? "#fff" : "#888"}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
+
+        {!selectedPost && (
+          <View style={styles.optionsContainer}>
+            <TouchableOpacity
+              style={styles.optionsButton}
+              onPress={() => setShowOptions(!showOptions)}
+            >
+              <Ionicons name="options-outline" size={18} color="#000" />
+            </TouchableOpacity>
+            {showOptions && (
+              <View style={styles.optionsPill}>
+                {[
+                  { value: "all", icon: "grid-outline" },
+                  { value: "public", icon: "earth-outline" },
+                  { value: "private", icon: "lock-closed-outline" },
+                ].map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={styles.pillOption}
+                    onPress={() => setFilter(opt.value as any)}
+                  >
+                    {filter === opt.value && (
+                      <View style={styles.pillSelector} />
+                    )}
+                    <Ionicons
+                      name={opt.icon as any}
+                      size={16}
+                      color={filter === opt.value ? "#fff" : "#888"}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        )}
       </View>
 
       <Modal visible={showModal} transparent animationType="slide">

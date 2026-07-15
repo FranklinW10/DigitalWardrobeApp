@@ -49,6 +49,7 @@ export default function Index() {
 
   useEffect(() => {
     loadFollowing();
+    refreshPosts();
   }, [user?.id]);
 
   const followingPosts = posts.filter(
@@ -210,6 +211,7 @@ export default function Index() {
             contentContainerStyle={
               sections.length === 0 ? styles.emptyContent : styles.content
             }
+            ListFooterComponent={<View style={styles.whitespace} />}
           />
         ) : (
           <FlatList
@@ -223,6 +225,7 @@ export default function Index() {
             renderItem={renderHaulPost}
             keyExtractor={(item) => item.id}
             onScroll={handleScroll}
+            ListFooterComponent={<View style={styles.whitespace} />}
             contentContainerStyle={
               followingPosts.length === 0 ? styles.emptyContent : styles.content
             }
@@ -491,6 +494,9 @@ const styles = StyleSheet.create({
   },
   headerIcon: {
     fontSize: 22,
+  },
+  whitespace: {
+    padding: 50,
   },
 
   tabSwitcher: {

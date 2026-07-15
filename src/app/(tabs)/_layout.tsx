@@ -4,7 +4,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { useAuth } from "@/context/AuthContext";
 import { usePosts } from "@/hooks/usePosts";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "react-native";
 
 export default function TabsLayout() {
@@ -12,6 +12,11 @@ export default function TabsLayout() {
   const [showModal, setShowModal] = useState(false);
   const { posts, refreshPosts } = usePosts();
   const { user } = useAuth();
+  useEffect(() => {
+    if (user?.id) {
+      refreshPosts();
+    }
+  }, [user?.id]);
 
   const userActivePost = (posts ?? []).find(
     (post) =>
@@ -20,6 +25,7 @@ export default function TabsLayout() {
       post.is_post_today &&
       post.isoutfit_post,
   );
+  console.log("userActivePost", userActivePost);
 
   const hasActivePost = !!userActivePost;
 

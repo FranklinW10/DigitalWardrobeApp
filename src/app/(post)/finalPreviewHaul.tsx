@@ -120,6 +120,9 @@ export default function FinalPreviewHaul() {
             <Ionicons name="chatbubble-outline" size={22} color="#000" />
             <Text style={styles.actionCount}>0</Text>
           </View>
+          <View style={{ marginLeft: "auto" }}>
+            <Ionicons name={"bookmark-outline"} size={22} color={"#000"} />
+          </View>
         </View>
 
         {/* Footer */}
