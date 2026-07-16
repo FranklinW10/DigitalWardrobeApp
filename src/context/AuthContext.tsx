@@ -16,6 +16,7 @@ export interface User {
   isPrivate?: boolean;
   onboardingCompleated?: boolean;
   friendsStepCompleted?: boolean;
+  PhoneAsked?: boolean;
 }
 
 interface AuthContextType {
@@ -87,11 +88,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         name: data.name,
         username: data.username,
         email: authUser.data.user.email || "",
-        phone: authUser.data.user.phone || "",
+        phone: data.phone || "",
         profileImage: data.profile_image_url,
         isPrivate: data.isPrivate,
         onboardingCompleated: data.on_boarding_completed,
         friendsStepCompleted: data.friends_step_completed,
+        PhoneAsked: data.PhoneAsked,
       };
     } catch (error) {
       console.error("Error in fethchUserProfile:", error);
@@ -156,6 +158,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         updateData.isPrivate = userData.isPrivate;
       if (userData.onboardingCompleated !== undefined)
         updateData.on_boarding_completed = userData.onboardingCompleated;
+      if (userData.PhoneAsked !== undefined)
+        updateData.PhoneAsked = userData.PhoneAsked;
+      if (userData.phone !== undefined) updateData.phone = userData.phone;
       if (userData.friendsStepCompleted !== undefined)
         updateData.friends_step_completed = userData.friendsStepCompleted;
       const { error, data } = await supabase

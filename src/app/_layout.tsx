@@ -20,6 +20,8 @@ function RouteGaurd() {
       }
     } else if (!user.onboardingCompleated) {
       router.replace("/(auth)/onboarding");
+    } else if (!user.PhoneAsked) {
+      router.replace("/(auth)/phone");
     } else if (!user.friendsStepCompleted) {
       router.replace("/(auth)/addFriends");
     } else {

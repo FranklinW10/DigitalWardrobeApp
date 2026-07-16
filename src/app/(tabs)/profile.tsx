@@ -41,6 +41,7 @@ interface ProfileUser {
   name: string;
   username: string;
   profile_image_url?: string;
+  phone?: string;
 }
 
 export default function Profile() {
@@ -73,6 +74,8 @@ export default function Profile() {
   const [likers, setLikers] = useState<Liker[]>([]);
   const [isLoadingLikers, setIsLoadingLikers] = useState(false);
   const [commentPost, setCommentPost] = useState<Post | null>(null);
+  const [phone, setPhone] = useState(user?.phone ?? "");
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
     null,
@@ -129,6 +132,7 @@ export default function Profile() {
     if (showModal && user) {
       setName(user.name);
       setUsername(user.username);
+      setPhone(user.phone);
       setIsPrivate(user.isPrivate ?? false);
     }
   }, [showModal, user]);
@@ -272,6 +276,13 @@ export default function Profile() {
       return; // ← was missing
     }
 
+    const digits = phone.replace(/\D/g, "");
+    if (phone.trim().length > 0 && (digits.length < 10 || digits.length > 15)) {
+      setPhoneError("Please enter a valid phone number");
+      return;
+    }
+    setPhoneError(null);
+
     setIsSubmitting(true);
     try {
       if (!user) throw new Error("User not authenticated");
@@ -295,9 +306,12 @@ export default function Profile() {
         name,
         username,
         isPrivate,
+        phone: digits.length > 0 ? digits : undefined,
       });
       setProfileUser((prev) =>
-        prev ? { ...prev, name, username, isPrivate } : prev,
+        prev
+          ? { ...prev, name, username, isPrivate, phone: digits || prev.phone }
+          : prev,
       );
       setShowModal(false); // ← close modal on success
     } catch (error) {
@@ -636,6 +650,19 @@ export default function Profile() {
                 onChangeText={setUsername}
                 style={styles.input}
               />
+              <Text style={styles.inputHeader}>Phone Number</Text>
+              <TextInput
+                placeholder="Phone Number"
+                placeholderTextColor="#999"
+                keyboardType="phone-pad"
+                value={phone}
+                onChangeText={(text) => {
+                  setPhone(text);
+                  if (phoneError) setPhoneError(null);
+                }}
+                style={styles.input}
+              />
+              {phoneError && <Text style={styles.errorText}>{phoneError}</Text>}
               <View style={styles.privacyRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.inputHeader}>Private Account</Text>
@@ -777,6 +804,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
+  },
+  errorText: {
+    color: "#ff3b30",
+    fontSize: 12,
+    marginTop: 4,
   },
   editBadgeText: {
     color: "#fff",
