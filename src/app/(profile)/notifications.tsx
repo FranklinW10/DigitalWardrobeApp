@@ -1,11 +1,12 @@
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { useFollows } from "@/hooks/useFollows";
 import { useNotifications } from "@/hooks/useNotifications";
 import { formatTimeAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FlatList,
   StyleSheet,
@@ -21,6 +22,8 @@ export default function NotificationsScreen() {
   const { notifications, markAllRead } = useNotifications(user?.id);
   const { loadIncomingRequests } = useFollows();
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     markAllRead();
@@ -165,108 +168,110 @@ export default function NotificationsScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  requestsBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-    backgroundColor: "#fafafa",
-  },
-  requestsAvatarStack: {
-    flexDirection: "row",
-  },
-  stackedAvatarWrap: {
-    borderWidth: 2,
-    borderColor: "#fafafa",
-    borderRadius: 22,
-  },
-  stackedAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  unread: {
-    backgroundColor: "#f9f9f9",
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  avatarPlaceholder: {
-    backgroundColor: "#e0e0e0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  textContent: {
-    flex: 1,
-  },
-  notificationText: {
-    fontSize: 14,
-    color: "#333",
-    lineHeight: 20,
-  },
-  bold: {
-    fontWeight: "700",
-  },
-  time: {
-    fontSize: 12,
-    color: "#999",
-    marginTop: 2,
-  },
-  thumbnail: {
-    width: 44,
-    height: 44,
-    borderRadius: 4,
-  },
-  unreadDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#000",
-  },
-  empty: {
-    textAlign: "center",
-    color: "#999",
-    marginTop: 60,
-  },
-  closeButton: {},
-  closeButtonText: {
-    fontSize: 22,
-    color: "#000",
-    fontWeight: "400",
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    requestsBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 16,
+      gap: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    requestsAvatarStack: {
+      flexDirection: "row",
+    },
+    stackedAvatarWrap: {
+      borderWidth: 2,
+      borderColor: colors.surface,
+      borderRadius: 22,
+    },
+    stackedAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 16,
+      gap: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    unread: {
+      backgroundColor: colors.surface,
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+    },
+    avatarPlaceholder: {
+      backgroundColor: colors.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarText: {
+      fontWeight: "600",
+      fontSize: 16,
+      color: colors.text,
+    },
+    textContent: {
+      flex: 1,
+    },
+    notificationText: {
+      fontSize: 14,
+      color: colors.text,
+      lineHeight: 20,
+    },
+    bold: {
+      fontWeight: "700",
+    },
+    time: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    thumbnail: {
+      width: 44,
+      height: 44,
+      borderRadius: 4,
+    },
+    unreadDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.primary,
+    },
+    empty: {
+      textAlign: "center",
+      color: colors.textMuted,
+      marginTop: 60,
+    },
+    closeButton: {},
+    closeButtonText: {
+      fontSize: 22,
+      color: colors.text,
+      fontWeight: "400",
+    },
+  });

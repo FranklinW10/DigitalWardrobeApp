@@ -1,5 +1,6 @@
 import { HaulPostCard, PostCard } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { useFollows } from "@/hooks/useFollows";
 import { Post, usePosts } from "@/hooks/usePosts";
 import { daysAgo } from "@/lib/date-helper";
@@ -35,6 +36,8 @@ export default function Index() {
 
   const headerVisible = useRef(new Animated.Value(1)).current;
   const [activeTab, setActiveTab] = useState<"fits" | "hauls">("fits");
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   // Check if user has an active post
   const userActivePost = (posts ?? []).find(
@@ -160,19 +163,23 @@ export default function Index() {
 
   return (
     <>
-      <SafeAreaView style={{ backgroundColor: "#fff" }} edges={["top"]} />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
+      <SafeAreaView style={styles.containerViewStyle} edges={["top"]} />
+      <View style={styles.ViewStyle}>
         <Animated.View
           style={[styles.header, { height: headerHeight, overflow: "hidden" }]}
         >
           <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
-            <Ionicons name="menu-outline" size={24} color="#000" />
+            <Ionicons name="menu-outline" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Fit Check</Text>
           <TouchableOpacity
             onPress={() => router.push("/(profile)/notifications")}
           >
-            <Ionicons name="notifications-outline" size={24} color="#000" />
+            <Ionicons
+              name="notifications-outline"
+              size={24}
+              color={colors.text}
+            />
           </TouchableOpacity>
         </Animated.View>
         {/*List*/}
@@ -203,7 +210,11 @@ export default function Index() {
                   style={styles.findFriendsButton}
                   onPress={() => router.push("/(profile)/suggestedFriends")}
                 >
-                  <Ionicons name="person-add-outline" size={16} color="#fff" />
+                  <Ionicons
+                    name="person-add-outline"
+                    size={16}
+                    color={colors.background}
+                  />
                   <Text style={styles.findFriendsText}>Find Friends</Text>
                 </TouchableOpacity>
               </View>
@@ -239,7 +250,11 @@ export default function Index() {
                   style={styles.findFriendsButton}
                   onPress={() => router.push("/(profile)/suggestedFriends")}
                 >
-                  <Ionicons name="person-add-outline" size={16} color="#fff" />
+                  <Ionicons
+                    name="person-add-outline"
+                    size={16}
+                    color={colors.background}
+                  />
                   <Text style={styles.findFriendsText}>Find Friends</Text>
                 </TouchableOpacity>
               </View>
@@ -272,16 +287,24 @@ export default function Index() {
               style={styles.postTodayInner}
               onPress={() => router.push("/(post)/fit")}
             >
-              <Ionicons name="camera-outline" size={20} color="#fff" />
+              <Ionicons
+                name="camera-outline"
+                size={20}
+                color={colors.background}
+              />
               <Text style={styles.postTodayText}>Post your fit for today</Text>
-              <Ionicons name="chevron-forward" size={16} color="#fff" />
+              <Ionicons
+                name="chevron-forward"
+                size={16}
+                color={colors.background}
+              />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.bannerDismiss}
               onPress={() => setBannerDismissed(true)}
               hitSlop={4}
             >
-              <Ionicons name="close" size={12} color="#000" />
+              <Ionicons name="close" size={12} color={colors.text} />
             </TouchableOpacity>
           </View>
         )}
@@ -289,261 +312,263 @@ export default function Index() {
     </>
   );
 }
+// ---- Dynamic Styles ----
+const createStyles = (colors: any, currentTab?: any) =>
+  StyleSheet.create({
+    ViewStyle: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    containerViewStyle: {
+      backgroundColor: colors.background,
+    },
 
-const styles = StyleSheet.create({
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: "#888",
-    marginBottom: 24,
-    textAlign: "center",
-  },
-  findFriendsButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: "#000",
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 20,
-  },
-  findFriendsText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  postTodayBanner: {
-    position: "absolute",
-    bottom: 100,
-    left: 16,
-    right: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#000",
-    borderRadius: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6,
-    zIndex: 10,
-  },
-  postTodayInner: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 14,
-    paddingLeft: 16,
-  },
-  postTodayText: {
-    flex: 1,
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  bannerDismiss: {
-    position: "absolute",
-    top: -8,
-    left: -8,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#fff",
-  },
-  headerContainer: {
-    padding: 15,
-    marginBottom: -15,
-  },
-  headerBorder: {
-    width: "100%",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-
-    marginTop: -2,
-  },
-
-  sectionHeader: {
-    fontSize: 30,
-    fontWeight: "600",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    color: "#333",
-  },
-  content: {
-    paddingBottom: 100,
-  },
-  emptyContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 16,
-    marginBottom: 90,
-  },
-  postContainer: {
-    backgroundColor: "#fff",
-
-    overflow: "hidden",
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  postHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-  },
-  userInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  avatarPlaceholder: {
-    backgroundColor: "#f0f0f0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#666",
-  },
-  username: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-  },
-  timeAgo: {
-    fontSize: 12,
-    color: "#666",
-  },
-  timeRemainingBadge: {
-    backgroundColor: "#000",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  timeRemainingText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  postImage: {
-    width: "100%",
-    aspectRatio: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  postFooter: {
-    padding: 16,
-  },
-  postDescription: {
-    fontSize: 15,
-    color: "#000",
-    marginBottom: 8,
-    lineHeight: 20,
-  },
-  postInfo: {
-    fontSize: 14,
-    color: "#666",
-  },
-  header: {
-    backgroundColor: "#fff",
-
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    width: "100%",
-    paddingTop: -120,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-  },
-  headerTitle: {
-    fontSize: 30,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  headerIcon: {
-    fontSize: 22,
-  },
-  whitespace: {
-    padding: 50,
-  },
-
-  tabSwitcher: {
-    flexDirection: "row",
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderBottomColor: "#e0e0e0",
-
-    padding: 4,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  activeTab: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#000",
-    marginBottom: -1,
-  },
-  tabText: {
-    fontSize: 20,
-    fontWeight: "500",
-    color: "#888",
-  },
-  activeTabText: {
-    color: "#000",
-    fontWeight: "600",
-  },
-
-  dotsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
-  },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  dotActive: {
-    backgroundColor: "#000",
-  },
-  dotInactive: {
-    backgroundColor: "#ccc",
-  },
-});
+    emptyTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: colors.text,
+      marginBottom: 8,
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginBottom: 24,
+      textAlign: "center",
+    },
+    findFriendsButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: colors.primary,
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+      borderRadius: 20,
+    },
+    findFriendsText: {
+      color: colors.background,
+      fontSize: 15,
+      fontWeight: "600",
+    },
+    postTodayBanner: {
+      position: "absolute",
+      bottom: 100,
+      left: 16,
+      right: 16,
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 6,
+      zIndex: 10,
+    },
+    postTodayInner: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 14,
+      paddingLeft: 16,
+    },
+    postTodayText: {
+      flex: 1,
+      color: colors.background,
+      fontSize: 15,
+      fontWeight: "600",
+    },
+    bannerDismiss: {
+      position: "absolute",
+      top: -8,
+      left: -8,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: colors.background,
+      justifyContent: "center",
+      alignItems: "center",
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.2,
+      shadowRadius: 2,
+      elevation: 3,
+    },
+    container: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.background,
+    },
+    headerContainer: {
+      padding: 15,
+      marginBottom: -15,
+    },
+    headerBorder: {
+      width: "100%",
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      marginTop: -2,
+    },
+    sectionHeader: {
+      fontSize: 30,
+      fontWeight: "600",
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      color: colors.text,
+    },
+    content: {
+      paddingBottom: 100,
+    },
+    emptyContent: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 16,
+      marginBottom: 90,
+    },
+    postContainer: {
+      backgroundColor: colors.background,
+      overflow: "hidden",
+      marginBottom: 16,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    postHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: 16,
+    },
+    userInfo: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    avatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+    },
+    avatarPlaceholder: {
+      backgroundColor: colors.surface,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    avatarText: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: colors.textMuted,
+    },
+    username: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    timeAgo: {
+      fontSize: 12,
+      color: colors.secondary,
+    },
+    timeRemainingBadge: {
+      backgroundColor: colors.accent, // Using accent here makes timers pop across layouts
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 12,
+    },
+    timeRemainingText: {
+      color: colors.background,
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    postImage: {
+      width: "100%",
+      aspectRatio: 1,
+      backgroundColor: colors.surface,
+    },
+    postFooter: {
+      padding: 16,
+    },
+    postDescription: {
+      fontSize: 15,
+      color: colors.text,
+      marginBottom: 8,
+      lineHeight: 20,
+    },
+    postInfo: {
+      fontSize: 14,
+      color: colors.secondary,
+    },
+    header: {
+      backgroundColor: colors.background,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      width: "100%",
+      paddingTop: -120,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      marginBottom: 0,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontSize: 30,
+      fontWeight: "bold",
+      color: colors.text,
+    },
+    headerIcon: {
+      fontSize: 22,
+    },
+    whitespace: {
+      padding: 50,
+    },
+    tabSwitcher: {
+      flexDirection: "row",
+      marginHorizontal: 16,
+      marginBottom: 12,
+      borderBottomColor: colors.border,
+      padding: 4,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 8,
+      alignItems: "center",
+      borderRadius: 8,
+    },
+    activeTab: {
+      borderBottomWidth: 1,
+      borderBottomColor: colors.primary,
+      marginBottom: -1,
+    },
+    tabText: {
+      fontSize: 20,
+      fontWeight: "500",
+      color: colors.textMuted,
+    },
+    activeTabText: {
+      color: colors.text,
+      fontWeight: "600",
+    },
+    dotsContainer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: 8,
+    },
+    dot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+    },
+    dotActive: {
+      backgroundColor: colors.primary,
+    },
+    dotInactive: {
+      backgroundColor: colors.border,
+    },
+  });

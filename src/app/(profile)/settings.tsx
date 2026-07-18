@@ -1,8 +1,9 @@
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-
+import { useMemo } from "react";
 import {
   Alert,
   ScrollView,
@@ -17,19 +18,30 @@ type SettingRowProps = {
   label: string;
   onPress?: () => void;
   destructive?: boolean;
+  styles: ReturnType<typeof createStyles>;
+  mutedColor: string;
 };
 
-const SettingRow = ({ label, onPress, destructive }: SettingRowProps) => (
+const SettingRow = ({
+  label,
+  onPress,
+  destructive,
+  styles,
+  mutedColor,
+}: SettingRowProps) => (
   <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.6}>
     <Text style={[styles.rowLabel, destructive && styles.destructiveText]}>
       {label}
     </Text>
-    {!destructive && <Ionicons name="chevron-forward" size={18} color="#999" />}
+    {!destructive && (
+      <Ionicons name="chevron-forward" size={18} color={mutedColor} />
+    )}
   </TouchableOpacity>
 );
-
 export default function Settings() {
   const { signOut } = useAuth();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -116,99 +128,131 @@ export default function Settings() {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.sectionTitle}>Account</Text>
         <View style={styles.section}>
-          <SettingRow label="Edit Profile" />
+          <SettingRow
+            label="Edit Profile"
+            styles={styles}
+            mutedColor={colors.textMuted}
+          />
           <View style={styles.divider} />
-          <SettingRow label="Notifications" />
+          <SettingRow
+            label="Notifications"
+            styles={styles}
+            mutedColor={colors.textMuted}
+          />
           <View style={styles.divider} />
-          <SettingRow label="Privacy" />
+          <SettingRow
+            label="Privacy"
+            styles={styles}
+            mutedColor={colors.textMuted}
+          />
         </View>
 
         <Text style={styles.sectionTitle}>About</Text>
         <View style={styles.section}>
-          <SettingRow label="Help & Support" />
+          <SettingRow
+            label="Help & Support"
+            styles={styles}
+            mutedColor={colors.textMuted}
+          />
           <View style={styles.divider} />
-          <SettingRow label="Terms of Service" />
+          <SettingRow
+            label="Terms of Service"
+            styles={styles}
+            mutedColor={colors.textMuted}
+          />
           <View style={styles.divider} />
-          <SettingRow label="Privacy Policy" />
+          <SettingRow
+            label="Privacy Policy"
+            styles={styles}
+            mutedColor={colors.textMuted}
+          />
         </View>
 
         <Text style={styles.sectionTitle}>Danger Zone</Text>
         <View style={styles.section}>
-          <SettingRow label="Sign Out" onPress={handleSignOut} />
+          <SettingRow
+            label="Sign Out"
+            onPress={handleSignOut}
+            styles={styles}
+            mutedColor={colors.textMuted}
+          />
           <View style={styles.divider} />
           <SettingRow
             label="Delete Account"
             onPress={handleDeleteAccount}
             destructive
+            styles={styles}
+            mutedColor={colors.textMuted}
           />
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#e0e0e0",
-  },
-  back: {
-    fontSize: 22,
-    color: "#000",
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#000",
-  },
-  content: {
-    paddingTop: 32,
-    paddingHorizontal: 24,
-    paddingBottom: 48,
-  },
-  sectionTitle: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#999",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  section: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "#e0e0e0",
-    borderRadius: 12,
-    marginBottom: 32,
-    overflow: "hidden",
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: "#fff",
-  },
-  rowLabel: {
-    fontSize: 16,
-    color: "#000",
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "#e0e0e0",
-    marginLeft: 16,
-  },
-  destructiveText: {
-    color: "#ff3b30",
-  },
-});
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
+    },
+    back: {
+      fontSize: 22,
+      color: colors.text,
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    content: {
+      paddingTop: 32,
+      paddingHorizontal: 24,
+      paddingBottom: 48,
+    },
+    sectionTitle: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: colors.textMuted,
+      letterSpacing: 0.8,
+      textTransform: "uppercase",
+      marginBottom: 8,
+      marginLeft: 4,
+    },
+    section: {
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: colors.border,
+      borderRadius: 12,
+      marginBottom: 32,
+      overflow: "hidden",
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      backgroundColor: colors.card || colors.surface, // Standard row surface background
+    },
+    rowLabel: {
+      fontSize: 16,
+      color: colors.text,
+    },
+    divider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors.border,
+      marginLeft: 16,
+    },
+    destructiveText: {
+      color: colors.destructive || "#ff3b30", // Fallback to safe system red if token isn't present
+    },
+  });

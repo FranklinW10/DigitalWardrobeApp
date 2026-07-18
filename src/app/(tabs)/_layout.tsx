@@ -1,11 +1,10 @@
+import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
+import { usePosts } from "@/hooks/usePosts";
 import { useRouter } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-
-import { useAuth } from "@/context/AuthContext";
-import { usePosts } from "@/hooks/usePosts";
 import { useEffect, useState } from "react";
-import { Modal } from "react-native";
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -28,6 +27,8 @@ export default function TabsLayout() {
   console.log("userActivePost", userActivePost);
 
   const hasActivePost = !!userActivePost;
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   return (
     <View style={{ flex: 1 }}>
@@ -105,63 +106,64 @@ export default function TabsLayout() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  fab: {
-    position: "absolute",
-    bottom: 23, // sits just above the tab bar
-    left: "50%",
-    marginLeft: -33,
-    width: 60,
-    height: 60,
-    borderRadius: 40,
-    backgroundColor: "#000",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  fabText: {
-    color: "#fff",
-    fontSize: 50,
-    fontWeight: "300",
-    lineHeight: 54, // this centers the + vertically
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-    gap: 12,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
-    textAlign: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
-  },
-  modalButtons: {
-    marginTop: 8,
-  },
-  modalButton: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  cancelButton: {
-    backgroundColor: "#f5f5f5",
-  },
-  cancelButtonText: {
-    color: "#000",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    fab: {
+      position: "absolute",
+      bottom: 23, // sits just above the tab bar
+      left: "50%",
+      marginLeft: -33,
+      width: 60,
+      height: 60,
+      borderRadius: 40,
+      backgroundColor: colors.primary,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    fabText: {
+      color: colors.background,
+      fontSize: 50,
+      fontWeight: "300",
+      lineHeight: 54, // this centers the + vertically
+    },
+    modalContainer: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "flex-end",
+    },
+    modalContent: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      paddingBottom: 40,
+      gap: 12,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: colors.text,
+      textAlign: "center",
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+    },
+    modalButtons: {
+      marginTop: 8,
+    },
+    modalButton: {
+      padding: 16,
+      borderRadius: 12,
+      alignItems: "center",
+    },
+    cancelButton: {
+      backgroundColor: colors.surface,
+    },
+    cancelButtonText: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+  });

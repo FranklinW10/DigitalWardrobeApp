@@ -1,9 +1,10 @@
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { usePosts } from "@/hooks/usePosts";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,6 +24,8 @@ export default function FinalPreviewFit() {
   const { user } = useAuth();
   const router = useRouter();
   const [uploading, setUploading] = useState<"archive" | "public" | null>(null);
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handlePost = async (isPublic: boolean) => {
     setUploading(isPublic ? "public" : "archive");
@@ -80,15 +83,15 @@ export default function FinalPreviewFit() {
         {/* Actions */}
         <View style={styles.actions}>
           <View style={styles.actionButton}>
-            <Ionicons name="heart-outline" size={24} color="#000" />
+            <Ionicons name="heart-outline" size={24} color={colors.text} />
             <Text style={styles.actionCount}>0</Text>
           </View>
           <View style={styles.actionButton}>
-            <Ionicons name="chatbubble-outline" size={22} color="#000" />
+            <Ionicons name="chatbubble-outline" size={22} color={colors.text} />
             <Text style={styles.actionCount}>0</Text>
           </View>
           <View style={{ marginLeft: "auto" }}>
-            <Ionicons name={"bookmark-outline"} size={22} color={"#000"} />
+            <Ionicons name={"bookmark-outline"} size={22} color={colors.text} />
           </View>
         </View>
 
@@ -109,7 +112,7 @@ export default function FinalPreviewFit() {
           onPress={() => handlePost(false)}
         >
           {uploading === "archive" ? (
-            <ActivityIndicator size={24} color="#fff" />
+            <ActivityIndicator size={24} color={colors.background} />
           ) : (
             <Text style={styles.buttonText}>Save to Archive</Text>
           )}
@@ -120,7 +123,7 @@ export default function FinalPreviewFit() {
           onPress={() => handlePost(true)}
         >
           {uploading === "public" ? (
-            <ActivityIndicator size={24} color="#fff" />
+            <ActivityIndicator size={24} color={colors.background} />
           ) : (
             <Text style={styles.buttonText}>Post Publicly</Text>
           )}
@@ -136,122 +139,124 @@ export default function FinalPreviewFit() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: -40,
-    color: "#000",
-  },
-  closeButton: {
-    position: "absolute",
-    top: 60,
-    left: 24,
-    zIndex: 10,
-    padding: 8,
-  },
-  closeButtonText: {
-    fontSize: 22,
-    color: "#000",
-  },
-  postContainer: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    marginTop: 60,
-    marginHorizontal: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  postHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-  },
-  userInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  avatarPlaceholder: {
-    backgroundColor: "#f0f0f0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#666",
-  },
-  username: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-  },
-  timeAgo: {
-    fontSize: 12,
-    color: "#666",
-  },
-  actions: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 16,
-  },
-  actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  actionCount: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  postFooter: {
-    padding: 12,
-    paddingTop: 4,
-  },
-  postDescription: {
-    fontSize: 15,
-    color: "#000",
-    marginBottom: 8,
-    lineHeight: 20,
-  },
-  postInfo: {
-    fontSize: 14,
-    color: "#666",
-  },
-  buttons: {
-    flexDirection: "row",
-    gap: 12,
-    padding: 24,
-    paddingTop: 16,
-  },
-  button: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: "#000",
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-});
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: "bold",
+      marginBottom: -40,
+      color: colors.text,
+    },
+    closeButton: {
+      position: "absolute",
+      top: 60,
+      left: 24,
+      zIndex: 10,
+      padding: 8,
+    },
+    closeButtonText: {
+      fontSize: 22,
+      color: colors.text,
+    },
+    postContainer: {
+      backgroundColor: colors.background,
+      borderRadius: 16,
+      marginTop: 60,
+      marginHorizontal: 16,
+      shadowColor: colors.text,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    postHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 16,
+    },
+    userInfo: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    avatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+    },
+    avatarPlaceholder: {
+      backgroundColor: colors.surface,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    avatarText: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: colors.textMuted,
+    },
+    username: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    timeAgo: {
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    actions: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      gap: 16,
+    },
+    actionButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    actionCount: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: colors.text,
+    },
+    postFooter: {
+      padding: 12,
+      paddingTop: 4,
+    },
+    postDescription: {
+      fontSize: 15,
+      color: colors.text,
+      marginBottom: 8,
+      lineHeight: 20,
+    },
+    postInfo: {
+      fontSize: 14,
+      color: colors.textMuted,
+    },
+    buttons: {
+      flexDirection: "row",
+      gap: 12,
+      padding: 24,
+      paddingTop: 16,
+    },
+    button: {
+      flex: 1,
+      padding: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      backgroundColor: colors.primary,
+    },
+    buttonText: {
+      color: colors.background,
+      fontSize: 15,
+      fontWeight: "600",
+    },
+  });

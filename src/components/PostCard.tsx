@@ -1,5 +1,6 @@
 import { CommentsSheet } from "@/components/CommentSheet";
 import { LikersSheet } from "@/components/LikerSheet";
+import { useTheme } from "@/context/ThemeContext";
 import { useComments } from "@/hooks/useComments";
 import { useLikes } from "@/hooks/useLikes";
 import { Post } from "@/hooks/usePosts";
@@ -9,7 +10,6 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useRef, useState } from "react";
-
 import {
   Dimensions,
   NativeScrollEvent,
@@ -54,18 +54,22 @@ const LikeButton = ({
   isLiked,
   toggleLike,
   onLikeCountPress,
+  colors,
+  styles, // <-- Receive styles here
 }: {
   likeCount: number;
   isLiked: boolean;
   toggleLike: () => void;
   onLikeCountPress: () => void;
+  colors: any;
+  styles: any; // <-- Add type
 }) => (
   <View style={styles.actionButton}>
     <TouchableOpacity onPress={toggleLike}>
       <Ionicons
         name={isLiked ? "heart" : "heart-outline"}
         size={24}
-        color={isLiked ? "red" : "#000"}
+        color={isLiked ? "red" : colors.text}
       />
     </TouchableOpacity>
     <TouchableOpacity onPress={onLikeCountPress}>
@@ -76,45 +80,31 @@ const LikeButton = ({
 
 const PostActions = ({
   post,
-  currentUserId,
   commentCount,
   likeCount,
   isLiked,
   toggleLike,
   onCommentPress,
   onLikeCountPress,
-  onSavePress,
-}: {
-  post: Post;
-  currentUserId?: string;
-  commentCount: number;
-  likeCount: number;
-  isLiked: boolean;
-  toggleLike: () => void;
-  onCommentPress: () => void;
-  onLikeCountPress: () => void;
-  onSavePress?: () => void;
-}) => (
+  colors,
+  styles, // <-- Receive styles here
+}: any) => (
   <View style={styles.actions}>
     <LikeButton
       likeCount={likeCount}
       isLiked={isLiked}
       toggleLike={toggleLike}
       onLikeCountPress={onLikeCountPress}
+      colors={colors}
+      styles={styles} // <-- Pass down
     />
-    <TouchableOpacity
-      style={styles.actionButton}
-      onPress={() => {
-        console.log("comment pressed");
-        onCommentPress();
-      }}
-    >
-      <Ionicons name="chatbubble-outline" size={22} color="#000" />
+    <TouchableOpacity style={styles.actionButton} onPress={onCommentPress}>
+      <Ionicons name="chatbubble-outline" size={22} color={colors.text} />
       <Text style={styles.actionCount}>{commentCount}</Text>
     </TouchableOpacity>
 
     <View style={{ marginLeft: "auto" }}>
-      <SaveButton postId={post.id} />
+      <SaveButton postId={post.id} color={colors.text} />
     </View>
   </View>
 );
@@ -133,6 +123,10 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
     isLoadingLikers,
     fetchLikers,
   } = useLikes(post.id, currentUserId);
+  const { colors } = useTheme();
+
+  // Generate the stylesheet dynamically using the current theme colors
+  const styles = createStyles(colors);
   return (
     <>
       <View style={styles.postContainer}>
@@ -191,6 +185,8 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
             fetchLikers();
             setShowLikers(true);
           }}
+          colors={colors}
+          styles={styles}
         />
       </View>
       <View style={styles.postFooter}>
@@ -263,6 +259,10 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
     setActiveIndex(index);
   };
+  const { colors } = useTheme();
+
+  // Generate the stylesheet dynamically using the current theme colors
+  const styles = createStyles(colors);
 
   return (
     <View style={styles.postContainer}>
@@ -344,6 +344,8 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
           fetchLikers();
           setShowLikers(true);
         }}
+        colors={colors}
+        styles={styles}
       />
       <View style={styles.postFooter}>
         {post.description && (
@@ -381,6 +383,10 @@ export const ExplorePostCard = ({
   const isOwnPost = post.user_id === currentUserId;
   const [activeIndex, setActiveIndex] = useState(0);
   const firstImage = post.images?.[0]?.image_url ?? post.image_url;
+  const { colors } = useTheme();
+
+  // Generate the stylesheet dynamically using the current theme colors
+  const styles = createStyles(colors);
 
   return (
     <View style={styles.explorePostContainer}>
@@ -404,6 +410,10 @@ export const ProfilePostCard = ({
   onPress,
 }: HaulPostCardProps & { onPress: () => void }) => {
   const firstImage = post.images?.[0]?.image_url ?? post.image_url;
+  const { colors } = useTheme();
+
+  // Generate the stylesheet dynamically using the current theme colors
+  const styles = createStyles(colors);
 
   return (
     <View style={styles.explorePostContainer}>
@@ -453,7 +463,10 @@ export const ModalPostCard = ({
   const [showComments, setShowComments] = useState(false);
   const { comments } = useComments(post.id);
   const [showLikers, setShowLikers] = useState(false);
+  const { colors } = useTheme();
 
+  // Generate the stylesheet dynamically using the current theme colors
+  const styles = createStyles(colors);
   return (
     <>
       <View style={styles.postContainer}>
@@ -510,6 +523,8 @@ export const ModalPostCard = ({
           toggleLike={toggleLike}
           onCommentPress={() => onOpenComments(post.id, post.user_id)}
           onLikeCountPress={() => onOpenLikers(post.id)}
+          colors={colors}
+          styles={styles}
         />
       </View>
       <View style={styles.postFooter}>
@@ -553,7 +568,10 @@ export const ModalHaulPostCard = ({
   const [showComments, setShowComments] = useState(false);
   const { comments } = useComments(post.id);
   const [showLikers, setShowLikers] = useState(false);
+  const { colors } = useTheme();
 
+  // Generate the stylesheet dynamically using the current theme colors
+  const styles = createStyles(colors);
   const lastTap = useRef(0);
 
   const handleDoubleTap = () => {
@@ -655,6 +673,8 @@ export const ModalHaulPostCard = ({
         toggleLike={toggleLike}
         onCommentPress={() => onOpenComments(post.id, post.user_id)}
         onLikeCountPress={() => onOpenLikers(post.id)}
+        colors={colors}
+        styles={styles}
       />
       <View style={styles.postFooter}>
         {post.description && (
@@ -669,238 +689,233 @@ export const ModalHaulPostCard = ({
   );
 };
 
-const styles = StyleSheet.create({
-  explorePostContainer: {
-    backgroundColor: "#fff",
-
-    overflow: "hidden",
-    marginBottom: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  container: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#fff",
-  },
-  headerContainer: {
-    padding: 15,
-    marginBottom: -15,
-  },
-  headerBorder: {
-    width: "100%",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-
-    marginTop: -2,
-  },
-
-  sectionHeader: {
-    fontSize: 30,
-    fontWeight: "600",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    color: "#333",
-  },
-  content: {
-    paddingBottom: 100,
-  },
-  emptyContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 16,
-  },
-
-  postHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-  },
-  userInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  avatarPlaceholder: {
-    backgroundColor: "#f0f0f0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#666",
-  },
-  username: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-  },
-  timeAgo: {
-    fontSize: 12,
-    color: "#666",
-  },
-  timeRemainingBadge: {
-    backgroundColor: "#000",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  timeRemainingText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  postImage: {
-    width: "100%",
-    aspectRatio: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  postFooter: {
-    padding: 12,
-    paddingTop: 4, // ✅ reduce top padding
-  },
-  postContainer: {
-    backgroundColor: "#fff",
-    overflow: "hidden",
-    marginBottom: 0, // ✅ remove bottom margin
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  postDescription: {
-    fontSize: 15,
-    color: "#000",
-    marginBottom: 8,
-    lineHeight: 20,
-  },
-  postInfo: {
-    fontSize: 14,
-    color: "#666",
-  },
-  header: {
-    backgroundColor: "#fff",
-
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    width: "100%",
-    paddingTop: -120,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-  },
-  headerTitle: {
-    fontSize: 30,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  headerIcon: {
-    fontSize: 22,
-  },
-
-  tabSwitcher: {
-    flexDirection: "row",
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderBottomColor: "#e0e0e0",
-
-    padding: 4,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  activeTab: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#000",
-    marginBottom: -1,
-  },
-  tabText: {
-    fontSize: 20,
-    fontWeight: "500",
-    color: "#888",
-  },
-  activeTabText: {
-    color: "#000",
-    fontWeight: "600",
-  },
-
-  dotsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
-    marginBottom: -22,
-  },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  dotActive: {
-    backgroundColor: "#000",
-  },
-  dotInactive: {
-    backgroundColor: "#ccc",
-  },
-  actions: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    gap: 16,
-  },
-  actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  actionCount: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-
-  explorePostBadge: {
-    position: "absolute",
-    bottom: 6,
-    left: 6,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  explorePostGradient: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: ITEM_SIZE / 2,
-    justifyContent: "flex-end",
-    paddingBottom: 6,
-    paddingLeft: 6,
-  },
-  explorePostBadgeText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-});
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    explorePostContainer: {
+      backgroundColor: colors.background,
+      overflow: "hidden",
+      marginBottom: 2,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    container: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: colors.background,
+    },
+    headerContainer: {
+      padding: 15,
+      marginBottom: -15,
+    },
+    headerBorder: {
+      width: "100%",
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      marginTop: -2,
+    },
+    sectionHeader: {
+      fontSize: 30,
+      fontWeight: "600",
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      color: colors.text, // mapped to colors object
+    },
+    content: {
+      paddingBottom: 100,
+    },
+    emptyContent: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 16,
+    },
+    postHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: 16,
+    },
+    userInfo: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
+    avatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+    },
+    avatarPlaceholder: {
+      backgroundColor: colors.surface,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    avatarText: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: colors.textMuted,
+    },
+    username: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    timeAgo: {
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    timeRemainingBadge: {
+      backgroundColor: colors.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 12,
+    },
+    timeRemainingText: {
+      color: colors.background,
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    postImage: {
+      width: "100%",
+      aspectRatio: 1,
+      backgroundColor: colors.surface,
+    },
+    postFooter: {
+      padding: 12,
+      paddingTop: 4,
+      backgroundColor: colors.background,
+    },
+    postContainer: {
+      backgroundColor: colors.background,
+      overflow: "hidden",
+      marginBottom: 0,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    postDescription: {
+      fontSize: 15,
+      color: colors.text,
+      marginBottom: 8,
+      lineHeight: 20,
+    },
+    postInfo: {
+      fontSize: 14,
+      color: colors.textMuted,
+    },
+    header: {
+      backgroundColor: colors.background,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      width: "100%",
+      paddingTop: -120,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      marginBottom: 0,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontSize: 30,
+      fontWeight: "bold",
+      color: colors.text,
+    },
+    headerIcon: {
+      fontSize: 22,
+    },
+    tabSwitcher: {
+      flexDirection: "row",
+      marginHorizontal: 16,
+      marginBottom: 12,
+      borderBottomColor: colors.border,
+      padding: 4,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 8,
+      alignItems: "center",
+      borderRadius: 8,
+    },
+    activeTab: {
+      borderBottomWidth: 1,
+      borderBottomColor: colors.primary,
+      marginBottom: -1,
+    },
+    tabText: {
+      fontSize: 20,
+      fontWeight: "500",
+      color: colors.textMuted,
+    },
+    activeTabText: {
+      color: colors.text,
+      fontWeight: "600",
+    },
+    dotsContainer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: 8,
+      marginBottom: -22,
+    },
+    dot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+    },
+    dotActive: {
+      backgroundColor: colors.primary,
+    },
+    dotInactive: {
+      backgroundColor: colors.border,
+    },
+    actions: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      gap: 16,
+    },
+    actionButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    actionCount: {
+      fontSize: 14,
+      fontWeight: "500",
+      color: colors.text,
+    },
+    explorePostBadge: {
+      position: "absolute",
+      bottom: 6,
+      left: 6,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 4,
+    },
+    explorePostGradient: {
+      position: "absolute",
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: ITEM_SIZE / 2,
+      justifyContent: "flex-end",
+      paddingBottom: 6,
+      paddingLeft: 6,
+    },
+    explorePostBadgeText: {
+      color: "#fff",
+      fontSize: 15,
+      fontWeight: "600",
+    },
+  });

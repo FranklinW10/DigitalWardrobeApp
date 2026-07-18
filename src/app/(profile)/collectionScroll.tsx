@@ -1,19 +1,20 @@
 import { HaulPostCard, PostCard } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { Post } from "@/hooks/usePosts";
 import { useSavedPosts } from "@/hooks/useSavedPosts";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Animated,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Animated,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -31,6 +32,8 @@ export default function CollectionScrollScreen() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
   const headerVisible = useRef(new Animated.Value(1)).current;
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const load = async () => {
     if (!collection_id) return;
@@ -96,13 +99,16 @@ export default function CollectionScrollScreen() {
 
   return (
     <>
-      <SafeAreaView style={{ backgroundColor: "#fff" }} edges={["top"]} />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
+      <SafeAreaView
+        style={{ backgroundColor: colors.background }}
+        edges={["top"]}
+      />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <Animated.View
           style={[styles.header, { height: headerHeight, overflow: "hidden" }]}
         >
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back-outline" size={24} color="#000" />
+            <Ionicons name="arrow-back-outline" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{collection_name ?? "Saved"}</Text>
           <View style={{ width: 24 }} />
@@ -133,33 +139,35 @@ export default function CollectionScrollScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  content: {
-    paddingBottom: 40,
-  },
-  emptyContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  empty: {
-    textAlign: "center",
-    color: "#888",
-    fontSize: 15,
-  },
-  whitespace: {
-    padding: 50,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    content: {
+      paddingBottom: 40,
+    },
+    emptyContent: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    empty: {
+      textAlign: "center",
+      color: colors.textMuted,
+      fontSize: 15,
+    },
+    whitespace: {
+      padding: 50,
+    },
+  });

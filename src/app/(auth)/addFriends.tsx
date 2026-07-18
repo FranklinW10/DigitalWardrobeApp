@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { useContactFriends } from "@/hooks/useContactFriends";
 import { useFollows } from "@/hooks/useFollows";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,21 +7,25 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function AddFriendsScreen() {
   const router = useRouter();
   const { updateUser } = useAuth();
+  const { colors } = useTheme();
   const { matches, isLoading, findFriendsFromContacts } = useContactFriends();
   const { addFollow, unfollowUser, isFollowing, isPending, loadFollowing } =
     useFollows();
   const [isFinishing, setIsFinishing] = useState(false);
+
+  // Generate the stylesheet reactively using the active theme colors
+  const styles = createStyles(colors);
 
   useEffect(() => {
     loadFollowing();
@@ -31,8 +36,6 @@ export default function AddFriendsScreen() {
     setIsFinishing(true);
     try {
       await updateUser({ friendsStepCompleted: true });
-      // No explicit navigation needed — RouteGaurd sees the updated
-      // user object and redirects to (tabs) on its own.
     } catch (error) {
       console.error("Error completing friends step:", error);
     } finally {
@@ -50,10 +53,10 @@ export default function AddFriendsScreen() {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} />
+        <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />
       ) : matches.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="people-outline" size={40} color="#ccc" />
+          <Ionicons name="people-outline" size={40} color={colors.border} />
           <Text style={styles.emptyText}>
             No contacts found using the app yet
           </Text>
@@ -116,7 +119,7 @@ export default function AddFriendsScreen() {
         disabled={isFinishing}
       >
         {isFinishing ? (
-          <ActivityIndicator size={24} color="#fff" />
+          <ActivityIndicator size={24} color={colors.background} />
         ) : (
           <Text style={styles.buttontext}>
             {matches.length === 0 ? "Continue" : "Done"}
@@ -127,48 +130,109 @@ export default function AddFriendsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 24 },
-  header: { marginBottom: 24 },
-  title: { fontSize: 28, fontWeight: "700", marginBottom: 4 },
-  subtitle: { fontSize: 15, color: "#666" },
-  emptyContainer: { alignItems: "center", marginTop: 40, gap: 8, flex: 1 },
-  emptyText: { color: "#999", fontSize: 14, textAlign: "center" },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f5f5f5",
-  },
-  userInfo: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
-  avatar: { width: 44, height: 44, borderRadius: 22 },
-  avatarPlaceholder: {
-    backgroundColor: "#e0e0e0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: { fontWeight: "600", fontSize: 16 },
-  name: { fontWeight: "600", fontSize: 14 },
-  username: { color: "#888", fontSize: 12 },
-  followButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#000",
-  },
-  followingButton: { backgroundColor: "#000" },
-  pendingButton: { backgroundColor: "#ccc" },
-  followButtonText: { fontWeight: "600", fontSize: 13 },
-  followingButtonText: { color: "#fff" },
-  button: {
-    backgroundColor: "#000",
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-    marginTop: 16,
-  },
-  buttontext: { color: "#fff", fontSize: 16, fontWeight: "600" },
-});
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      padding: 24,
+    },
+    header: {
+      marginBottom: 24,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: "700",
+      marginBottom: 4,
+      color: colors.text,
+    },
+    subtitle: {
+      fontSize: 15,
+      color: colors.secondary,
+    },
+    emptyContainer: {
+      alignItems: "center",
+      marginTop: 40,
+      gap: 8,
+      flex: 1,
+    },
+    emptyText: {
+      color: colors.textMuted,
+      fontSize: 14,
+      textAlign: "center",
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    userInfo: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      flex: 1,
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+    },
+    avatarPlaceholder: {
+      backgroundColor: colors.surface,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    avatarText: {
+      fontWeight: "600",
+      fontSize: 16,
+      color: colors.text,
+    },
+    name: {
+      fontWeight: "600",
+      fontSize: 14,
+      color: colors.text,
+    },
+    username: {
+      color: colors.textMuted,
+      fontSize: 12,
+    },
+    followButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 7,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    followingButton: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    pendingButton: {
+      backgroundColor: colors.border,
+      borderColor: colors.border,
+    },
+    followButtonText: {
+      fontWeight: "600",
+      fontSize: 13,
+      color: colors.primary,
+    },
+    followingButtonText: {
+      color: colors.background,
+    },
+    button: {
+      backgroundColor: colors.accent,
+      borderRadius: 12,
+      padding: 16,
+      alignItems: "center",
+      marginTop: 16,
+    },
+    buttontext: {
+      color: colors.background,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+  });

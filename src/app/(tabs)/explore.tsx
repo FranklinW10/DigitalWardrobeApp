@@ -6,17 +6,17 @@ import {
   ModalPostCard,
 } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
+import { useFollows } from "@/hooks/useFollows";
 import { Liker } from "@/hooks/useLikes";
+import { Post, usePosts } from "@/hooks/usePosts";
+import { SearchUser, useSearch } from "@/hooks/useSearch";
 import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
-import { useFollows } from "@/hooks/useFollows";
-import { Post, usePosts } from "@/hooks/usePosts";
-import { SearchUser, useSearch } from "@/hooks/useSearch";
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -50,6 +50,8 @@ export default function SearchScreen() {
   const [likerPostId, setLikerPostId] = useState<string | null>(null);
   const [likers, setLikers] = useState<Liker[]>([]);
   const [isLoadingLikers, setIsLoadingLikers] = useState(false);
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
     null,
@@ -241,7 +243,7 @@ export default function SearchScreen() {
               (setSelectedPost(null), router.push("/(profile)/exploreScroll"));
             }}
           >
-            <Ionicons name="grid-outline" size={16} color="#fff" />
+            <Ionicons name="grid-outline" size={16} color={colors.background} />
             <Text style={styles.exploreButtonText}>Scroll Explore Posts →</Text>
           </TouchableOpacity>
           <CommentsSheet
@@ -278,13 +280,14 @@ export default function SearchScreen() {
           <Ionicons
             name="search"
             size={18}
-            color="#999"
+            color={colors.textMuted}
             style={styles.searchIcon}
           />
           <TextInput
             ref={inputRef}
             style={[styles.searchInput, isFocused && { width: "90%" }]}
             placeholder={"Search by name or username..."}
+            placeholderTextColor={colors.textMuted ?? "#999"}
             value={query}
             onChangeText={handleSearch}
             onFocus={() => setIsFocused(true)}
@@ -347,247 +350,248 @@ export default function SearchScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  pendingButton: {
-    backgroundColor: "#ccc",
-  },
-  container: {
-    flex: 1,
-    padding: 0,
-    backgroundColor: "#fff",
-  },
-  userRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-  },
-  avatarPlaceholder: {
-    backgroundColor: "#e0e0e0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    fontWeight: "600",
-    fontSize: 18,
-  },
-  userInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  name: {
-    fontWeight: "600",
-    fontSize: 15,
-  },
-  username: {
-    color: "#888",
-    fontSize: 13,
-  },
-  followButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#000",
-  },
-  followingButton: {
-    backgroundColor: "#000",
-  },
-  followButtonText: {
-    fontWeight: "600",
-    fontSize: 13,
-  },
-  followingButtonText: {
-    color: "#fff",
-  },
-  emptyText: {
-    textAlign: "center",
-    color: "#888",
-    marginTop: 40,
-  },
-
-  backArrow: {
-    marginBottom: 15,
-    fontSize: 22,
-    paddingHorizontal: 4,
-  },
-  postContainer: {
-    backgroundColor: "#fff",
-
-    overflow: "hidden",
-    marginBottom: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  postHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 16,
-  },
-  timeAgo: {
-    fontSize: 12,
-    color: "#666",
-  },
-  dotsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
-  },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  dotActive: {
-    backgroundColor: "#000",
-  },
-  dotInactive: {
-    backgroundColor: "#ccc",
-  },
-  postImage: {
-    width: "100%",
-    aspectRatio: 1,
-    backgroundColor: "#f5f5f5",
-  },
-  postFooter: {
-    padding: 16,
-  },
-  postDescription: {
-    fontSize: 15,
-    color: "#000",
-    marginBottom: 8,
-    lineHeight: 20,
-  },
-  postInfo: {
-    fontSize: 14,
-    color: "#666",
-  },
-  header: {
-    backgroundColor: "#f5f5f5",
-
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    width: "100%",
-    paddingTop: -120,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginBottom: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e0e0e0",
-  },
-  headerTitle: {
-    fontSize: 30,
-    fontWeight: "bold",
-    color: "#000",
-  },
-  headerIcon: {
-    fontSize: 22,
-  },
-  content: {
-    marginBottom: -10,
-  },
-  emptyContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 16,
-  },
-
-  modalOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 10,
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    width: "95%",
-    maxHeight: "85%",
-    overflow: "hidden",
-  },
-  closeButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    zIndex: 10,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    borderRadius: 20,
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  closeText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 10,
-    marginBottom: 8,
-    width: "100%",
-  },
-  searchContainer: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    marginBottom: 8,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: "#000",
-  },
-  recentHeader: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#000",
-    marginTop: 0,
-    marginBottom: 8,
-    paddingVertical: 2,
-    letterSpacing: 0.3,
-  },
-  exploreButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 16,
-    backgroundColor: "#000",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
-  },
-  exploreButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-});
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    pendingButton: {
+      backgroundColor: colors.border,
+    },
+    container: {
+      flex: 1,
+      padding: 0,
+      backgroundColor: colors.background,
+    },
+    userRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    avatar: {
+      width: 46,
+      height: 46,
+      borderRadius: 23,
+    },
+    avatarPlaceholder: {
+      backgroundColor: colors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarText: {
+      fontWeight: "600",
+      fontSize: 18,
+      color: colors.text,
+    },
+    userInfo: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    name: {
+      fontWeight: "600",
+      fontSize: 15,
+      color: colors.text,
+    },
+    username: {
+      color: colors.textMuted,
+      fontSize: 13,
+    },
+    followButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 7,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    followingButton: {
+      backgroundColor: colors.primary,
+    },
+    followButtonText: {
+      fontWeight: "600",
+      fontSize: 13,
+      color: colors.primary,
+    },
+    followingButtonText: {
+      color: colors.background,
+    },
+    emptyText: {
+      textAlign: "center",
+      color: colors.textMuted,
+      marginTop: 40,
+    },
+    backArrow: {
+      marginBottom: 15,
+      fontSize: 22,
+      paddingHorizontal: 4,
+      color: colors.text,
+    },
+    postContainer: {
+      backgroundColor: colors.background,
+      overflow: "hidden",
+      marginBottom: 2,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    postHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: 16,
+    },
+    timeAgo: {
+      fontSize: 12,
+      color: colors.secondary,
+    },
+    dotsContainer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: 8,
+    },
+    dot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+    },
+    dotActive: {
+      backgroundColor: colors.primary,
+    },
+    dotInactive: {
+      backgroundColor: colors.border,
+    },
+    postImage: {
+      width: "100%",
+      aspectRatio: 1,
+      backgroundColor: colors.surface,
+    },
+    postFooter: {
+      padding: 16,
+    },
+    postDescription: {
+      fontSize: 15,
+      color: colors.text,
+      marginBottom: 8,
+      lineHeight: 20,
+    },
+    postInfo: {
+      fontSize: 14,
+      color: colors.secondary,
+    },
+    header: {
+      backgroundColor: colors.surface,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      width: "100%",
+      paddingTop: -120,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      marginBottom: 0,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontSize: 30,
+      fontWeight: "bold",
+      color: colors.text,
+    },
+    headerIcon: {
+      fontSize: 22,
+    },
+    content: {
+      marginBottom: -10,
+    },
+    emptyContent: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: 16,
+    },
+    modalOverlay: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 10,
+    },
+    modalContent: {
+      backgroundColor: colors.background,
+      borderRadius: 16,
+      width: "95%",
+      maxHeight: "85%",
+      overflow: "hidden",
+    },
+    closeButton: {
+      position: "absolute",
+      top: 12,
+      right: 12,
+      zIndex: 10,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      borderRadius: 20,
+      width: 32,
+      height: 32,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    closeText: {
+      color: "#fff",
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    searchRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 10,
+      marginBottom: 8,
+      width: "100%",
+    },
+    searchContainer: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 14,
+      marginBottom: 8,
+    },
+    searchIcon: {
+      marginRight: 8,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 15,
+      color: colors.text,
+    },
+    recentHeader: {
+      fontSize: 20,
+      fontWeight: "600",
+      color: colors.text,
+      marginTop: 0,
+      marginBottom: 8,
+      paddingVertical: 2,
+      letterSpacing: 0.3,
+    },
+    exploreButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginTop: 16,
+      backgroundColor: colors.primary,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.4)",
+    },
+    exploreButtonText: {
+      color: colors.background,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+  });

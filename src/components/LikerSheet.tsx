@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { Liker } from "@/hooks/useLikes";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetFlatList, BottomSheetModal } from "@gorhom/bottom-sheet";
@@ -37,6 +38,10 @@ export const LikersSheet = ({
       bottomSheetRef.current?.dismiss();
     }
   }, [visible]);
+  const { colors } = useTheme();
+
+  // Generate the stylesheet dynamically using the current theme colors
+  const styles = createStyles(colors);
 
   const handleClose = useCallback(() => {
     bottomSheetRef.current?.close();
@@ -56,7 +61,7 @@ export const LikersSheet = ({
       <View style={styles.header}>
         <Text style={styles.title}>Liked by</Text>
         <TouchableOpacity onPress={handleClose}>
-          <Ionicons name="close" size={24} color="#000" />
+          <Ionicons name="close" size={24} color={colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -106,33 +111,49 @@ export const LikersSheet = ({
     </BottomSheetModal>
   );
 };
-
-const styles = StyleSheet.create({
-  background: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  title: { fontSize: 16, fontWeight: "700" },
-  list: { padding: 16, gap: 16 },
-  empty: { textAlign: "center", color: "#999", marginTop: 32 },
-  row: { flexDirection: "row", alignItems: "center", gap: 12 },
-  avatar: { width: 40, height: 40, borderRadius: 20 },
-  avatarPlaceholder: {
-    backgroundColor: "#f0f0f0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: { fontSize: 16, fontWeight: "600", color: "#666" },
-  name: { fontSize: 15, fontWeight: "600" },
-  username: { fontSize: 13, color: "#888" },
-});
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    background: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+    },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    title: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    list: { padding: 16, gap: 16 },
+    empty: { textAlign: "center", color: colors.textMuted, marginTop: 32 },
+    row: { flexDirection: "row", alignItems: "center", gap: 12 },
+    avatar: { width: 40, height: 40, borderRadius: 20 },
+    avatarPlaceholder: {
+      backgroundColor: colors.surface,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    avatarText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.textMuted,
+    },
+    name: {
+      fontSize: 15,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    username: {
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+  });

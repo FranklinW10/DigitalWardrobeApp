@@ -1,6 +1,7 @@
+import { useTheme } from "@/context/ThemeContext";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Dimensions,
   NativeScrollEvent,
@@ -22,6 +23,8 @@ export default function PreviewHaul() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [caption, setCaption] = useState("");
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / PREVIEW_SIZE);
@@ -75,7 +78,7 @@ export default function PreviewHaul() {
       <TextInput
         style={styles.captionInput}
         placeholder="Write a caption..."
-        placeholderTextColor="#999"
+        placeholderTextColor={colors.textMuted}
         value={caption}
         onChangeText={setCaption}
         multiline
@@ -100,76 +103,77 @@ export default function PreviewHaul() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    padding: 24,
-    paddingTop: 60,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  closeButton: {
-    position: "absolute",
-    top: 60,
-    left: 24,
-    zIndex: 10,
-    padding: 8,
-  },
-  closeButtonText: {
-    fontSize: 22,
-    color: "#000",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 24,
-    color: "#000",
-  },
-  dotsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
-  },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  dotActive: { backgroundColor: "#000" },
-  dotInactive: { backgroundColor: "#ccc" },
-  captionInput: {
-    width: "100%",
-    minHeight: 80,
-    maxHeight: 140,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 15,
-    color: "#000",
-    marginTop: 16,
-    textAlignVertical: "top",
-  },
-  charCount: {
-    alignSelf: "flex-end",
-    fontSize: 12,
-    color: "#999",
-    marginTop: 4,
-  },
-  button: {
-    width: "100%",
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: "#000",
-    marginTop: 24,
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      padding: 24,
+      paddingTop: 60,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    closeButton: {
+      position: "absolute",
+      top: 60,
+      left: 24,
+      zIndex: 10,
+      padding: 8,
+    },
+    closeButtonText: {
+      fontSize: 22,
+      color: colors.text,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: "bold",
+      marginBottom: 24,
+      color: colors.text,
+    },
+    dotsContainer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: 8,
+    },
+    dot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+    },
+    dotActive: { backgroundColor: colors.text },
+    dotInactive: { backgroundColor: colors.border },
+    captionInput: {
+      width: "100%",
+      minHeight: 80,
+      maxHeight: 140,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      padding: 12,
+      fontSize: 15,
+      color: colors.text,
+      marginTop: 16,
+      textAlignVertical: "top",
+    },
+    charCount: {
+      alignSelf: "flex-end",
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 4,
+    },
+    button: {
+      width: "100%",
+      padding: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      marginTop: 24,
+    },
+    buttonText: {
+      color: colors.background,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+  });
