@@ -1,4 +1,6 @@
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { FollowsProvider } from "@/context/FollowsContext";
+import { NotificationsProvider } from "@/context/NotificationsContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Stack, useRouter, useSegments } from "expo-router";
@@ -52,13 +54,24 @@ function RouteGaurd() {
     </Stack>
   );
 }
+
+function AppProviders() {
+  const { user } = useAuth();
+  return (
+    <FollowsProvider>
+      <NotificationsProvider userId={user?.id}>
+        <RouteGaurd />
+      </NotificationsProvider>
+    </FollowsProvider>
+  );
+}
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
         <ThemeProvider>
           <BottomSheetModalProvider>
-            <RouteGaurd />
+            <AppProviders />
           </BottomSheetModalProvider>
         </ThemeProvider>
       </AuthProvider>

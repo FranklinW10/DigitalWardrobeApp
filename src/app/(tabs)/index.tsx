@@ -1,13 +1,13 @@
 import { HaulPostCard, PostCard } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
+import { useFollows } from "@/context/FollowsContext";
+import { useNotifications } from "@/context/NotificationsContext";
 import { useTheme } from "@/context/ThemeContext";
-import { useFollows } from "@/hooks/useFollows";
 import { Post, usePosts } from "@/hooks/usePosts";
 import { daysAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-
 import {
   Animated,
   FlatList,
@@ -33,6 +33,7 @@ export default function Index() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const { unreadCount } = useNotifications();
 
   const headerVisible = useRef(new Animated.Value(1)).current;
   const [activeTab, setActiveTab] = useState<"fits" | "hauls">("fits");
@@ -173,13 +174,17 @@ export default function Index() {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Fit Check</Text>
           <TouchableOpacity
-            onPress={() => router.push("/(profile)/notifications")}
+            onPress={() => router.push("/notifications")}
+            style={styles.Noticontainer}
           >
-            <Ionicons
-              name="notifications-outline"
-              size={24}
-              color={colors.text}
-            />
+            <Ionicons name="notifications-outline" size={24} color="#000" />
+            {unreadCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
         </Animated.View>
         {/*List*/}
@@ -315,6 +320,20 @@ export default function Index() {
 // ---- Dynamic Styles ----
 const createStyles = (colors: any, currentTab?: any) =>
   StyleSheet.create({
+    Noticontainer: { position: "relative", padding: 4 },
+    badge: {
+      position: "absolute",
+      top: 0,
+      right: 0,
+      backgroundColor: "#FF3B30",
+      borderRadius: 9,
+      minWidth: 18,
+      height: 18,
+      paddingHorizontal: 3,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    badgeText: { color: "#fff", fontSize: 11, fontWeight: "600" },
     ViewStyle: {
       flex: 1,
       backgroundColor: colors.background,

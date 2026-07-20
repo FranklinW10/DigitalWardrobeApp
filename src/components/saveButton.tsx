@@ -4,7 +4,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -79,60 +81,65 @@ export function SaveButton({
       </TouchableOpacity>
 
       <Modal visible={showPicker} transparent animationType="slide">
-        <TouchableOpacity
-          style={styles.backdrop}
-          activeOpacity={1}
-          onPress={() => setShowPicker(false)}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={10}
         >
-          <TouchableOpacity activeOpacity={1} style={styles.sheet}>
-            <Text style={styles.title}>Save to...</Text>
+          <TouchableOpacity
+            style={styles.backdrop}
+            activeOpacity={1}
+            onPress={() => setShowPicker(false)}
+          >
+            <TouchableOpacity activeOpacity={1} style={styles.sheet}>
+              <Text style={styles.title}>Save to...</Text>
 
-            {collections.map((c) => (
-              <TouchableOpacity
-                key={c.id}
-                style={styles.row}
-                onPress={() => handleToggleCollection(c.id)}
-              >
-                <Text style={styles.rowText}>{c.name}</Text>
-                <Ionicons
-                  name={
-                    savedIn.includes(c.id)
-                      ? "checkmark-circle"
-                      : "ellipse-outline"
-                  }
-                  size={22}
-                  color={
-                    savedIn.includes(c.id) ? colors.text : colors.textMuted
-                  }
+              {collections.map((c) => (
+                <TouchableOpacity
+                  key={c.id}
+                  style={styles.row}
+                  onPress={() => handleToggleCollection(c.id)}
+                >
+                  <Text style={styles.rowText}>{c.name}</Text>
+                  <Ionicons
+                    name={
+                      savedIn.includes(c.id)
+                        ? "checkmark-circle"
+                        : "ellipse-outline"
+                    }
+                    size={22}
+                    color={
+                      savedIn.includes(c.id) ? colors.text : colors.textMuted
+                    }
+                  />
+                </TouchableOpacity>
+              ))}
+
+              <View style={styles.newRow}>
+                <TextInput
+                  placeholder="New collection name"
+                  placeholderTextColor={colors.textMuted}
+                  value={newCollectionName}
+                  onChangeText={setNewCollectionName}
+                  style={styles.input}
                 />
-              </TouchableOpacity>
-            ))}
+                <TouchableOpacity
+                  style={styles.createButton}
+                  onPress={handleCreateCollection}
+                  disabled={isCreating}
+                >
+                  <Text style={styles.createButtonText}>Create</Text>
+                </TouchableOpacity>
+              </View>
 
-            <View style={styles.newRow}>
-              <TextInput
-                placeholder="New collection name"
-                placeholderTextColor={colors.textMuted}
-                value={newCollectionName}
-                onChangeText={setNewCollectionName}
-                style={styles.input}
-              />
               <TouchableOpacity
-                style={styles.createButton}
-                onPress={handleCreateCollection}
-                disabled={isCreating}
+                style={styles.doneButton}
+                onPress={() => setShowPicker(false)}
               >
-                <Text style={styles.createButtonText}>Create</Text>
+                <Text style={styles.doneButtonText}>Done</Text>
               </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity
-              style={styles.doneButton}
-              onPress={() => setShowPicker(false)}
-            >
-              <Text style={styles.doneButtonText}>Done</Text>
             </TouchableOpacity>
           </TouchableOpacity>
-        </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );

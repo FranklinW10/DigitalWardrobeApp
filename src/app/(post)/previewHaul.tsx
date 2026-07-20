@@ -4,13 +4,17 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
 import {
   Dimensions,
+  Keyboard,
+  KeyboardAvoidingView,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 
@@ -32,75 +36,84 @@ export default function PreviewHaul() {
   };
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.closeButton}
-        onPress={() => router.back()}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
-        <Text style={styles.closeButtonText}>←</Text>
-      </TouchableOpacity>
+        <View style={styles.container}>
+          <TouchableOpacity
+            style={styles.closeButton}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.closeButtonText}>←</Text>
+          </TouchableOpacity>
 
-      <Text style={styles.title}>Add a caption</Text>
+          <Text style={styles.title}>Add a caption</Text>
 
-      <View style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}>
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={handleScroll}
-          style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
-        >
-          {images.map((uri, index) => (
-            <Image
-              key={index}
-              source={{ uri }}
+          <View style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={handleScroll}
               style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
-              contentFit="cover"
-            />
-          ))}
-        </ScrollView>
-      </View>
+            >
+              {images.map((uri, index) => (
+                <Image
+                  key={index}
+                  source={{ uri }}
+                  style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
+                  contentFit="cover"
+                />
+              ))}
+            </ScrollView>
+          </View>
 
-      {images.length > 1 && (
-        <View style={styles.dotsContainer}>
-          {images.map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.dot,
-                index === activeIndex ? styles.dotActive : styles.dotInactive,
-              ]}
-            />
-          ))}
+          {images.length > 1 && (
+            <View style={styles.dotsContainer}>
+              {images.map((_, index) => (
+                <View
+                  key={index}
+                  style={[
+                    styles.dot,
+                    index === activeIndex
+                      ? styles.dotActive
+                      : styles.dotInactive,
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+
+          <TextInput
+            style={styles.captionInput}
+            placeholder="Write a caption..."
+            placeholderTextColor={colors.textMuted}
+            value={caption}
+            onChangeText={setCaption}
+            multiline
+            maxLength={300}
+          />
+          <Text style={styles.charCount}>{caption.length}/300</Text>
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() =>
+              router.push({
+                pathname: "/finalPreviewHaul",
+                params: {
+                  imageUris: JSON.stringify(images),
+                  caption,
+                },
+              })
+            }
+          >
+            <Text style={styles.buttonText}>Preview Post →</Text>
+          </TouchableOpacity>
         </View>
-      )}
-
-      <TextInput
-        style={styles.captionInput}
-        placeholder="Write a caption..."
-        placeholderTextColor={colors.textMuted}
-        value={caption}
-        onChangeText={setCaption}
-        multiline
-        maxLength={300}
-      />
-      <Text style={styles.charCount}>{caption.length}/300</Text>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() =>
-          router.push({
-            pathname: "/finalPreviewHaul",
-            params: {
-              imageUris: JSON.stringify(images),
-              caption,
-            },
-          })
-        }
-      >
-        <Text style={styles.buttonText}>Preview Post →</Text>
-      </TouchableOpacity>
-    </View>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 // ---- Dynamic Styles ----

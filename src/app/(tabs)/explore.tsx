@@ -6,8 +6,8 @@ import {
   ModalPostCard,
 } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
+import { useFollows } from "@/context/FollowsContext";
 import { useTheme } from "@/context/ThemeContext";
-import { useFollows } from "@/hooks/useFollows";
 import { Liker } from "@/hooks/useLikes";
 import { Post, usePosts } from "@/hooks/usePosts";
 import { SearchUser, useSearch } from "@/hooks/useSearch";
@@ -292,7 +292,6 @@ export default function SearchScreen() {
             onChangeText={handleSearch}
             onFocus={() => setIsFocused(true)}
             autoCapitalize="none"
-            onBlur={() => setIsFocused(false)}
           />
         </View>
       </View>

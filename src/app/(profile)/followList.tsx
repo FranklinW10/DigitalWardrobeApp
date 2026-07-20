@@ -1,6 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
+import { useFollows } from "@/context/FollowsContext";
 import { useTheme } from "@/context/ThemeContext";
-import { useFollows } from "@/hooks/useFollows";
 import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";

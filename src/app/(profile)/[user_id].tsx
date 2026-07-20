@@ -9,7 +9,7 @@ import {
   ModalHaulPostCard,
   ModalPostCard,
 } from "@/components/PostCard";
-import { useFollows } from "@/hooks/useFollows";
+import { useFollows } from "@/context/FollowsContext";
 import { Post } from "@/hooks/usePosts";
 import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";

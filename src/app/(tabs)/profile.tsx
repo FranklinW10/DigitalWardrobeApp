@@ -17,6 +17,7 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import { Keyboard, KeyboardAvoidingView, Platform } from "react-native";
 
 import {
   ActivityIndicator,
@@ -78,8 +79,10 @@ export default function Profile() {
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
+  const nameInputRef = useRef<TextInput>(null);
+  const usernameInputRef = useRef<TextInput>(null);
 
-  const [selectedTheme, setSelectedTheme] = useState<ThemeName>("editorial");
+  const [selectedTheme, setSelectedTheme] = useState<ThemeName>("light");
   const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
     null,
   );
@@ -141,7 +144,7 @@ export default function Profile() {
       setUsername(user.username);
       setPhone(user.phone);
       setIsPrivate(user.isPrivate ?? false);
-      setSelectedTheme((user as any).theme ?? "editorial");
+      setSelectedTheme((user as any).theme ?? "light");
     }
   }, [showModal, user]);
 
@@ -613,162 +616,185 @@ export default function Profile() {
       </View>
 
       <Modal visible={showModal} transparent animationType="slide">
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setShowModal(false)}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          <TouchableOpacity activeOpacity={1} style={styles.editModalContent}>
-            <Text style={styles.title}>Edit Profile</Text>
-            <Text style={styles.subtitle}>Update your information</Text>
-
-            <ScrollView
-              style={styles.formScroll}
-              contentContainerStyle={styles.form}
-              showsVerticalScrollIndicator={false}
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowModal(false)}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              style={styles.editModalContent}
+              onPress={Keyboard.dismiss}
             >
-              <TouchableOpacity
-                style={styles.imagecontainer}
-                onPress={handleUpdateProfileImage}
+              <Text style={styles.title}>Edit Profile</Text>
+              <Text style={styles.subtitle}>Update your information</Text>
+
+              <ScrollView
+                style={styles.formScroll}
+                contentContainerStyle={styles.form}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
               >
-                {user?.profileImage ? (
-                  <Image
-                    cachePolicy="memory"
-                    source={{ uri: user.profileImage }}
-                    style={styles.profileImage}
-                  />
-                ) : (
-                  <View style={styles.placeholderimage}>
-                    <Text style={styles.placeholderText}>+</Text>
-                  </View>
+                <TouchableOpacity
+                  style={styles.imagecontainer}
+                  onPress={handleUpdateProfileImage}
+                >
+                  {user?.profileImage ? (
+                    <Image
+                      cachePolicy="memory"
+                      source={{ uri: user.profileImage }}
+                      style={styles.profileImage}
+                    />
+                  ) : (
+                    <View style={styles.placeholderimage}>
+                      <Text style={styles.placeholderText}>+</Text>
+                    </View>
+                  )}
+                  {user?.profileImage && (
+                    <View style={styles.editEditBadge}>
+                      <Text style={styles.editBadgeText}>Edit</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                <Text style={styles.inputHeader}>Full Name</Text>
+                <TextInput
+                  ref={nameInputRef}
+                  placeholder="Full Name"
+                  placeholderTextColor={colors.textMuted}
+                  value={name}
+                  onChangeText={setName}
+                  style={styles.input}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                  onSubmitEditing={() => usernameInputRef.current?.focus()}
+                />
+
+                <Text style={styles.inputHeader}>Username</Text>
+                <TextInput
+                  ref={usernameInputRef}
+                  placeholder="Username"
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="none"
+                  value={username}
+                  onChangeText={setUsername}
+                  style={styles.input}
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                />
+
+                <Text style={styles.inputHeader}>Phone Number</Text>
+                <TextInput
+                  placeholder="Phone Number"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="phone-pad"
+                  value={phone}
+                  onChangeText={(text) => {
+                    setPhone(text);
+                    if (phoneError) setPhoneError(null);
+                  }}
+                  style={styles.input}
+                />
+                {phoneError && (
+                  <Text style={styles.errorText}>{phoneError}</Text>
                 )}
-                {user?.profileImage && (
-                  <View style={styles.editEditBadge}>
-                    <Text style={styles.editBadgeText}>Edit</Text>
+
+                <View style={styles.privacyRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.inputHeader}>Private Account</Text>
+                    <Text style={styles.privacyHint}>
+                      Only approved followers can see your posts
+                    </Text>
                   </View>
-                )}
-              </TouchableOpacity>
-
-              <Text style={styles.inputHeader}>Full Name</Text>
-              <TextInput
-                placeholder="Full Name"
-                placeholderTextColor={colors.textMuted}
-                value={name}
-                onChangeText={setName}
-                style={styles.input}
-                autoCapitalize="words"
-              />
-
-              <Text style={styles.inputHeader}>Username</Text>
-              <TextInput
-                placeholder="Username"
-                placeholderTextColor={colors.textMuted}
-                autoCapitalize="none"
-                value={username}
-                onChangeText={setUsername}
-                style={styles.input}
-              />
-
-              <Text style={styles.inputHeader}>Phone Number</Text>
-              <TextInput
-                placeholder="Phone Number"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="phone-pad"
-                value={phone}
-                onChangeText={(text) => {
-                  setPhone(text);
-                  if (phoneError) setPhoneError(null);
-                }}
-                style={styles.input}
-              />
-              {phoneError && <Text style={styles.errorText}>{phoneError}</Text>}
-
-              <View style={styles.privacyRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inputHeader}>Private Account</Text>
-                  <Text style={styles.privacyHint}>
-                    Only approved followers can see your posts
-                  </Text>
+                  <Switch value={isPrivate} onValueChange={setIsPrivate} />
                 </View>
-                <Switch value={isPrivate} onValueChange={setIsPrivate} />
-              </View>
-              <Text style={styles.inputHeader}>Theme</Text>
-              <View style={styles.themeDotRow}>
-                {(Object.keys(palettes) as ThemeName[]).map((name) => {
-                  const palette = palettes[name];
-                  const isActive = name === selectedTheme;
-                  return (
-                    <TouchableOpacity
-                      key={name}
-                      onPress={() => setSelectedTheme(name)}
-                      activeOpacity={0.8}
-                      style={styles.themeDotWrap}
-                    >
-                      <View
-                        style={[
-                          styles.themeStack,
-                          {
-                            borderColor: isActive ? colors.text : "transparent",
-                            borderWidth: isActive ? 2 : 0,
-                          },
-                        ]}
+                <Text style={styles.inputHeader}>Theme</Text>
+                <View style={styles.themeDotRow}>
+                  {(Object.keys(palettes) as ThemeName[]).map((name) => {
+                    const palette = palettes[name];
+                    const isActive = name === selectedTheme;
+                    return (
+                      <TouchableOpacity
+                        key={name}
+                        onPress={() => setSelectedTheme(name)}
+                        activeOpacity={0.8}
+                        style={styles.themeDotWrap}
                       >
                         <View
                           style={[
-                            styles.themeStackDot,
-                            { backgroundColor: palette.primary },
-                          ]}
-                        />
-                        <View
-                          style={[
-                            styles.themeStackDot,
-                            styles.themeStackDotMiddle,
-                            { backgroundColor: palette.accent },
-                          ]}
-                        />
-                        <View
-                          style={[
-                            styles.themeStackDot,
-                            styles.themeStackDotBack,
+                            styles.themeStack,
                             {
-                              backgroundColor: palette.surface,
-                              borderWidth: 1,
-                              borderColor: palette.border,
+                              borderColor: isActive
+                                ? colors.text
+                                : "transparent",
+                              borderWidth: isActive ? 2 : 0,
                             },
                           ]}
-                        />
-                      </View>
-                      <Text
-                        style={[
-                          styles.themeStackLabel,
-                          { color: colors.textMuted },
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {themeMeta[name].label}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                        >
+                          <View
+                            style={[
+                              styles.themeStackDot,
+                              { backgroundColor: palette.primary },
+                            ]}
+                          />
+                          <View
+                            style={[
+                              styles.themeStackDot,
+                              styles.themeStackDotMiddle,
+                              { backgroundColor: palette.accent },
+                            ]}
+                          />
+                          <View
+                            style={[
+                              styles.themeStackDot,
+                              styles.themeStackDotBack,
+                              {
+                                backgroundColor: palette.surface,
+                                borderWidth: 1,
+                                borderColor: palette.border,
+                              },
+                            ]}
+                          />
+                        </View>
+                        <Text
+                          style={[
+                            styles.themeStackLabel,
+                            { color: colors.textMuted },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {themeMeta[name].label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
 
-              <TouchableOpacity style={styles.button} onPress={handleComplete}>
-                {isSubmitting ? (
-                  <ActivityIndicator size={24} color="#fff" />
-                ) : (
-                  <Text style={styles.buttontext}>Save Changes</Text>
-                )}
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.button}
+                  onPress={handleComplete}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator size={24} color="#fff" />
+                  ) : (
+                    <Text style={styles.buttontext}>Save Changes</Text>
+                  )}
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.cancelModalButton}
-                onPress={() => setShowModal(false)}
-              >
-                <Text style={styles.cancelModalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </ScrollView>
+                <TouchableOpacity
+                  style={styles.cancelModalButton}
+                  onPress={() => setShowModal(false)}
+                >
+                  <Text style={styles.cancelModalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </TouchableOpacity>
           </TouchableOpacity>
-        </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

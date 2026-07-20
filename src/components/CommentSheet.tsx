@@ -105,7 +105,7 @@ export const CommentsSheet = ({
         </KeyboardAvoidingView>
       </BottomSheetFooter>
     ),
-    [isSubmitting, user],
+    [isSubmitting, user, handleSubmit],
   );
 
   const handleClose = useCallback(() => {

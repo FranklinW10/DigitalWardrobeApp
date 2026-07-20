@@ -1,7 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
+import { useFollows } from "@/context/FollowsContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useContactFriends } from "@/hooks/useContactFriends";
-import { useFollows } from "@/hooks/useFollows";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";

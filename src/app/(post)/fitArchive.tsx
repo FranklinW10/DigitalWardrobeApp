@@ -9,10 +9,14 @@ import { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 
@@ -100,70 +104,77 @@ export default function Fit() {
   };
 
   return (
-    <View style={styles.modalContainer}>
-      <TouchableOpacity
-        style={styles.closeButton}
-        onPress={() => {
-          router.back();
-        }}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
-        <Text style={styles.closeButtonText}>←</Text>
-      </TouchableOpacity>
-
-      <View style={styles.modalContent}>
-        <Text style={styles.modalTitle}>
-          {["Add your fit from ", formatDate(postDate as string)]}
-        </Text>
-        {previewImage ? (
-          <TouchableOpacity onPress={showImagePicker}>
-            <Image
-              cachePolicy={"memory-disk"}
-              source={{ uri: previewImage }}
-              style={styles.previewImage}
-              contentFit="cover"
-            />
-          </TouchableOpacity>
-        ) : (
+        <View style={styles.modalContainer}>
           <TouchableOpacity
-            style={styles.imagePlaceholder}
-            onPress={showImagePicker}
+            style={styles.closeButton}
+            onPress={() => {
+              router.back();
+            }}
           >
-            <Text style={styles.photoPlaceholderText}>+</Text>
+            <Text style={styles.closeButtonText}>←</Text>
           </TouchableOpacity>
-        )}
 
-        <TextInput
-          style={styles.captionInput}
-          placeholder="Write a caption..."
-          placeholderTextColor={colors.textMuted}
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          maxLength={300}
-        />
-        <Text style={styles.charCount}>{description.length}/300</Text>
-        <View style={styles.modalButtons}>
-          <TouchableOpacity
-            style={[
-              styles.modalButton,
-              styles.postButton,
-              !previewImage && styles.postButtonDisabled,
-            ]}
-            onPress={handlePost}
-            disabled={isUploading || !previewImage}
-          >
-            {isUploading ? (
-              <ActivityIndicator size={24} color={colors.background} />
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {["Add your fit from ", formatDate(postDate as string)]}
+            </Text>
+            {previewImage ? (
+              <TouchableOpacity onPress={showImagePicker}>
+                <Image
+                  cachePolicy={"memory-disk"}
+                  source={{ uri: previewImage }}
+                  style={styles.previewImage}
+                  contentFit="cover"
+                />
+              </TouchableOpacity>
             ) : (
-              <Text style={styles.postButtonText}>Add fit to archive</Text>
+              <TouchableOpacity
+                style={styles.imagePlaceholder}
+                onPress={showImagePicker}
+              >
+                <Text style={styles.photoPlaceholderText}>+</Text>
+              </TouchableOpacity>
             )}
-          </TouchableOpacity>
+
+            <TextInput
+              style={styles.captionInput}
+              placeholder="Write a caption..."
+              placeholderTextColor={colors.textMuted}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              maxLength={300}
+            />
+            <Text style={styles.charCount}>{description.length}/300</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  styles.postButton,
+                  !previewImage && styles.postButtonDisabled,
+                ]}
+                onPress={handlePost}
+                disabled={isUploading || !previewImage}
+              >
+                {isUploading ? (
+                  <ActivityIndicator size={24} color={colors.background} />
+                ) : (
+                  <Text style={styles.postButtonText}>Add fit to archive</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.latePostNote}>
+              Posts added for a previous day cannot be made public.
+            </Text>
+          </View>
         </View>
-        <Text style={styles.latePostNote}>
-          Posts added for a previous day cannot be made public.
-        </Text>
-      </View>
-    </View>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 // ---- Dynamic Styles ----

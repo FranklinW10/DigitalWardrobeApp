@@ -2,6 +2,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
+import { Keyboard, TouchableWithoutFeedback } from "react-native";
+
 import {
   ActivityIndicator,
   StyleSheet,
@@ -71,59 +73,63 @@ export default function AddPhoneNumberScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-      <View style={styles.content}>
-        <View style={styles.iconContainer}>
-          <Ionicons name="call-outline" size={40} color={colors.text} />
-        </View>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <SafeAreaView edges={["top", "bottom"]} style={styles.container}>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+          <View style={styles.content}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="call-outline" size={40} color={colors.text} />
+            </View>
 
-        <Text style={styles.title}>Help Friends Find You</Text>
+            <Text style={styles.title}>Help Friends Find You</Text>
 
-        <Text style={styles.subtitle}>
-          Add your phone number so friends who already have your number can
-          discover your account.
-        </Text>
+            <Text style={styles.subtitle}>
+              Add your phone number so friends who already have your number can
+              discover your account.
+            </Text>
 
-        <Text style={styles.description}>
-          Your phone number is never shown publicly and is only used to help
-          people you know connect with you.
-        </Text>
+            <Text style={styles.description}>
+              Your phone number is never shown publicly and is only used to help
+              people you know connect with you.
+            </Text>
 
-        <TextInput
-          style={styles.input}
-          placeholder="Phone Number"
-          placeholderTextColor={colors.textMuted}
-          keyboardType="phone-pad"
-          value={phoneNumber}
-          onChangeText={(text) => {
-            setPhoneNumber(text);
-            if (error) setError(null);
-          }}
-        />
+            <TextInput
+              style={styles.input}
+              placeholder="Phone Number"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="phone-pad"
+              value={phoneNumber}
+              onChangeText={(text) => {
+                setPhoneNumber(text);
+                if (error) setError(null);
+              }}
+            />
 
-        {error && <Text style={styles.errorText}>{error}</Text>}
+            {error && <Text style={styles.errorText}>{error}</Text>}
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={handleContinue}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={colors.background} />
-          ) : (
-            <Text style={styles.buttonText}>Continue</Text>
-          )}
-        </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleContinue}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <ActivityIndicator color={colors.background} />
+              ) : (
+                <Text style={styles.buttonText}>Continue</Text>
+              )}
+            </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.skipButton}
-          onPress={handleSkip}
-          disabled={isLoading}
-        >
-          <Text style={styles.skipText}>Skip for now</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+            <TouchableOpacity
+              style={styles.skipButton}
+              onPress={handleSkip}
+              disabled={isLoading}
+            >
+              <Text style={styles.skipText}>Skip for now</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 

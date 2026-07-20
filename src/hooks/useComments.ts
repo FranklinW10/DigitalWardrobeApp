@@ -20,43 +20,65 @@ export const useComments = (postId: string) => {
   const { user } = useAuth();
 
   useEffect(() => {
+    if (!postId) return;
     fetchComments();
   }, [postId]);
 
   const fetchComments = async () => {
-    const { data, count } = await supabase
+    const { data, count, error } = await supabase
       .from("comments")
-      .select("*, profiles(username, profile_image_url)")
+      .select("*, profiles(username, profile_image_url)", { count: "exact" })
       .eq("post_id", postId)
       .order("created_at", { ascending: true });
+    if (error) {
+      console.error("Error fetching comments:", error);
+      return;
+    }
     setComments(data ?? []);
     setCommentCount(count ?? 0);
   };
 
   const addComment = async (content: string, postOwnerId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("comments")
       .insert({ post_id: postId, user_id: user?.id, content })
       .select("*, profiles(username, profile_image_url)")
       .single();
+
+    if (error || !data) {
+      console.error("Error adding comment:", error);
+      throw error ?? new Error("Failed to add comment");
+    }
 
     setComments((prev) => [...prev, data]);
     setCommentCount((commentCount) => commentCount + 1);
 
     // Notify post owner
     if (user?.id !== postOwnerId) {
-      await supabase.from("notifications").insert({
-        recipient_id: postOwnerId,
-        actor_id: user?.id,
-        type: "comment",
-        post_id: postId,
-        comment_id: data.id,
-      });
+      const { error: notifError } = await supabase
+        .from("notifications")
+        .insert({
+          recipient_id: postOwnerId,
+          actor_id: user?.id,
+          type: "comment",
+          post_id: postId,
+          comment_id: data.id,
+        });
+      if (notifError) {
+        console.error("Error creating comment notification:", notifError);
+      }
     }
   };
 
   const deleteComment = async (commentId: string) => {
-    await supabase.from("comments").delete().eq("id", commentId);
+    const { error } = await supabase
+      .from("comments")
+      .delete()
+      .eq("id", commentId);
+    if (error) {
+      console.error("Error deleting comment:", error);
+      return;
+    }
     setComments((prev) => prev.filter((c) => c.id !== commentId));
     setCommentCount((commentCount) => commentCount - 1);
   };

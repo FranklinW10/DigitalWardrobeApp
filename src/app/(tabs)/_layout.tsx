@@ -1,10 +1,17 @@
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { usePosts } from "@/hooks/usePosts";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
-import { useEffect, useState } from "react";
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import {
+  AppState,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 export default function TabsLayout() {
   const router = useRouter();
@@ -16,6 +23,24 @@ export default function TabsLayout() {
       refreshPosts();
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active" && user?.id) {
+        refreshPosts();
+      }
+    });
+    return () => sub.remove();
+  }, [user?.id]);
+
+  // Refetch whenever this layout regains focus (e.g. coming back from another route)
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) {
+        refreshPosts();
+      }
+    }, [user?.id]),
+  );
 
   const userActivePost = (posts ?? []).find(
     (post) =>
@@ -32,7 +57,7 @@ export default function TabsLayout() {
 
   return (
     <View style={{ flex: 1 }}>
-      <NativeTabs>
+      <NativeTabs backgroundColor={colors.background}>
         <NativeTabs.Trigger name="index">
           <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
           <NativeTabs.Trigger.Icon sf={"house"} />

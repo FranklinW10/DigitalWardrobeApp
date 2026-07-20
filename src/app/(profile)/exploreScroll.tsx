@@ -1,7 +1,7 @@
 import { HaulPostCard, PostCard } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
+import { useFollows } from "@/context/FollowsContext";
 import { useTheme } from "@/context/ThemeContext";
-import { useFollows } from "@/hooks/useFollows";
 import { Post, usePosts } from "@/hooks/usePosts";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";

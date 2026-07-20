@@ -1,6 +1,6 @@
+import { useFollows } from "@/context/FollowsContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useContactFriends } from "@/hooks/useContactFriends";
-import { useFollows } from "@/hooks/useFollows";
 import { useSuggestedFriends } from "@/hooks/useSuggestedFriends";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";

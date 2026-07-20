@@ -1,7 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
+import { useFollows } from "@/context/FollowsContext";
+import { useNotifications } from "@/context/NotificationsContext";
 import { useTheme } from "@/context/ThemeContext";
-import { useFollows } from "@/hooks/useFollows";
-import { useNotifications } from "@/hooks/useNotifications";
 import { formatTimeAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -19,7 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function NotificationsScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { notifications, markAllRead } = useNotifications(user?.id);
+  const { notifications, markAllRead } = useNotifications();
   const { loadIncomingRequests } = useFollows();
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const { colors } = useTheme();

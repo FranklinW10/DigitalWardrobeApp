@@ -4,6 +4,13 @@ import { usePosts } from "@/hooks/usePosts";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+} from "react-native";
+
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -83,74 +90,84 @@ export default function Fit() {
   };
 
   return (
-    <View style={styles.modalContainer}>
-      <TouchableOpacity
-        style={styles.closeButton}
-        onPress={() => {
-          router.back();
-        }}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
       >
-        <Text style={styles.closeButtonText}>←</Text>
-      </TouchableOpacity>
-
-      <View style={styles.modalContent}>
-        <Text style={styles.modalTitle}> {"Post your outfit of the day"}</Text>
-        {previewImage ? (
-          <TouchableOpacity onPress={showImagePicker}>
-            <Image
-              cachePolicy={"memory-disk"}
-              source={{ uri: previewImage }}
-              style={styles.previewImage}
-              contentFit="cover"
-            />
-          </TouchableOpacity>
-        ) : (
+        <View style={styles.modalContainer}>
           <TouchableOpacity
-            style={styles.imagePlaceholder}
-            onPress={showImagePicker}
-          >
-            <Text style={styles.photoPlaceholderText}>+</Text>
-          </TouchableOpacity>
-        )}
-
-        <TextInput
-          style={styles.captionInput}
-          placeholder="Write a caption..."
-          placeholderTextColor={colors.textMuted}
-          value={description}
-          onChangeText={setDescription}
-          multiline
-          maxLength={300}
-        />
-        <Text style={styles.charCount}>{description.length}/300</Text>
-        <View style={styles.modalButtons}>
-          <TouchableOpacity
-            style={[
-              styles.modalButton,
-              styles.postButton,
-              !previewImage && styles.postButtonDisabled,
-            ]}
+            style={styles.closeButton}
             onPress={() => {
-              router.push({
-                pathname: "/preview",
-                params: {
-                  imageUri: previewImage,
-                  description: description,
-                  alreadyPosted: alreadyPosted ? "true" : "false",
-                },
-              });
+              router.back();
             }}
-            disabled={isUploading || !previewImage}
           >
-            {isUploading ? (
-              <ActivityIndicator size={24} color={colors.background} />
-            ) : (
-              <Text style={styles.postButtonText}>Preview Post </Text>
-            )}
+            <Text style={styles.closeButtonText}>←</Text>
           </TouchableOpacity>
+
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              {" "}
+              {"Post your outfit of the day"}
+            </Text>
+            {previewImage ? (
+              <TouchableOpacity onPress={showImagePicker}>
+                <Image
+                  cachePolicy={"memory-disk"}
+                  source={{ uri: previewImage }}
+                  style={styles.previewImage}
+                  contentFit="cover"
+                />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.imagePlaceholder}
+                onPress={showImagePicker}
+              >
+                <Text style={styles.photoPlaceholderText}>+</Text>
+              </TouchableOpacity>
+            )}
+
+            <TextInput
+              style={styles.captionInput}
+              placeholder="Write a caption..."
+              placeholderTextColor={colors.textMuted}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              maxLength={300}
+            />
+            <Text style={styles.charCount}>{description.length}/300</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  styles.postButton,
+                  !previewImage && styles.postButtonDisabled,
+                ]}
+                onPress={() => {
+                  router.push({
+                    pathname: "/preview",
+                    params: {
+                      imageUri: previewImage,
+                      description: description,
+                      alreadyPosted: alreadyPosted ? "true" : "false",
+                    },
+                  });
+                }}
+                disabled={isUploading || !previewImage}
+              >
+                {isUploading ? (
+                  <ActivityIndicator size={24} color={colors.background} />
+                ) : (
+                  <Text style={styles.postButtonText}>Preview Post </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
-      </View>
-    </View>
+      </KeyboardAvoidingView>
+    </TouchableWithoutFeedback>
   );
 }
 // ---- Dynamic Styles ----
