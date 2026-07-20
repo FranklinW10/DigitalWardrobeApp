@@ -1,9 +1,10 @@
 import { useAuth } from "@/context/AuthContext";
-import { useFollows } from "@/hooks/useFollows";
+import { useFollows } from "@/context/FollowsContext";
+import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Image,
   ScrollView,
@@ -25,6 +26,8 @@ export default function followList() {
   // keeps this screen working for both "my followers" and "someone else's followers"
   const targetUserId = profile_id ?? user?.id;
   const isOwnList = targetUserId === user?.id;
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [search, setSearch] = useState("");
   const [headerUsername, setHeaderUsername] = useState<string | null>(null);
@@ -261,136 +264,142 @@ export default function followList() {
     </SafeAreaView>
   );
 }
-const styles = StyleSheet.create({
-  pendingButton: {
-    backgroundColor: "#ccc",
-  },
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    pendingButton: {
+      backgroundColor: colors.border,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
 
-  topHeader: {
-    flexDirection: "column",
+    topHeader: {
+      flexDirection: "column",
 
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  topHeaderUsername: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  closeButton: {},
-  closeButtonText: {
-    fontSize: 22,
-    color: "#000",
-    fontWeight: "400",
-  },
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    topHeaderUsername: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    closeButton: {},
+    closeButtonText: {
+      fontSize: 22,
+      color: colors.text,
+      fontWeight: "400",
+    },
 
-  tabSwitcher: {
-    flexDirection: "row",
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderBottomColor: "#e0e0e0",
+    tabSwitcher: {
+      flexDirection: "row",
+      marginHorizontal: 16,
+      marginBottom: 12,
+      borderBottomColor: colors.border,
 
-    padding: 4,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  activeTab: {
-    marginBottom: -1,
-  },
-  tabText: {
-    fontSize: 20,
-    fontWeight: "500",
-    color: "#888",
-  },
-  activeTabText: {
-    color: "#000",
-    fontWeight: "600",
-  },
-  userRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  avatar: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-  },
-  avatarPlaceholder: {
-    backgroundColor: "#e0e0e0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    fontWeight: "600",
-    fontSize: 18,
-  },
-  userInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  name: {
-    fontWeight: "600",
-    fontSize: 15,
-  },
-  username: {
-    color: "#888",
-    fontSize: 13,
-  },
-  followButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#000",
-  },
-  followingButton: {
-    backgroundColor: "#000",
-  },
-  followButtonText: {
-    fontWeight: "600",
-    fontSize: 13,
-  },
-  followingButtonText: {
-    color: "#fff",
-  },
-  emptyText: {
-    textAlign: "center",
-    color: "#888",
-    marginTop: 40,
-  },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: "#000",
-  },
-});
+      padding: 4,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 8,
+      alignItems: "center",
+      borderRadius: 8,
+    },
+    activeTab: {
+      marginBottom: -1,
+    },
+    tabText: {
+      fontSize: 20,
+      fontWeight: "500",
+      color: colors.textMuted,
+    },
+    activeTabText: {
+      color: colors.text,
+      fontWeight: "600",
+    },
+    userRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    avatar: {
+      width: 46,
+      height: 46,
+      borderRadius: 23,
+    },
+    avatarPlaceholder: {
+      backgroundColor: colors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarText: {
+      fontWeight: "600",
+      fontSize: 18,
+      color: colors.textMuted,
+    },
+    userInfo: {
+      flex: 1,
+      marginLeft: 12,
+    },
+    name: {
+      fontWeight: "600",
+      fontSize: 15,
+      color: colors.text,
+    },
+    username: {
+      color: colors.textMuted,
+      fontSize: 13,
+    },
+    followButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 7,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.primary,
+    },
+    followingButton: {
+      backgroundColor: colors.primary,
+    },
+    followButtonText: {
+      fontWeight: "600",
+      fontSize: 13,
+      color: colors.primary,
+    },
+    followingButtonText: {
+      color: colors.background,
+    },
+    emptyText: {
+      textAlign: "center",
+      color: colors.textMuted,
+      marginTop: 40,
+    },
+    searchContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      marginHorizontal: 16,
+      marginBottom: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    searchIcon: {
+      marginRight: 8,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 16,
+      color: colors.text,
+    },
+  });

@@ -1,7 +1,8 @@
+import { useTheme } from "@/context/ThemeContext";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert,
   Dimensions,
@@ -21,6 +22,8 @@ export default function Haul() {
   const [selectedImages, setSelectedImages] = useState<string[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -136,93 +139,94 @@ export default function Haul() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    padding: 24,
-    paddingTop: 60,
-  },
-  content: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 40,
-    color: "#000",
-  },
-  closeButton: {
-    position: "absolute",
-    top: 60,
-    left: 24,
-    zIndex: 10,
-    padding: 8,
-  },
-  closeButtonText: {
-    fontSize: 22,
-    color: "#000",
-  },
-  placeholder: {
-    width: "100%",
-    aspectRatio: 1,
-    marginBottom: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "#e0e0e0",
-    borderStyle: "dashed",
-  },
-  placeholderText: {
-    color: "#000",
-    fontSize: 64,
-    fontWeight: "300",
-    lineHeight: 70,
-  },
-  dotsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 6,
-    paddingVertical: 8,
-  },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  dotActive: { backgroundColor: "#000" },
-  dotInactive: { backgroundColor: "#ccc" },
-  changeButton: {
-    alignSelf: "center",
-    marginTop: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  changeButtonText: {
-    fontSize: 13,
-    color: "#666",
-  },
-  button: {
-    width: "100%",
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-    backgroundColor: "#000",
-    marginTop: 16,
-  },
-  buttonDisabled: {
-    backgroundColor: "#ccc",
-  },
-  buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      padding: 24,
+      paddingTop: 60,
+    },
+    content: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: "bold",
+      marginBottom: 40,
+      color: colors.text,
+    },
+    closeButton: {
+      position: "absolute",
+      top: 60,
+      left: 24,
+      zIndex: 10,
+      padding: 8,
+    },
+    closeButtonText: {
+      fontSize: 22,
+      color: colors.text,
+    },
+    placeholder: {
+      width: "100%",
+      aspectRatio: 1,
+      marginBottom: 16,
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 2,
+      borderColor: colors.border,
+      borderStyle: "dashed",
+    },
+    placeholderText: {
+      color: colors.text,
+      fontSize: 64,
+      fontWeight: "300",
+      lineHeight: 70,
+    },
+    dotsContainer: {
+      flexDirection: "row",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: 8,
+    },
+    dot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+    },
+    dotActive: { backgroundColor: colors.text },
+    dotInactive: { backgroundColor: colors.border },
+    changeButton: {
+      alignSelf: "center",
+      marginTop: 8,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    changeButtonText: {
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    button: {
+      width: "100%",
+      padding: 16,
+      borderRadius: 12,
+      alignItems: "center",
+      backgroundColor: colors.primary,
+      marginTop: 16,
+    },
+    buttonDisabled: {
+      backgroundColor: colors.border,
+    },
+    buttonText: {
+      color: colors.background,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+  });

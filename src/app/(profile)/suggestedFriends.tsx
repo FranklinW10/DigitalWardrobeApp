@@ -1,17 +1,18 @@
+import { useFollows } from "@/context/FollowsContext";
+import { useTheme } from "@/context/ThemeContext";
 import { useContactFriends } from "@/hooks/useContactFriends";
-import { useFollows } from "@/hooks/useFollows";
 import { useSuggestedFriends } from "@/hooks/useSuggestedFriends";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
-    ActivityIndicator,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -35,6 +36,8 @@ export default function SuggestedFriendsScreen() {
     findFriendsFromContacts();
     loadSuggestedFriends();
   }, []);
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const renderRow = (
     u: {
@@ -134,7 +137,11 @@ export default function SuggestedFriendsScreen() {
 
           {matches.length === 0 && suggestions.length === 0 && (
             <View style={styles.emptyContainer}>
-              <Ionicons name="people-outline" size={40} color="#ccc" />
+              <Ionicons
+                name="people-outline"
+                size={40}
+                color={colors.textMuted}
+              />
               <Text style={styles.emptyText}>No suggestions right now</Text>
             </View>
           )}
@@ -143,59 +150,110 @@ export default function SuggestedFriendsScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  backText: { fontSize: 22, color: "#000" },
-  headerTitle: { fontSize: 18, fontWeight: "700" },
-  sectionHeader: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#888",
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
-    textTransform: "uppercase",
-  },
-  emptyContainer: { alignItems: "center", marginTop: 60, gap: 8 },
-  emptyText: { color: "#999", fontSize: 14 },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f5f5f5",
-  },
-  userInfo: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
-  avatar: { width: 44, height: 44, borderRadius: 22 },
-  avatarPlaceholder: {
-    backgroundColor: "#e0e0e0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: { fontWeight: "600", fontSize: 16 },
-  name: { fontWeight: "600", fontSize: 14 },
-  username: { color: "#888", fontSize: 12 },
-  followButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#000",
-  },
-  followingButton: { backgroundColor: "#000" },
-  pendingButton: { backgroundColor: "#ccc" },
-  followButtonText: { fontWeight: "600", fontSize: 13 },
-  followingButtonText: { color: "#fff" },
-});
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    backText: {
+      fontSize: 22,
+      color: colors.text,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    sectionHeader: {
+      fontSize: 14,
+      fontWeight: "700",
+      color: colors.textMuted,
+      paddingHorizontal: 16,
+      paddingTop: 16,
+      paddingBottom: 8,
+      textTransform: "uppercase",
+    },
+    emptyContainer: {
+      alignItems: "center",
+      marginTop: 60,
+      gap: 8,
+    },
+    emptyText: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.surface,
+    },
+    userInfo: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      flex: 1,
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+    },
+    avatarPlaceholder: {
+      backgroundColor: colors.surface,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    avatarText: {
+      fontWeight: "600",
+      fontSize: 16,
+      color: colors.textMuted,
+    },
+    name: {
+      fontWeight: "600",
+      fontSize: 14,
+      color: colors.text,
+    },
+    username: {
+      color: colors.textMuted,
+      fontSize: 12,
+    },
+    followButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 7,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      backgroundColor: colors.background, // default state outline
+    },
+    followingButton: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    pendingButton: {
+      backgroundColor: colors.border,
+      borderColor: colors.border,
+    },
+    followButtonText: {
+      fontWeight: "600",
+      fontSize: 13,
+      color: colors.primary, // default state outline text
+    },
+    followingButtonText: {
+      color: colors.background,
+    },
+  });

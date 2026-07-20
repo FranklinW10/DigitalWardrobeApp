@@ -194,7 +194,7 @@ export default function SignUpScreen() {
             {isLoading ? (
               <ActivityIndicator size={24} color="#fff" />
             ) : (
-              <Text style={styles.buttontext}>Compleate Setup</Text>
+              <Text style={styles.buttontext}>Complete Setup</Text>
             )}
           </TouchableOpacity>
         </View>

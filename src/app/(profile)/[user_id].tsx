@@ -1,6 +1,7 @@
 import { CommentsSheet } from "@/components/CommentSheet";
 import { LikersSheet } from "@/components/LikerSheet";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { Liker } from "@/hooks/useLikes";
 
 import {
@@ -8,13 +9,13 @@ import {
   ModalHaulPostCard,
   ModalPostCard,
 } from "@/components/PostCard";
-import { useFollows } from "@/hooks/useFollows";
+import { useFollows } from "@/context/FollowsContext";
 import { Post } from "@/hooks/usePosts";
 import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -42,6 +43,8 @@ interface ProfileUser {
 export default function UserProfileScreen() {
   const { user, updateUser, signOut } = useAuth();
   const [isPrivate, setIsPrivate] = useState(false);
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const { user_id } = useLocalSearchParams<{ user_id: string }>();
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
@@ -260,7 +263,7 @@ export default function UserProfileScreen() {
         </TouchableOpacity>
         <Text style={styles.topHeaderUsername}>@{profileUser?.username}</Text>
         <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
-          <Ionicons name="menu" size={26} color="#000" />
+          <Ionicons name="menu" size={26} color={colors.text} />
         </TouchableOpacity>
       </View>
       <FlatList
@@ -367,7 +370,7 @@ export default function UserProfileScreen() {
         ListEmptyComponent={
           !canViewContent ? (
             <View style={styles.privateNotice}>
-              <Ionicons name="lock-closed" size={32} color="#999" />
+              <Ionicons name="lock-closed" size={32} color={colors.textMuted} />
               <Text style={styles.privateTitle}>This account is private</Text>
               <Text style={styles.privateSubtitle}>
                 Follow this account to see their posts
@@ -382,239 +385,246 @@ export default function UserProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  pendingButton: {
-    backgroundColor: "#ccc",
-  },
-  privateNotice: {
-    alignItems: "center",
-    paddingTop: 48,
-    gap: 8,
-  },
-  privateTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#000",
-    marginTop: 8,
-  },
-  privateSubtitle: {
-    fontSize: 14,
-    color: "#888",
-    textAlign: "center",
-    paddingHorizontal: 32,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  header: {
-    alignItems: "center",
-    padding: 20,
-    marginBottom: -30,
-  },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 16,
-  },
-  closeButton: {},
-  closeButtonText: {
-    fontSize: 22,
-    color: "#000",
-    fontWeight: "400",
-  },
-  avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    marginBottom: 12,
-  },
-  avatarPlaceholder: {
-    backgroundColor: "#e0e0e0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    fontSize: 36,
-    fontWeight: "600",
-  },
-  name: {
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  username: {
-    fontSize: 14,
-    color: "#888",
-    marginBottom: 16,
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: 32,
-    marginBottom: 16,
-  },
-  stat: {
-    alignItems: "center",
-  },
-  statLocked: {
-    opacity: 0.4,
-  },
-  statNumber: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    width: "95%",
-    maxHeight: "85%",
-    overflow: "hidden",
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#888",
-  },
-  followButton: {
-    paddingHorizontal: 32,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#000",
-    marginBottom: 24,
-  },
-  followingButton: {
-    backgroundColor: "#000",
-  },
-  followButtonText: {
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  followingButtonText: {
-    color: "#fff",
-  },
-  modalOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 10,
-  },
-  postsHeader: {
-    alignSelf: "flex-start",
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
-  postImage: {
-    width: "100%",
-    height: 300,
-    marginBottom: 8,
-  },
-  emptyText: {
-    textAlign: "center",
-    color: "#888",
-    marginTop: 40,
-  },
-  topHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  topHeaderUsername: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    pendingButton: {
+      backgroundColor: colors.border,
+    },
+    privateNotice: {
+      alignItems: "center",
+      paddingTop: 48,
+      gap: 8,
+    },
+    privateTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: colors.text,
+      marginTop: 8,
+    },
+    privateSubtitle: {
+      fontSize: 14,
+      color: colors.textMuted,
+      textAlign: "center",
+      paddingHorizontal: 32,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      alignItems: "center",
+      padding: 20,
+      marginBottom: -30,
+    },
+    profileImage: {
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      marginBottom: 16,
+    },
+    closeButton: {},
+    closeButtonText: {
+      fontSize: 22,
+      color: colors.text,
+      fontWeight: "400",
+    },
+    avatar: {
+      width: 90,
+      height: 90,
+      borderRadius: 45,
+      marginBottom: 12,
+    },
+    avatarPlaceholder: {
+      backgroundColor: colors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarText: {
+      fontSize: 36,
+      fontWeight: "600",
+      color: colors.textMuted,
+    },
+    name: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    username: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginBottom: 12,
+    },
+    statsRow: {
+      flexDirection: "row",
+      gap: 32,
+      marginBottom: 16,
+    },
+    stat: {
+      alignItems: "center",
+    },
+    statLocked: {
+      opacity: 0.4,
+    },
+    statNumber: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    modalContent: {
+      backgroundColor: colors.card || colors.surface,
+      borderRadius: 16,
+      width: "95%",
+      maxHeight: "85%",
+      overflow: "hidden",
+    },
+    statLabel: {
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    followButton: {
+      paddingHorizontal: 32,
+      paddingVertical: 10,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      marginBottom: 24,
+    },
+    followingButton: {
+      backgroundColor: colors.primary,
+    },
+    followButtonText: {
+      fontWeight: "600",
+      fontSize: 14,
+      color: colors.primary,
+    },
+    followingButtonText: {
+      color: colors.background,
+    },
+    modalOverlay: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 10,
+    },
+    postsHeader: {
+      alignSelf: "flex-start",
+      fontSize: 16,
+      fontWeight: "700",
+      marginBottom: 8,
+      color: colors.text,
+    },
+    postImage: {
+      width: "100%",
+      height: 300,
+      marginBottom: 8,
+    },
+    emptyText: {
+      textAlign: "center",
+      color: colors.textMuted,
+      marginTop: 40,
+    },
+    topHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    topHeaderUsername: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: colors.text,
+    },
 
-  tabSwitcher: {
-    flexDirection: "row",
-    marginHorizontal: -26,
-    marginBottom: 9,
+    tabSwitcher: {
+      flexDirection: "row",
+      marginHorizontal: -26,
+      marginBottom: 9,
 
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#e0e0e0",
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors.border,
 
-    padding: 1,
-  },
-  activeTab: {
-    flex: 1,
-    paddingVertical: 6,
-    alignItems: "center",
-    borderRadius: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#000",
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 6,
-    alignItems: "center",
-    borderRadius: 8,
-  },
+      padding: 1,
+    },
+    activeTab: {
+      flex: 1,
+      paddingVertical: 6,
+      alignItems: "center",
+      borderRadius: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.primary,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 6,
+      alignItems: "center",
+      borderRadius: 8,
+    },
 
-  tabText: {
-    fontSize: 20,
-    fontWeight: "500",
-    color: "#888",
-  },
-  activeTabText: {
-    color: "#000",
-    fontWeight: "600",
-  },
-  postContainer: {
-    backgroundColor: "#fff",
+    tabText: {
+      fontSize: 20,
+      fontWeight: "500",
+      color: colors.textMuted,
+    },
+    activeTabText: {
+      color: colors.text,
+      fontWeight: "600",
+    },
+    postContainer: {
+      backgroundColor: colors.card || colors.surface,
 
-    overflow: "hidden",
-    marginBottom: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
+      overflow: "hidden",
+      marginBottom: 2,
+      shadowColor: colors.text,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 3,
+    },
 
-  closeModalButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    zIndex: 10,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    borderRadius: 20,
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  closeText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  modalPostContent: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    width: "95%",
-    maxHeight: "85%",
-    overflow: "hidden",
-  },
+    closeModalButton: {
+      position: "absolute",
+      top: 12,
+      right: 12,
+      zIndex: 10,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      borderRadius: 20,
+      width: 32,
+      height: 32,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    closeText: {
+      color: "#fff", // Kept white to maintain contrast over the absolute dark background overlay button
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    modalPostContent: {
+      backgroundColor: colors.card || colors.surface,
+      borderRadius: 16,
+      width: "95%",
+      maxHeight: "85%",
+      overflow: "hidden",
+    },
 
-  modalcloseButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    zIndex: 10,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    borderRadius: 20,
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalcloseText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-});
+    modalcloseButton: {
+      position: "absolute",
+      top: 12,
+      right: 12,
+      zIndex: 10,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      borderRadius: 20,
+      width: 32,
+      height: 32,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    modalcloseText: {
+      color: "#fff", // Kept white to maintain contrast over the absolute dark background overlay button
+      fontSize: 14,
+      fontWeight: "600",
+    },
+  });

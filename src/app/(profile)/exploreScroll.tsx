@@ -1,11 +1,11 @@
 import { HaulPostCard, PostCard } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
-import { useFollows } from "@/hooks/useFollows";
+import { useFollows } from "@/context/FollowsContext";
+import { useTheme } from "@/context/ThemeContext";
 import { Post, usePosts } from "@/hooks/usePosts";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   FlatList,
@@ -25,7 +25,8 @@ export default function ExploreFeedScreen() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const lastScrollY = useRef(0);
   const headerVisible = useRef(new Animated.Value(1)).current;
-
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   useEffect(() => {
     loadFollowing();
     refreshExplorePosts();
@@ -80,13 +81,16 @@ export default function ExploreFeedScreen() {
 
   return (
     <>
-      <SafeAreaView style={{ backgroundColor: "#fff" }} edges={["top"]} />
-      <View style={{ flex: 1, backgroundColor: "#fff" }}>
+      <SafeAreaView
+        style={{ backgroundColor: colors.background }}
+        edges={["top"]}
+      />
+      <View style={{ flex: 1, backgroundColor: colors.background }}>
         <Animated.View
           style={[styles.header, { height: headerHeight, overflow: "hidden" }]}
         >
           <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back-outline" size={24} color="#000" />
+            <Ionicons name="arrow-back-outline" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Explore</Text>
           <View style={{ width: 24 }} />
@@ -109,31 +113,33 @@ export default function ExploreFeedScreen() {
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  content: {
-    paddingBottom: 40,
-  },
-  emptyContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  empty: {
-    textAlign: "center",
-    color: "#888",
-    fontSize: 15,
-  },
-});
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    content: {
+      paddingBottom: 40,
+    },
+    emptyContent: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    empty: {
+      textAlign: "center",
+      color: colors.textMuted,
+      fontSize: 15,
+    },
+  });

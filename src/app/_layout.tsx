@@ -1,8 +1,12 @@
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { FollowsProvider } from "@/context/FollowsContext";
+import { NotificationsProvider } from "@/context/NotificationsContext";
+import { ThemeProvider } from "@/context/ThemeContext";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
-
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 function RouteGaurd() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
@@ -20,6 +24,8 @@ function RouteGaurd() {
       }
     } else if (!user.onboardingCompleated) {
       router.replace("/(auth)/onboarding");
+    } else if (!user.theme) {
+      router.replace("/(auth)/themeSelector");
     } else if (!user.PhoneAsked) {
       router.replace("/(auth)/phone");
     } else if (!user.friendsStepCompleted) {
@@ -48,10 +54,27 @@ function RouteGaurd() {
     </Stack>
   );
 }
+
+function AppProviders() {
+  const { user } = useAuth();
+  return (
+    <FollowsProvider>
+      <NotificationsProvider userId={user?.id}>
+        <RouteGaurd />
+      </NotificationsProvider>
+    </FollowsProvider>
+  );
+}
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RouteGaurd />
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <ThemeProvider>
+          <BottomSheetModalProvider>
+            <AppProviders />
+          </BottomSheetModalProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }

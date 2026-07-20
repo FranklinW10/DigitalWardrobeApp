@@ -5,17 +5,19 @@ import {
   ModalPostCard,
   ProfilePostCard,
 } from "@/components/PostCard";
+import { palettes, themeMeta, ThemeName } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { Liker } from "@/hooks/useLikes";
 import { Post, usePosts } from "@/hooks/usePosts";
 import { supabase } from "@/lib/supabase/client";
-
 import { uploadProfileImage } from "@/lib/supabase/storage";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+import { Keyboard, KeyboardAvoidingView, Platform } from "react-native";
 
 import {
   ActivityIndicator,
@@ -77,9 +79,17 @@ export default function Profile() {
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
+  const nameInputRef = useRef<TextInput>(null);
+  const usernameInputRef = useRef<TextInput>(null);
+
+  const [selectedTheme, setSelectedTheme] = useState<ThemeName>("light");
   const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
     null,
   );
+  const { colors, setTheme } = useTheme();
+
+  // Generate the stylesheet dynamically using the current theme colors
+  const styles = createStyles(colors);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -134,6 +144,7 @@ export default function Profile() {
       setUsername(user.username);
       setPhone(user.phone);
       setIsPrivate(user.isPrivate ?? false);
+      setSelectedTheme((user as any).theme ?? "light");
     }
   }, [showModal, user]);
 
@@ -301,12 +312,14 @@ export default function Profile() {
         );
         return;
       }
+      await setTheme(selectedTheme);
 
       await updateUser({
         name,
         username,
         isPrivate,
         phone: digits.length > 0 ? digits : undefined,
+        theme: selectedTheme,
       });
       setProfileUser((prev) =>
         prev
@@ -438,11 +451,11 @@ export default function Profile() {
         <TouchableOpacity
           onPress={() => router.push("/(profile)/suggestedFriends")}
         >
-          <Ionicons name="person-add-outline" size={20} color="#000" />
+          <Ionicons name="person-add-outline" size={20} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.topHeaderUsername}>@{user?.username}</Text>
         <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
-          <Ionicons name="menu" size={26} color="#000" />
+          <Ionicons name="menu" size={26} color={colors.text} />
         </TouchableOpacity>
       </View>
       <View style={{ flex: 1 }}>
@@ -568,7 +581,7 @@ export default function Profile() {
               style={styles.optionsButton}
               onPress={() => setShowOptions(!showOptions)}
             >
-              <Ionicons name="options-outline" size={18} color="#000" />
+              <Ionicons name="options-outline" size={18} color={colors.text} />
             </TouchableOpacity>
             {showOptions && (
               <View style={styles.optionsPill}>
@@ -588,7 +601,11 @@ export default function Profile() {
                     <Ionicons
                       name={opt.icon as any}
                       size={16}
-                      color={filter === opt.value ? "#fff" : "#888"}
+                      color={
+                        filter === opt.value
+                          ? colors.background
+                          : colors.textMuted
+                      }
                     />
                   </TouchableOpacity>
                 ))}
@@ -599,624 +616,786 @@ export default function Profile() {
       </View>
 
       <Modal visible={showModal} transparent animationType="slide">
-        {/* ← Backdrop — closes modal on press */}
-        <TouchableOpacity
-          style={styles.modalBackdrop}
-          activeOpacity={1}
-          onPress={() => setShowModal(false)}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
-          {/* ← Stop press from bubbling up and closing when tapping inside */}
-          <TouchableOpacity activeOpacity={1} style={styles.editModalContent}>
-            <Text style={styles.title}>Edit Profile</Text>
-            <Text style={styles.subtitle}>Update your information</Text>
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowModal(false)}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              style={styles.editModalContent}
+              onPress={Keyboard.dismiss}
+            >
+              <Text style={styles.title}>Edit Profile</Text>
+              <Text style={styles.subtitle}>Update your information</Text>
 
-            <View style={styles.form}>
-              <TouchableOpacity
-                style={styles.imagecontainer}
-                onPress={handleUpdateProfileImage}
+              <ScrollView
+                style={styles.formScroll}
+                contentContainerStyle={styles.form}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
               >
-                {user?.profileImage ? (
-                  <Image
-                    cachePolicy="memory"
-                    source={{ uri: user.profileImage }}
-                    style={styles.profileImage}
-                  />
-                ) : (
-                  <View style={styles.placeholderimage}>
-                    <Text style={styles.placeholderText}>+</Text>
-                  </View>
+                <TouchableOpacity
+                  style={styles.imagecontainer}
+                  onPress={handleUpdateProfileImage}
+                >
+                  {user?.profileImage ? (
+                    <Image
+                      cachePolicy="memory"
+                      source={{ uri: user.profileImage }}
+                      style={styles.profileImage}
+                    />
+                  ) : (
+                    <View style={styles.placeholderimage}>
+                      <Text style={styles.placeholderText}>+</Text>
+                    </View>
+                  )}
+                  {user?.profileImage && (
+                    <View style={styles.editEditBadge}>
+                      <Text style={styles.editBadgeText}>Edit</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                <Text style={styles.inputHeader}>Full Name</Text>
+                <TextInput
+                  ref={nameInputRef}
+                  placeholder="Full Name"
+                  placeholderTextColor={colors.textMuted}
+                  value={name}
+                  onChangeText={setName}
+                  style={styles.input}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                  onSubmitEditing={() => usernameInputRef.current?.focus()}
+                />
+
+                <Text style={styles.inputHeader}>Username</Text>
+                <TextInput
+                  ref={usernameInputRef}
+                  placeholder="Username"
+                  placeholderTextColor={colors.textMuted}
+                  autoCapitalize="none"
+                  value={username}
+                  onChangeText={setUsername}
+                  style={styles.input}
+                  returnKeyType="done"
+                  onSubmitEditing={Keyboard.dismiss}
+                />
+
+                <Text style={styles.inputHeader}>Phone Number</Text>
+                <TextInput
+                  placeholder="Phone Number"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="phone-pad"
+                  value={phone}
+                  onChangeText={(text) => {
+                    setPhone(text);
+                    if (phoneError) setPhoneError(null);
+                  }}
+                  style={styles.input}
+                />
+                {phoneError && (
+                  <Text style={styles.errorText}>{phoneError}</Text>
                 )}
-                {user?.profileImage && (
-                  <View style={styles.editEditBadge}>
-                    <Text style={styles.editBadgeText}>Edit</Text>
+
+                <View style={styles.privacyRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.inputHeader}>Private Account</Text>
+                    <Text style={styles.privacyHint}>
+                      Only approved followers can see your posts
+                    </Text>
                   </View>
-                )}
-              </TouchableOpacity>
-              <Text style={styles.inputHeader}>Full Name</Text>
-              <TextInput
-                placeholder="Full Name"
-                placeholderTextColor="#999"
-                value={name}
-                onChangeText={setName}
-                style={styles.input}
-                autoCapitalize="words"
-              />
-              <Text style={styles.inputHeader}>Username</Text>
-              <TextInput
-                placeholder="Username"
-                placeholderTextColor="#999"
-                autoCapitalize="none"
-                value={username}
-                onChangeText={setUsername}
-                style={styles.input}
-              />
-              <Text style={styles.inputHeader}>Phone Number</Text>
-              <TextInput
-                placeholder="Phone Number"
-                placeholderTextColor="#999"
-                keyboardType="phone-pad"
-                value={phone}
-                onChangeText={(text) => {
-                  setPhone(text);
-                  if (phoneError) setPhoneError(null);
-                }}
-                style={styles.input}
-              />
-              {phoneError && <Text style={styles.errorText}>{phoneError}</Text>}
-              <View style={styles.privacyRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.inputHeader}>Private Account</Text>
-                  <Text style={styles.privacyHint}>
-                    {" "}
-                    Only approved followers can see your posts
-                  </Text>
+                  <Switch value={isPrivate} onValueChange={setIsPrivate} />
                 </View>
-                <Switch value={isPrivate} onValueChange={setIsPrivate} />
-              </View>
+                <Text style={styles.inputHeader}>Theme</Text>
+                <View style={styles.themeDotRow}>
+                  {(Object.keys(palettes) as ThemeName[]).map((name) => {
+                    const palette = palettes[name];
+                    const isActive = name === selectedTheme;
+                    return (
+                      <TouchableOpacity
+                        key={name}
+                        onPress={() => setSelectedTheme(name)}
+                        activeOpacity={0.8}
+                        style={styles.themeDotWrap}
+                      >
+                        <View
+                          style={[
+                            styles.themeStack,
+                            {
+                              borderColor: isActive
+                                ? colors.text
+                                : "transparent",
+                              borderWidth: isActive ? 2 : 0,
+                            },
+                          ]}
+                        >
+                          <View
+                            style={[
+                              styles.themeStackDot,
+                              { backgroundColor: palette.primary },
+                            ]}
+                          />
+                          <View
+                            style={[
+                              styles.themeStackDot,
+                              styles.themeStackDotMiddle,
+                              { backgroundColor: palette.accent },
+                            ]}
+                          />
+                          <View
+                            style={[
+                              styles.themeStackDot,
+                              styles.themeStackDotBack,
+                              {
+                                backgroundColor: palette.surface,
+                                borderWidth: 1,
+                                borderColor: palette.border,
+                              },
+                            ]}
+                          />
+                        </View>
+                        <Text
+                          style={[
+                            styles.themeStackLabel,
+                            { color: colors.textMuted },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {themeMeta[name].label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
 
-              <TouchableOpacity style={styles.button} onPress={handleComplete}>
-                {isSubmitting ? (
-                  <ActivityIndicator size={24} color="#fff" />
-                ) : (
-                  <Text style={styles.buttontext}>Save Changes</Text>
-                )}
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.button}
+                  onPress={handleComplete}
+                >
+                  {isSubmitting ? (
+                    <ActivityIndicator size={24} color="#fff" />
+                  ) : (
+                    <Text style={styles.buttontext}>Save Changes</Text>
+                  )}
+                </TouchableOpacity>
 
-              {/* Cancel button */}
-              <TouchableOpacity
-                style={styles.cancelModalButton}
-                onPress={() => setShowModal(false)}
-              >
-                <Text style={styles.cancelModalButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity
+                  style={styles.cancelModalButton}
+                  onPress={() => setShowModal(false)}
+                >
+                  <Text style={styles.cancelModalButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </TouchableOpacity>
           </TouchableOpacity>
-        </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
 }
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    imagecontainer: {
+      marginBottom: 16,
+      position: "relative",
+    },
+    profileImage: {
+      width: 110,
+      height: 110,
+      borderRadius: 55,
+      marginBottom: 16,
+    },
+    placeholderimage: {
+      width: 110,
+      height: 110,
+      backgroundColor: colors.surface,
+      borderRadius: 55,
+      justifyContent: "center",
+      alignItems: "center",
+      position: "relative",
+      borderWidth: 2,
+      borderColor: colors.border,
+      borderStyle: "dashed",
+    },
+    placeholderText: {
+      fontSize: 40,
+      color: colors.secondary,
+    },
+    inputHeader: {
+      fontSize: 13,
+      alignSelf: "flex-start",
+      color: colors.textMuted,
+      paddingHorizontal: 2,
+      paddingBottom: 4,
+      paddingTop: 6,
+    },
+    themeDotRow: {
+      flexDirection: "row",
+      gap: 18,
+      marginTop: 6,
+      marginBottom: 18,
+      alignSelf: "flex-start",
+      paddingHorizontal: 2,
+    },
+    themeDotWrap: {
+      alignItems: "center",
+      gap: 6,
+    },
+    themeStack: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    themeStackDot: {
+      width: 18,
+      height: 18,
+      borderRadius: 9,
+      position: "absolute",
+    },
+    themeStackDotMiddle: {
+      left: 10,
+      top: 2,
+    },
+    themeStackDotBack: {
+      left: 14,
+      top: 10,
+    },
+    themeStackLabel: {
+      fontSize: 12,
+      fontWeight: "500",
+    },
+    optionsContainer: {
+      position: "absolute",
+      top: 375,
+      right: 8,
+      alignItems: "flex-end",
+      zIndex: 10,
+    },
 
-const styles = StyleSheet.create({
-  optionsContainer: {
-    position: "absolute",
-    top: 350,
-    right: 8,
-    alignItems: "flex-end",
-    zIndex: 10,
-  },
-  optionsButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255,255,255,0.92)",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  optionsPill: {
-    backgroundColor: "rgba(240,240,240,0.95)",
-    borderRadius: 24,
-    marginTop: 6,
-    paddingVertical: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  pillOption: {
-    width: 36,
-    height: 36,
-    borderRadius: 16,
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
-  },
-  pillSelector: {
-    position: "absolute",
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#000",
-  },
-  pillOptionActive: {
-    backgroundColor: "#000",
-  },
-  pillDivider: {
-    width: 1,
-    height: 16,
-    backgroundColor: "#e0e0e0",
-  },
-  whitespace: {
-    padding: 5,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  content: {
-    padding: 32,
-  },
-  profileSection: {
-    alignItems: "center",
-    marginBottom: 32,
-    paddingBottom: 32,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 16,
-  },
-  profileImagePlaceholder: {
-    backgroundColor: "#f0f0f0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  profileImageText: {
-    fontSize: 40,
-    fontWeight: "600",
-    color: "#666",
-  },
-  editBadge: {
-    position: "absolute",
-    bottom: 10,
-    left: "50%",
-    transform: [{ translateX: -22 }],
-    backgroundColor: "#000",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  editEditBadge: {
-    position: "absolute",
-    bottom: 10,
-    left: "15%",
-    transform: [{ translateX: -22 }],
-    backgroundColor: "#000",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  errorText: {
-    color: "#ff3b30",
-    fontSize: 12,
-    marginTop: 4,
-  },
-  editBadgeText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 4,
-    color: "#000",
-  },
-  username: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 4,
-  },
-  email: {
-    fontSize: 14,
-    color: "#999",
-  },
-  section: {
-    marginBottom: 32,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 16,
-    color: "#000",
-  },
-  settingItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  settingLabel: {
-    fontSize: 18,
-    color: "#999",
-  },
-  settingValue: {
-    fontSize: 18,
-    color: "#999",
-  },
-  signOutButton: {
-    backgroundColor: "#f5f5f5",
-    marginBottom: 8,
-  },
-  signOutText: {
-    fontSize: 16,
-    color: "#000",
-    fontWeight: "500",
-  },
-  deleteButton: {
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#ff3b30",
-  },
-  deleteText: {
-    fontSize: 16,
-    color: "#ff3b30",
-    fontWeight: "500",
-  },
+    editModalContent: {
+      backgroundColor: colors.background,
+      borderRadius: 16,
+      width: "100%",
+      maxHeight: "85%",
+      overflow: "hidden",
+      paddingHorizontal: 20,
+      paddingTop: 20,
+      paddingBottom: 12,
+    },
+    formScroll: {
+      width: "100%",
+    },
+    form: {
+      width: "100%",
+      alignItems: "center",
+      paddingBottom: 8,
+    },
+    title: {
+      fontSize: 22,
+      fontWeight: "bold",
+      marginBottom: 2,
+      color: colors.text,
+    },
+    subtitle: {
+      fontSize: 13,
+      marginBottom: 16,
+      color: colors.textMuted,
+    },
 
-  header: {
-    alignItems: "center",
-    padding: 20,
-    marginBottom: -30,
-  },
-  backButton: {
-    alignSelf: "flex-start",
-    marginBottom: 16,
-  },
-  backText: {
-    fontSize: 16,
-    color: "#000",
-  },
-  avatar: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    marginBottom: 12,
-  },
-  avatarPlaceholder: {
-    backgroundColor: "#e0e0e0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    fontSize: 36,
-    fontWeight: "600",
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: 32,
-    marginBottom: 16,
-  },
-  stat: {
-    alignItems: "center",
-  },
-  statNumber: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
-  statLabel: {
-    fontSize: 12,
-    color: "#888",
-  },
-  followButton: {
-    paddingHorizontal: 32,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#000",
-    marginBottom: 24,
-  },
-  followingButton: {
-    backgroundColor: "#000",
-  },
-  followButtonText: {
-    fontWeight: "600",
-    fontSize: 14,
-  },
-  followingButtonText: {
-    color: "#fff",
-  },
-  postsHeader: {
-    alignSelf: "flex-start",
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
-  postImage: {
-    width: "100%",
-    height: 300,
-    marginBottom: 8,
-  },
-  emptyText: {
-    textAlign: "center",
-    color: "#888",
-    marginTop: 40,
-  },
-  topHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  topHeaderUsername: {
-    fontSize: 18,
-    fontWeight: "700",
-  },
+    input: {
+      backgroundColor: colors.surface,
+      width: "100%",
+      borderRadius: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      fontSize: 15,
+      marginBottom: 6,
+      borderWidth: 1,
+      borderColor: colors.border,
+      color: colors.text,
+    },
+    privacyRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: 8,
+      marginBottom: 4,
+      width: "100%",
+    },
+    privacyHint: {
+      fontSize: 11,
+      color: colors.secondary,
+      marginTop: 1,
+    },
 
-  tabSwitcher: {
-    flexDirection: "row",
-    marginHorizontal: -26,
-    marginBottom: 9,
+    themeDot: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
+    },
+    button: {
+      backgroundColor: colors.primary,
+      width: "100%",
+      borderRadius: 10,
+      paddingVertical: 13,
+      alignItems: "center",
+      marginTop: 4,
+    },
+    cancelModalButton: {
+      marginTop: 8,
+      width: "100%",
+      paddingVertical: 10,
+      alignItems: "center",
+    },
+    themeGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "space-between",
+      width: "100%",
+      marginTop: 8,
+      marginBottom: 20,
+    },
+    themeSwatchCard: {
+      width: "48%",
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 12,
+    },
 
-    padding: 1,
-  },
-  privacyRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-    marginBottom: 20,
-  },
-  privacyHint: {
-    fontSize: 12,
-    color: "#999",
-    marginTop: 2,
-  },
-  activeTab: {
-    flex: 1,
-    paddingVertical: 6,
-    alignItems: "center",
-    borderRadius: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#000",
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 6,
-    alignItems: "center",
-    borderRadius: 8,
-  },
-  tabText: {
-    fontSize: 20,
-    fontWeight: "500",
-    color: "#888",
-  },
-  activeTabText: {
-    color: "#000",
-    fontWeight: "600",
-  },
-  modalOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 10,
-  },
-  postContainer: {
-    backgroundColor: "#fff",
+    themeSwatchLabel: {
+      fontSize: 13,
+      fontWeight: "600",
+      marginTop: 8,
+    },
+    optionsButton: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.surface + "EC", // using 92% opacity hex modifier
+      justifyContent: "center",
+      alignItems: "center",
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.15,
+      shadowRadius: 4,
+      elevation: 3,
+    },
+    optionsPill: {
+      backgroundColor: colors.surface + "F2", // using 95% opacity hex modifier
+      borderRadius: 24,
+      marginTop: 6,
+      paddingVertical: 5,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    pillOption: {
+      width: 36,
+      height: 36,
+      borderRadius: 16,
+      justifyContent: "center",
+      alignItems: "center",
+      position: "relative",
+    },
+    pillSelector: {
+      position: "absolute",
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      backgroundColor: colors.primary,
+    },
+    pillOptionActive: {
+      backgroundColor: colors.primary,
+    },
+    pillDivider: {
+      width: 1,
+      height: 16,
+      backgroundColor: colors.border,
+    },
+    whitespace: {
+      padding: 5,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      padding: 32,
+    },
+    profileSection: {
+      alignItems: "center",
+      marginBottom: 32,
+      paddingBottom: 32,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
 
-    overflow: "hidden",
-    marginBottom: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
+    profileImagePlaceholder: {
+      backgroundColor: colors.surface,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    profileImageText: {
+      fontSize: 40,
+      fontWeight: "600",
+      color: colors.textMuted,
+    },
+    editBadge: {
+      position: "absolute",
+      bottom: 10,
+      left: "50%",
+      transform: [{ translateX: -22 }],
+      backgroundColor: colors.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+    },
+    editEditBadge: {
+      position: "absolute",
+      bottom: 10,
+      left: "15%",
+      transform: [{ translateX: -22 }],
+      backgroundColor: colors.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+    },
+    errorText: {
+      color: colors.error || "#ff3b30",
+      fontSize: 12,
+      marginTop: 4,
+    },
+    editBadgeText: {
+      color: colors.background,
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    name: {
+      fontSize: 24,
+      fontWeight: "bold",
+      marginBottom: 4,
+      color: colors.text,
+    },
+    username: {
+      fontSize: 16,
+      color: colors.textMuted,
+      marginBottom: 12,
+    },
+    email: {
+      fontSize: 14,
+      color: colors.secondary,
+    },
+    section: {
+      marginBottom: 32,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      marginBottom: 16,
+      color: colors.text,
+    },
+    settingItem: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingVertical: 16,
+      paddingHorizontal: 16,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      marginBottom: 8,
+    },
+    settingLabel: {
+      fontSize: 18,
+      color: colors.secondary,
+    },
+    settingValue: {
+      fontSize: 18,
+      color: colors.secondary,
+    },
+    signOutButton: {
+      backgroundColor: colors.surface,
+      marginBottom: 8,
+    },
+    signOutText: {
+      fontSize: 16,
+      color: colors.text,
+      fontWeight: "500",
+    },
+    deleteButton: {
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.error || "#ff3b30",
+    },
+    deleteText: {
+      fontSize: 16,
+      color: colors.error || "#ff3b30",
+      fontWeight: "500",
+    },
+    header: {
+      alignItems: "center",
+      padding: 20,
+      marginBottom: -30,
+    },
+    backButton: {
+      alignSelf: "flex-start",
+      marginBottom: 16,
+    },
+    backText: {
+      fontSize: 16,
+      color: colors.text,
+    },
+    avatar: {
+      width: 90,
+      height: 90,
+      borderRadius: 45,
+      marginBottom: 12,
+    },
+    avatarPlaceholder: {
+      backgroundColor: colors.surface,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    avatarText: {
+      fontSize: 36,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    statsRow: {
+      flexDirection: "row",
+      gap: 32,
+      marginBottom: 16,
+    },
+    stat: {
+      alignItems: "center",
+    },
+    statNumber: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    statLabel: {
+      fontSize: 12,
+      color: colors.textMuted,
+    },
+    followButton: {
+      paddingHorizontal: 32,
+      paddingVertical: 10,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      marginBottom: 24,
+    },
+    followingButton: {
+      backgroundColor: colors.primary,
+    },
+    followButtonText: {
+      fontWeight: "600",
+      fontSize: 14,
+      color: colors.primary,
+    },
+    followingButtonText: {
+      color: colors.background,
+    },
+    postsHeader: {
+      alignSelf: "flex-start",
+      fontSize: 16,
+      fontWeight: "700",
+      color: colors.text,
+      marginBottom: 8,
+    },
+    postImage: {
+      width: "100%",
+      height: 300,
+      marginBottom: 8,
+    },
+    emptyText: {
+      textAlign: "center",
+      color: colors.textMuted,
+      marginTop: 40,
+    },
+    topHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    topHeaderUsername: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    tabSwitcher: {
+      flexDirection: "row",
+      marginHorizontal: -26,
+      marginBottom: 9,
+      padding: 1,
+    },
 
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
+    activeTab: {
+      flex: 1,
+      paddingVertical: 6,
+      alignItems: "center",
+      borderRadius: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.primary,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 6,
+      alignItems: "center",
+      borderRadius: 8,
+    },
+    tabText: {
+      fontSize: 20,
+      fontWeight: "500",
+      color: colors.textMuted,
+    },
+    activeTabText: {
+      color: colors.text,
+      fontWeight: "600",
+    },
+    modalOverlay: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 10,
+    },
+    postContainer: {
+      backgroundColor: colors.background,
+      overflow: "hidden",
+      marginBottom: 2,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 3,
+    },
+    modalContainer: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "flex-end",
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: colors.text,
+      textAlign: "center",
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+    },
+    modalButtons: {
+      marginTop: 8,
+    },
+    modalButton: {
+      padding: 16,
+      borderRadius: 12,
+      alignItems: "center",
+    },
+    helloworldTitle: {
+      color: colors.error || "red",
+    },
+    image: {
+      width: 200,
+      height: 200,
+    },
 
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
-    textAlign: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
-  },
-  modalButtons: {
-    marginTop: 8,
-  },
-  modalButton: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
+    modalContent: {
+      backgroundColor: colors.background,
+      borderRadius: 16,
+      width: "95%",
+      maxHeight: "85%",
+      overflow: "hidden",
+    },
 
-  helloworldTitle: {
-    color: "red",
-  },
-  image: {
-    width: 200,
-    height: 200,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    width: "95%",
-    maxHeight: "85%",
-    overflow: "hidden",
-  },
-  subtitle: {
-    fontSize: 16,
-    marginBottom: 32,
-    color: "#666",
-  },
-  form: {
-    width: "100%",
-    alignItems: "center",
-  },
-  imagecontainer: {
-    marginBottom: 32,
-    position: "relative",
-  },
+    editText: {
+      color: colors.background,
+      fontSize: 12,
+      fontWeight: "600",
+    },
 
-  placeholderimage: {
-    width: 120,
-    height: 120,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 60,
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
-    borderWidth: 2,
-    borderColor: "#e0e0e0",
-    borderStyle: "dashed",
-  },
-  placeholderText: {
-    fontSize: 48,
-    color: "#999",
-  },
+    linkbutton: {
+      marginTop: 24,
+      alignItems: "center",
+    },
+    linkbuttontext: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    linkbuttontextbold: {
+      fontWeight: "600",
+      color: colors.text,
+    },
+    buttontext: {
+      color: colors.background,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    modalBackdrop: {
+      flex: 1,
+      width: "100%",
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "flex-end",
+    },
 
-  editText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  input: {
-    backgroundColor: "#f5f5f5",
-    width: "100%",
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  button: {
-    backgroundColor: "#000",
-    width: "100%",
-
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-  },
-  linkbutton: {
-    marginTop: 24,
-    alignItems: "center",
-  },
-  linkbuttontext: {
-    color: "#666",
-    fontSize: 14,
-  },
-  linkbuttontextbold: {
-    fontWeight: "600",
-    color: "#000",
-  },
-  buttontext: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  modalBackdrop: {
-    flex: 1,
-    width: "100%",
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  editModalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    width: "100%",
-    maxHeight: "85%",
-    overflow: "hidden",
-    padding: 24,
-    paddingTop: 32,
-  },
-
-  cancelModalButton: {
-    marginTop: 12,
-    width: "100%",
-    padding: 16,
-    alignItems: "center",
-  },
-  cancelModalButtonText: {
-    fontSize: 16,
-    color: "#666",
-  },
-
-  closeButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    zIndex: 10,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    borderRadius: 20,
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  closeText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  modalPostContent: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    width: "95%",
-    maxHeight: "85%",
-    overflow: "hidden",
-  },
-  exploreButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 16,
-    backgroundColor: "#000",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
-  },
-  exploreButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  inputHeader: {
-    fontSize: 16,
-
-    alignSelf: "flex-start",
-    color: "#666",
-    padding: 5,
-  },
-});
+    cancelModalButtonText: {
+      fontSize: 16,
+      color: colors.textMuted,
+    },
+    closeButton: {
+      position: "absolute",
+      top: 12,
+      right: 12,
+      zIndex: 10,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      borderRadius: 20,
+      width: 32,
+      height: 32,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    closeText: {
+      color: "#fff",
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    modalPostContent: {
+      backgroundColor: colors.background,
+      borderRadius: 16,
+      width: "95%",
+      maxHeight: "85%",
+      overflow: "hidden",
+    },
+    exploreButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginTop: 16,
+      backgroundColor: colors.primary,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.4)",
+    },
+    exploreButtonText: {
+      color: colors.background,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+  });

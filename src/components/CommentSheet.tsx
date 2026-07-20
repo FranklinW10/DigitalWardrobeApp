@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
 import { useComments } from "@/hooks/useComments";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
@@ -40,6 +41,10 @@ export const CommentsSheet = ({
   const snapPoints = useMemo(() => ["94%", "75%"], []);
   const textRef = useRef("");
   const inputRef = useRef<any>(null);
+  const { colors } = useTheme();
+
+  // Generate the stylesheet dynamically using the current theme colors
+  const styles = createStyles(colors);
 
   useEffect(() => {
     if (visible) {
@@ -87,20 +92,20 @@ export const CommentsSheet = ({
               ref={inputRef}
               style={styles.input}
               placeholder="Add a comment..."
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textMuted}
               onChangeText={(val) => {
                 textRef.current = val;
               }}
               multiline
             />
             <TouchableOpacity onPress={handleSubmit}>
-              <Ionicons name="send" size={24} color={"#000"} />
+              <Ionicons name="send" size={24} color={colors.text} />
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </BottomSheetFooter>
     ),
-    [isSubmitting, user],
+    [isSubmitting, user, handleSubmit],
   );
 
   const handleClose = useCallback(() => {
@@ -124,7 +129,7 @@ export const CommentsSheet = ({
       <View style={styles.header}>
         <Text style={styles.title}>Comments</Text>
         <TouchableOpacity onPress={handleClose}>
-          <Ionicons name="close" size={24} color="#000" />
+          <Ionicons name="close" size={24} color={colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -158,7 +163,11 @@ export const CommentsSheet = ({
             {/* Delete if own comment */}
             {item.user_id === user?.id && (
               <TouchableOpacity onPress={() => deleteComment(item.id)}>
-                <Ionicons name="trash-outline" size={16} color="#999" />
+                <Ionicons
+                  name="trash-outline"
+                  size={16}
+                  color={colors.textMuted}
+                />
               </TouchableOpacity>
             )}
           </View>
@@ -169,90 +178,94 @@ export const CommentsSheet = ({
     </BottomSheetModal>
   );
 };
-
-const styles = StyleSheet.create({
-  background: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: "700",
-  },
-  list: {
-    padding: 16,
-    gap: 16,
-  },
-  empty: {
-    textAlign: "center",
-    color: "#999",
-    marginTop: 32,
-  },
-  comment: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  },
-  avatarPlaceholder: {
-    backgroundColor: "#f0f0f0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666",
-  },
-  commentContent: {
-    flex: 1,
-  },
-  commentUsername: {
-    fontSize: 13,
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-  commentText: {
-    fontSize: 14,
-    color: "#333",
-  },
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-    gap: 12,
-    backgroundColor: "#fff",
-    minHeight: 70,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    fontSize: 14,
-    maxHeight: 100,
-  },
-  inputAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-});
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    background: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+    },
+    header: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    title: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    list: {
+      padding: 16,
+      gap: 16,
+    },
+    empty: {
+      textAlign: "center",
+      color: colors.textMuted,
+      marginTop: 32,
+    },
+    comment: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+    },
+    avatar: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+    },
+    avatarPlaceholder: {
+      backgroundColor: colors.surface,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    avatarText: {
+      fontSize: 14,
+      fontWeight: "600",
+      color: colors.textMuted,
+    },
+    commentContent: {
+      flex: 1,
+    },
+    commentUsername: {
+      fontSize: 13,
+      fontWeight: "600",
+      marginBottom: 2,
+      color: colors.text,
+    },
+    commentText: {
+      fontSize: 14,
+      color: colors.text,
+    },
+    inputRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      gap: 12,
+      backgroundColor: colors.background,
+      minHeight: 70,
+    },
+    input: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      fontSize: 14,
+      color: colors.text,
+      maxHeight: 100,
+    },
+    inputAvatar: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+    },
+  });

@@ -1,5 +1,9 @@
+import { CommentsSheet } from "@/components/CommentSheet";
+import { LikersSheet } from "@/components/LikerSheet";
 import { ModalHaulPostCard, ModalPostCard } from "@/components/PostCard";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
+import { Liker } from "@/hooks/useLikes";
 import { Post } from "@/hooks/usePosts";
 import { useSavedPosts } from "@/hooks/useSavedPosts";
 import { supabase } from "@/lib/supabase/client";
@@ -7,10 +11,6 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-
-import { CommentsSheet } from "@/components/CommentSheet";
-import { LikersSheet } from "@/components/LikerSheet";
-import { Liker } from "@/hooks/useLikes";
 import {
   Animated,
   Dimensions,
@@ -59,7 +59,8 @@ const MonthBlock = ({
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
-
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const isToday = (day: number) =>
     day === today.getDate() &&
     month === today.getMonth() &&
@@ -180,6 +181,8 @@ export default function WardrobeScreen() {
   const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
     null,
   );
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
   const {
     collections,
     loadCollections,
@@ -458,7 +461,7 @@ export default function WardrobeScreen() {
         </TouchableOpacity>
         <Text style={styles.topHeaderUsername}>Wardrobe</Text>
         <TouchableOpacity onPress={() => setShowInfo(true)}>
-          <Ionicons name="information" size={26} color="#000" />
+          <Ionicons name="information" size={26} color={colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -741,7 +744,7 @@ export default function WardrobeScreen() {
                         <Ionicons
                           name="chevron-forward"
                           size={16}
-                          color="#ccc"
+                          color={colors.border}
                         />
                       </TouchableOpacity>
                     ))}
@@ -794,7 +797,7 @@ export default function WardrobeScreen() {
               })
             }
           >
-            <Ionicons name="grid-outline" size={16} color="#fff" />
+            <Ionicons name="grid-outline" size={16} color={colors.background} />
             <Text style={styles.exploreButtonText}>
               Scroll {selectedCollectionName} Posts →
             </Text>
@@ -886,457 +889,452 @@ export default function WardrobeScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  modalOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 10,
-  },
-  modalContent: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    width: "95%",
-    maxHeight: "85%",
-    overflow: "hidden",
-  },
-  collectionsGrid: {
-    width: "100%",
-    paddingHorizontal: 16,
-    gap: 0,
-  },
-  collectionTile: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    gap: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#f0f0f0",
-  },
-  collectionPreviewGrid: {
-    width: 64,
-    height: 64,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  collectionPreviewImage: {
-    width: 32,
-    height: 32,
-  },
-  collectionPreviewPlaceholder: {
-    backgroundColor: "#f0f0f0",
-  },
-  collectionTileInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  collectionTileText: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#000",
-  },
-  collectionTileCount: {
-    fontSize: 13,
-    color: "#999",
-  },
-  previewGrid: {
-    flex: 1,
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-
-  previewImage: {
-    width: "50%",
-    height: "50%",
-  },
-
-  collectionTileWrapper: {
-    width: "100%",
-    height: (SCREEN_WIDTH - 80) / 3,
-    marginBottom: 12,
-    alignItems: "center",
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
-    justifyContent: "center",
-    gap: 6,
-    padding: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-
-  infoModal: {
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 24,
-    marginHorizontal: 32,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  infoTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#000",
-    marginBottom: 12,
-  },
-  infoBody: {
-    fontSize: 15,
-    color: "#555",
-    lineHeight: 22,
-    marginBottom: 24,
-  },
-  infoButton: {
-    backgroundColor: "#000",
-    borderRadius: 12,
-    padding: 14,
-    alignItems: "center",
-  },
-  infoButtonText: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  closeButton: {
-    position: "absolute",
-    top: 12,
-    right: 12,
-    zIndex: 10,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    borderRadius: 20,
-    width: 32,
-    height: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  exploreButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 16,
-    backgroundColor: "#000",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
-  },
-  exploreButtonText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  photoMonthHeader: {
-    marginTop: 0,
-    fontSize: 24,
-    fontWeight: "600",
-    color: "#111",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  heroImage: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH * 0.7,
-    marginBottom: 2,
-  },
-  haulGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 2,
-  },
-  haulGridImage: {
-    width: (SCREEN_WIDTH - 4) / 3,
-    height: (SCREEN_WIDTH - 4) / 3,
-  },
-
-  haulGridItem: {
-    width: (SCREEN_WIDTH - 4) / 3, // 3 columns with 2px gaps
-  },
-
-  floatingTabsWrapper: {
-    position: "absolute",
-    top: 130,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    zIndex: 20,
-  },
-  floatingTabs: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  floatingTabPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  floatingTabPillActive: {
-    backgroundColor: "#f0f0f0",
-  },
-  floatingTabText: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#bbb",
-  },
-  floatingTabActive: {
-    color: "#000",
-    fontWeight: "700",
-  },
-  whitespace: {
-    padding: 50,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  navBtn: {
-    padding: 8,
-  },
-  navArrow: {
-    fontSize: 28,
-    color: "#555",
-  },
-  dayLabelsRow: {
-    flexDirection: "row",
-    paddingHorizontal: 8,
-    paddingVertical: 8,
-  },
-  dayLabel: {
-    flex: 1,
-    textAlign: "center",
-    fontSize: 12,
-    fontWeight: "500",
-    color: "#999",
-  },
-  row: {
-    flexDirection: "row",
-    paddingHorizontal: 8,
-  },
-  cell: {
-    width: CELL_SIZE,
-    height: CELL_SIZE,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 2,
-  },
-  dayCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  todayCircle: {
-    backgroundColor: "#111",
-  },
-  dayText: {
-    fontSize: 14,
-    color: "#111",
-  },
-  todayText: {
-    color: "#fff",
-    fontWeight: "600",
-  },
-  dayThumb: {
-    width: CELL_SIZE - 6,
-    height: CELL_SIZE - 6,
-    borderRadius: 8,
-  },
-  todayThumb: {
-    borderWidth: 2,
-    borderColor: "#111",
-  },
-  dayOverlay: {
-    position: "absolute",
-    top: 17,
-    left: 17,
-    fontSize: 15,
-    color: "#1f1e1e",
-    fontWeight: "400",
-    textShadowColor: "rgba(34, 33, 33, 0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  segmentedControlContainer: {
-    alignItems: "center",
-    paddingVertical: 10,
-  },
-  segmentedControl: {
-    width: 160, // ← adjust to taste
-    height: 32,
-
-    backgroundColor: "transparent",
-  },
-  selectedPost: {
-    margin: 16,
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "#f9f9f9",
-  },
-  closeSelected: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    zIndex: 10,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    borderRadius: 16,
-    width: 28,
-    height: 28,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  closeText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  topHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  topHeaderUsername: {
-    marginBottom: -4,
-    fontSize: 20,
-    fontWeight: "700",
-  },
-  newPost: {
-    fontSize: 30,
-    fontWeight: "300",
-  },
-  monthBlock: {
-    paddingHorizontal: 8,
-    paddingBottom: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-    marginBottom: 8,
-  },
-  monthTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    paddingHorizontal: 8,
-    paddingVertical: 12,
-    color: "#111",
-  },
-
-  selectedImage: {
-    width: "100%",
-    height: 400,
-  },
-  selectedDescription: {
-    padding: 12,
-    fontSize: 14,
-    color: "#333",
-  },
-
-  tab: { flex: 1, paddingVertical: 12, alignItems: "center" },
-  tabText: { fontSize: 15, fontWeight: "500", color: "#999" },
-  tabTextActive: { color: "#000", fontWeight: "700" },
-  indicator: {
-    position: "absolute",
-    bottom: 0,
-    width: "50%",
-    height: 2,
-    backgroundColor: "#000",
-  },
-  // keep your existing monthBlock, row, cell, etc styles
-  savedCollectionHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  backText: {
-    fontSize: 24,
-    fontWeight: "500",
-    marginBottom: 8,
-  },
-  savedGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    paddingHorizontal: 8,
-    gap: 2,
-  },
-  savedGridImage: {
-    width: (SCREEN_WIDTH - 4) / 3,
-    height: (SCREEN_WIDTH - 4) / 3,
-  },
-  emptyContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: 60,
-  },
-  emptyText: { color: "#999", fontSize: 15 },
-  tabBar: {
-    flexDirection: "row",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#e0e0e0",
-    position: "relative",
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  postmodalContent: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 40,
-    gap: 12,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#000",
-    textAlign: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 12,
-  },
-  modalButtons: {
-    marginTop: 8,
-  },
-  modalButton: {
-    padding: 16,
-    borderRadius: 12,
-    alignItems: "center",
-  },
-  cancelButton: {
-    backgroundColor: "#f5f5f5",
-  },
-  cancelButtonText: {
-    color: "#000",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    modalOverlay: {
+      ...StyleSheet.absoluteFill,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 10,
+    },
+    modalContent: {
+      backgroundColor: colors.background,
+      borderRadius: 16,
+      width: "95%",
+      maxHeight: "85%",
+      overflow: "hidden",
+    },
+    collectionsGrid: {
+      width: "100%",
+      paddingHorizontal: 16,
+      gap: 0,
+    },
+    collectionTile: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      gap: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    collectionPreviewGrid: {
+      width: 64,
+      height: 64,
+      flexDirection: "row",
+      flexWrap: "wrap",
+      borderRadius: 8,
+      overflow: "hidden",
+    },
+    collectionPreviewImage: {
+      width: 32,
+      height: 32,
+    },
+    collectionPreviewPlaceholder: {
+      backgroundColor: colors.border,
+    },
+    collectionTileInfo: {
+      flex: 1,
+      gap: 2,
+    },
+    collectionTileText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.text,
+    },
+    collectionTileCount: {
+      fontSize: 13,
+      color: colors.textMuted,
+    },
+    previewGrid: {
+      flex: 1,
+      flexDirection: "row",
+      flexWrap: "wrap",
+    },
+    previewImage: {
+      width: "50%",
+      height: "50%",
+    },
+    collectionTileWrapper: {
+      width: "100%",
+      height: (SCREEN_WIDTH - 80) / 3,
+      marginBottom: 12,
+      alignItems: "center",
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+      justifyContent: "center",
+      gap: 6,
+      padding: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    infoModal: {
+      backgroundColor: colors.background,
+      borderRadius: 20,
+      padding: 24,
+      marginHorizontal: 32,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+      elevation: 8,
+    },
+    infoTitle: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: colors.text,
+      marginBottom: 12,
+    },
+    infoBody: {
+      fontSize: 15,
+      color: colors.secondary,
+      lineHeight: 22,
+      marginBottom: 24,
+    },
+    infoButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      padding: 14,
+      alignItems: "center",
+    },
+    infoButtonText: {
+      color: colors.background,
+      fontSize: 15,
+      fontWeight: "600",
+    },
+    closeButton: {
+      position: "absolute",
+      top: 12,
+      right: 12,
+      zIndex: 10,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      borderRadius: 20,
+      width: 32,
+      height: 32,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    exploreButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginTop: 16,
+      backgroundColor: colors.primary,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.4)",
+    },
+    exploreButtonText: {
+      color: colors.background,
+      fontSize: 14,
+      fontWeight: "600",
+    },
+    photoMonthHeader: {
+      marginTop: 0,
+      fontSize: 24,
+      fontWeight: "600",
+      color: colors.text,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    heroImage: {
+      width: SCREEN_WIDTH,
+      height: SCREEN_WIDTH * 0.7,
+      marginBottom: 2,
+    },
+    haulGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 2,
+    },
+    haulGridImage: {
+      width: (SCREEN_WIDTH - 4) / 3,
+      height: (SCREEN_WIDTH - 4) / 3,
+    },
+    haulGridItem: {
+      width: (SCREEN_WIDTH - 4) / 3,
+    },
+    floatingTabsWrapper: {
+      position: "absolute",
+      top: 130,
+      left: 0,
+      right: 0,
+      alignItems: "center",
+      zIndex: 20,
+    },
+    floatingTabs: {
+      flexDirection: "row",
+      backgroundColor: colors.background,
+      borderRadius: 20,
+      paddingHorizontal: 6,
+      paddingVertical: 4,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    floatingTabPill: {
+      paddingHorizontal: 16,
+      paddingVertical: 6,
+      borderRadius: 16,
+    },
+    floatingTabPillActive: {
+      backgroundColor: colors.border,
+    },
+    floatingTabText: {
+      fontSize: 16,
+      fontWeight: "500",
+      color: colors.textMuted,
+    },
+    floatingTabActive: {
+      color: colors.text,
+      fontWeight: "700",
+    },
+    whitespace: {
+      padding: 50,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    navBtn: {
+      padding: 8,
+    },
+    navArrow: {
+      fontSize: 28,
+      color: colors.secondary,
+    },
+    dayLabelsRow: {
+      flexDirection: "row",
+      paddingHorizontal: 8,
+      paddingVertical: 8,
+    },
+    dayLabel: {
+      flex: 1,
+      textAlign: "center",
+      fontSize: 12,
+      fontWeight: "500",
+      color: colors.textMuted,
+    },
+    row: {
+      flexDirection: "row",
+      paddingHorizontal: 8,
+    },
+    cell: {
+      width: CELL_SIZE,
+      height: CELL_SIZE,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 2,
+    },
+    dayCircle: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    todayCircle: {
+      backgroundColor: colors.primary,
+    },
+    dayText: {
+      fontSize: 14,
+      color: colors.text,
+    },
+    todayText: {
+      color: colors.background,
+      fontWeight: "600",
+    },
+    dayThumb: {
+      width: CELL_SIZE - 6,
+      height: CELL_SIZE - 6,
+      borderRadius: 8,
+    },
+    todayThumb: {
+      borderWidth: 2,
+      borderColor: colors.primary,
+    },
+    dayOverlay: {
+      position: "absolute",
+      top: 17,
+      left: 17,
+      fontSize: 15,
+      color: colors.text,
+      fontWeight: "400",
+      textShadowColor: "rgba(34, 33, 33, 0.5)",
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
+    },
+    segmentedControlContainer: {
+      alignItems: "center",
+      paddingVertical: 10,
+    },
+    segmentedControl: {
+      width: 160,
+      height: 32,
+      backgroundColor: "transparent",
+    },
+    selectedPost: {
+      margin: 16,
+      borderRadius: 12,
+      overflow: "hidden",
+      backgroundColor: colors.surface,
+    },
+    closeSelected: {
+      position: "absolute",
+      top: 8,
+      right: 8,
+      zIndex: 10,
+      backgroundColor: "rgba(0,0,0,0.4)",
+      borderRadius: 16,
+      width: 28,
+      height: 28,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    closeText: {
+      color: "#fff",
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    topHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    topHeaderUsername: {
+      marginBottom: -4,
+      fontSize: 20,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    newPost: {
+      fontSize: 30,
+      fontWeight: "300",
+      color: colors.text,
+    },
+    monthBlock: {
+      paddingHorizontal: 8,
+      paddingBottom: 24,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      marginBottom: 8,
+    },
+    monthTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      paddingHorizontal: 8,
+      paddingVertical: 12,
+      color: colors.text,
+    },
+    selectedImage: {
+      width: "100%",
+      height: 400,
+    },
+    selectedDescription: {
+      padding: 12,
+      fontSize: 14,
+      color: colors.text,
+    },
+    tab: { flex: 1, paddingVertical: 12, alignItems: "center" },
+    tabText: { fontSize: 15, fontWeight: "500", color: colors.textMuted },
+    tabTextActive: { color: colors.text, fontWeight: "700" },
+    indicator: {
+      position: "absolute",
+      bottom: 0,
+      width: "50%",
+      height: 2,
+      backgroundColor: colors.primary,
+    },
+    savedCollectionHeader: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    backText: {
+      fontSize: 24,
+      fontWeight: "500",
+      marginBottom: 8,
+      color: colors.text,
+    },
+    savedGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      paddingHorizontal: 8,
+      gap: 2,
+    },
+    savedGridImage: {
+      width: (SCREEN_WIDTH - 4) / 3,
+      height: (SCREEN_WIDTH - 4) / 3,
+    },
+    emptyContent: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+      paddingTop: 60,
+    },
+    emptyText: { color: colors.textMuted, fontSize: 15 },
+    tabBar: {
+      flexDirection: "row",
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+      position: "relative",
+    },
+    modalContainer: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "flex-end",
+    },
+    postmodalContent: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      paddingBottom: 40,
+      gap: 12,
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: colors.text,
+      textAlign: "center",
+      paddingVertical: 16,
+      paddingHorizontal: 20,
+      backgroundColor: colors.surface,
+      borderRadius: 12,
+    },
+    modalButtons: {
+      marginTop: 8,
+    },
+    modalButton: {
+      padding: 16,
+      borderRadius: 12,
+      alignItems: "center",
+    },
+    cancelButton: {
+      backgroundColor: colors.surface,
+    },
+    cancelButtonText: {
+      color: colors.text,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+  });

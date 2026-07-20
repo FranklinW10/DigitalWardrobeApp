@@ -1,18 +1,18 @@
 import { useAuth } from "@/context/AuthContext";
-import { useFollows } from "@/hooks/useFollows";
+import { useFollows } from "@/context/FollowsContext";
+import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-
 interface IncomingRequest {
   follower_id: string;
   profiles: {
@@ -32,6 +32,8 @@ export default function RequestsScreen() {
   // Track per-row loading so accepting/declining one request doesn't
   // spin the whole list, and so a user can't double-tap the same row
   const [processingIds, setProcessingIds] = useState<string[]>([]);
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   useEffect(() => {
     load();
@@ -131,55 +133,105 @@ export default function RequestsScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-  },
-  backText: { fontSize: 22, color: "#000" },
-  headerTitle: { fontSize: 18, fontWeight: "700" },
-  emptyContainer: { alignItems: "center", marginTop: 60, gap: 8 },
-  emptyText: { color: "#999", fontSize: 14 },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f5f5f5",
-  },
-  userInfo: { flexDirection: "row", alignItems: "center", gap: 12, flex: 1 },
-  avatar: { width: 44, height: 44, borderRadius: 22 },
-  avatarPlaceholder: {
-    backgroundColor: "#e0e0e0",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  avatarText: { fontWeight: "600", fontSize: 16 },
-  name: { fontWeight: "600", fontSize: 14 },
-  username: { color: "#888", fontSize: 12 },
-  actions: { flexDirection: "row", gap: 8 },
-  declineButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#ddd",
-  },
-  declineText: { fontSize: 13, fontWeight: "600", color: "#666" },
-  acceptButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 16,
-    backgroundColor: "#000",
-  },
-  acceptText: { fontSize: 13, fontWeight: "600", color: "#fff" },
-});
+// ---- Dynamic Styles ----
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    backText: {
+      fontSize: 22,
+      color: colors.text,
+    },
+    headerTitle: {
+      fontSize: 18,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    emptyContainer: {
+      alignItems: "center",
+      marginTop: 60,
+      gap: 8,
+    },
+    emptyText: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.surface,
+    },
+    userInfo: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      flex: 1,
+    },
+    avatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+    },
+    avatarPlaceholder: {
+      backgroundColor: colors.surface,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    avatarText: {
+      fontWeight: "600",
+      fontSize: 16,
+      color: colors.textMuted,
+    },
+    name: {
+      fontWeight: "600",
+      fontSize: 14,
+      color: colors.text,
+    },
+    username: {
+      color: colors.textMuted,
+      fontSize: 12,
+    },
+    actions: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    declineButton: {
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.background,
+    },
+    declineText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.textMuted,
+    },
+    acceptButton: {
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      borderRadius: 16,
+      backgroundColor: colors.primary || colors.text, // Adapts to active primary accent
+    },
+    acceptText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.background, // Dynamic contrast text
+    },
+  });
