@@ -9,7 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dimensions,
   NativeScrollEvent,
@@ -49,6 +49,115 @@ export function DoubleTapButton({ onDoubleTap, children }: any) {
     </Pressable>
   );
 }
+const ExpandableCaption = ({
+  text,
+  textStyle,
+  moreStyle,
+}: {
+  text: string;
+  textStyle: any;
+  moreStyle: any;
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const [needsExpansion, setNeedsExpansion] = useState(false);
+  const [checkedFullText, setCheckedFullText] = useState(false);
+  const [truncateAt, setTruncateAt] = useState<number | null>(null);
+  const [settled, setSettled] = useState(false);
+  const bounds = useRef({ low: 0, high: text.length });
+
+  // Reset the whole search whenever the caption itself changes
+  useEffect(() => {
+    setCheckedFullText(false);
+    setNeedsExpansion(false);
+    setTruncateAt(null);
+    setSettled(false);
+    bounds.current = { low: 0, high: text.length };
+  }, [text]);
+
+  if (expanded) {
+    return (
+      <Text style={textStyle}>
+        {text}
+        <Text onPress={() => setExpanded(false)} style={moreStyle}>
+          {"  less"}
+        </Text>
+      </Text>
+    );
+  }
+
+  // Pass 1: does the full caption even need truncating?
+  if (!checkedFullText) {
+    return (
+      <Text
+        style={textStyle}
+        onTextLayout={(e) => {
+          const overflows = e.nativeEvent.lines.length > 1;
+          setNeedsExpansion(overflows);
+          setCheckedFullText(true);
+          if (overflows) {
+            const mid = Math.floor(text.length / 2);
+            bounds.current = { low: 0, high: text.length };
+            setTruncateAt(mid);
+          } else {
+            setSettled(true);
+          }
+        }}
+      >
+        {text}
+      </Text>
+    );
+  }
+
+  if (!needsExpansion) {
+    return <Text style={textStyle}>{text}</Text>;
+  }
+
+  // Pass 2+: binary search for the longest substring that still fits
+  // on one line alongside "… more"
+  const candidate = text.slice(0, truncateAt ?? 0).trimEnd();
+
+  return (
+    <Text
+      style={[textStyle, settled ? undefined : { opacity: 0 }]}
+      onTextLayout={(e) => {
+        if (settled) return;
+        const { low, high } = bounds.current;
+        const fits = e.nativeEvent.lines.length <= 1;
+
+        if (high - low <= 1) {
+          setSettled(true);
+          return;
+        }
+
+        const newBounds = fits
+          ? { low: truncateAt ?? 0, high }
+          : { low, high: truncateAt ?? 0 };
+        bounds.current = newBounds;
+
+        const mid = Math.floor((newBounds.low + newBounds.high) / 2);
+        setTruncateAt(mid);
+      }}
+    >
+      {candidate}
+      {"… "}
+      <Text onPress={() => setExpanded(true)} style={moreStyle}>
+        more
+      </Text>
+    </Text>
+  );
+};
+
+// Static styles for ExpandableCaption — not theme-dependent, so this
+// doesn't need to live inside createStyles(colors).
+const captionStyles = StyleSheet.create({
+  moreOverlay: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    paddingLeft: 24,
+  },
+});
+
 const LikeButton = ({
   likeCount,
   isLiked,
@@ -191,10 +300,14 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
       </View>
       <View style={styles.postFooter}>
         {post.description && (
-          <Text style={styles.postDescription}>{post.description}</Text>
+          <ExpandableCaption
+            text={post.description}
+            textStyle={styles.postDescription}
+            moreStyle={styles.moreText}
+          />
         )}
         <Text style={styles.postInfo}>
-          {isOwnPost ? "Your Post" : `${postUser?.name}'post`} -{" "}
+          {isOwnPost ? "Your Post" : `${postUser?.name}'s post`} -{" "}
           {formatDate(post.post_date)}
         </Text>
       </View>
@@ -349,7 +462,11 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
       />
       <View style={styles.postFooter}>
         {post.description && (
-          <Text style={styles.postDescription}>{post.description}</Text>
+          <ExpandableCaption
+            text={post.description}
+            textStyle={styles.postDescription}
+            moreStyle={styles.moreText}
+          />
         )}
         <Text style={styles.postInfo}>
           {isOwnPost ? "Your Post" : `${postUser?.name}'s post`} -{" "}
@@ -529,10 +646,14 @@ export const ModalPostCard = ({
       </View>
       <View style={styles.postFooter}>
         {post.description && (
-          <Text style={styles.postDescription}>{post.description}</Text>
+          <ExpandableCaption
+            text={post.description}
+            textStyle={styles.postDescription}
+            moreStyle={styles.moreText}
+          />
         )}
         <Text style={styles.postInfo}>
-          {isOwnPost ? "Your Post" : `${postUser?.name}'post`} -{" "}
+          {isOwnPost ? "Your Post" : `${postUser?.name}'s post`} -{" "}
           {formatDate(post.post_date)}
         </Text>
       </View>
@@ -678,7 +799,11 @@ export const ModalHaulPostCard = ({
       />
       <View style={styles.postFooter}>
         {post.description && (
-          <Text style={styles.postDescription}>{post.description}</Text>
+          <ExpandableCaption
+            text={post.description}
+            textStyle={styles.postDescription}
+            moreStyle={styles.moreText}
+          />
         )}
         <Text style={styles.postInfo}>
           {isOwnPost ? "Your Post" : `${postUser?.name}'s post`} -{" "}
@@ -769,6 +894,12 @@ const createStyles = (colors: any) =>
       fontSize: 12,
       color: colors.textMuted,
     },
+    moreText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.textMuted,
+      marginTop: 2,
+    },
     timeRemainingBadge: {
       backgroundColor: colors.primary,
       paddingHorizontal: 12,
@@ -787,7 +918,7 @@ const createStyles = (colors: any) =>
     },
     postFooter: {
       padding: 12,
-      paddingTop: 4,
+      marginTop: -10,
       backgroundColor: colors.background,
     },
     postContainer: {
@@ -804,9 +935,11 @@ const createStyles = (colors: any) =>
       fontSize: 15,
       color: colors.text,
       marginBottom: 8,
+      marginTop: -4,
       lineHeight: 20,
     },
     postInfo: {
+      marginTop: -6,
       fontSize: 14,
       color: colors.textMuted,
     },

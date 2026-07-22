@@ -342,7 +342,12 @@ export default function SearchScreen() {
             </View>
           }
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary} // iOS spinner color
+              colors={[colors.primary]}
+            />
           }
         />
       )}

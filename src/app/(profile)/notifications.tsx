@@ -94,7 +94,7 @@ export default function NotificationsScreen() {
         </Text>
       </View>
 
-      <Ionicons name="chevron-forward" size={20} color="#ccc" />
+      <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
     </TouchableOpacity>
   );
 
@@ -245,6 +245,7 @@ const createStyles = (colors: any) =>
       lineHeight: 20,
     },
     bold: {
+      color: colors.text,
       fontWeight: "700",
     },
     time: {

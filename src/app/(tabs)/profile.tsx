@@ -467,7 +467,12 @@ export default function Profile() {
           columnWrapperStyle={{ gap: 2 }}
           contentContainerStyle={{ paddingBottom: 100 }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary} // iOS spinner color
+              colors={[colors.primary]}
+            />
           }
           ListHeaderComponent={
             <View style={styles.header}>
@@ -779,7 +784,7 @@ export default function Profile() {
                   onPress={handleComplete}
                 >
                   {isSubmitting ? (
-                    <ActivityIndicator size={24} color="#fff" />
+                    <ActivityIndicator size={24} color={colors.background} />
                   ) : (
                     <Text style={styles.buttontext}>Save Changes</Text>
                   )}

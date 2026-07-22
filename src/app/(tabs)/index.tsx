@@ -18,7 +18,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 export default function Index() {
   const { following, loadFollowing } = useFollows();
@@ -34,13 +37,21 @@ export default function Index() {
   const lastScrollY = useRef(0);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const { unreadCount } = useNotifications();
+  const insets = useSafeAreaInsets();
+  const miniBarAnim = useRef(new Animated.Value(0)).current;
+  const upScrollAccumulator = useRef(0);
+  const SCROLL_UP_THRESHOLD = 750;
 
   const headerVisible = useRef(new Animated.Value(1)).current;
   const [activeTab, setActiveTab] = useState<"fits" | "hauls">("fits");
   const { colors } = useTheme();
   const styles = createStyles(colors);
 
-  // Check if user has an active post
+  const headerOpacity = headerVisible.interpolate({
+    inputRange: [0, 0.3, 1],
+    outputRange: [0, 0, 1],
+  });
+
   const userActivePost = (posts ?? []).find(
     (post) =>
       post.user_id === user?.id &&
@@ -59,6 +70,28 @@ export default function Index() {
   const followingPosts = posts.filter(
     (post) => following.includes(post.user_id) || post.user_id === user?.id,
   );
+
+  const renderMiniTabLabel = (tab: "fits" | "hauls", label: string) => (
+    <TouchableOpacity
+      style={styles.miniTabItem}
+      onPress={() => setActiveTab(tab)}
+      activeOpacity={0.8}
+    >
+      <Text
+        style={[
+          styles.miniTabText,
+          activeTab === tab && styles.miniTabTextActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+  const miniBarOpacity = miniBarAnim;
+  const miniBarTranslateY = miniBarAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-12, 0],
+  });
 
   const groupedPosts = followingPosts
     .filter((post) => daysAgo(post.created_at) !== "expired")
@@ -102,21 +135,48 @@ export default function Index() {
       useNativeDriver: false,
       listener: (event: any) => {
         const currentY = event.nativeEvent.contentOffset.y;
-        if (currentY > lastScrollY.current && currentY > 50) {
-          // scrolling down — hide header
+        const delta = currentY - lastScrollY.current;
+
+        if (delta > 0 && currentY > 50) {
+          // scrolling down — hide immediately, reset the up-accumulator
+          upScrollAccumulator.current = 0;
           Animated.timing(headerVisible, {
             toValue: 0,
-            duration: 50,
+            duration: 0,
             useNativeDriver: false,
           }).start();
-        } else {
-          // scrolling up — show header
-          Animated.timing(headerVisible, {
+          Animated.timing(miniBarAnim, {
             toValue: 1,
-            duration: 50,
-            useNativeDriver: false,
+            duration: 0,
+            useNativeDriver: true,
           }).start();
+        } else if (delta < 0) {
+          // scrolling up — accumulate distance before showing
+          upScrollAccumulator.current += -delta;
+          console.log(
+            "up accum:",
+            upScrollAccumulator.current,
+            "delta:",
+            delta,
+          );
+
+          if (
+            upScrollAccumulator.current > SCROLL_UP_THRESHOLD ||
+            currentY <= 50
+          ) {
+            Animated.timing(headerVisible, {
+              toValue: 1,
+              duration: 0,
+              useNativeDriver: false,
+            }).start();
+            Animated.timing(miniBarAnim, {
+              toValue: 0,
+              duration: 0,
+              useNativeDriver: true,
+            }).start();
+          }
         }
+
         lastScrollY.current = currentY;
       },
     },
@@ -133,8 +193,9 @@ export default function Index() {
   const tabSwitcher = (
     <View style={styles.tabSwitcher}>
       <TouchableOpacity
-        style={[styles.tab, activeTab === "fits" && styles.activeTab]}
+        style={[styles.tabPill, activeTab === "fits" && styles.tabPillActive]}
         onPress={() => setActiveTab("fits")}
+        activeOpacity={0.85}
       >
         <Text
           style={[styles.tabText, activeTab === "fits" && styles.activeTabText]}
@@ -143,8 +204,9 @@ export default function Index() {
         </Text>
       </TouchableOpacity>
       <TouchableOpacity
-        style={[styles.tab, activeTab === "hauls" && styles.activeTab]}
+        style={[styles.tabPill, activeTab === "hauls" && styles.tabPillActive]}
         onPress={() => setActiveTab("hauls")}
+        activeOpacity={0.85}
       >
         <Text
           style={[
@@ -159,15 +221,62 @@ export default function Index() {
   );
   const tabHeight = headerVisible.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 60], // match the height of your tab switcher
+    outputRange: [0, 60],
   });
+
+  const renderEmptyState = (kind: "fits" | "hauls") => (
+    <View style={styles.emptyContent}>
+      <View style={styles.emptyIconBadge}>
+        <Ionicons name="shirt-outline" size={28} color={colors.primary} />
+      </View>
+      <Text style={styles.emptyTitle}>No posts yet</Text>
+      <Text style={styles.emptySubtitle}>
+        {kind === "fits"
+          ? "Follow people to see their fits here"
+          : "Follow people to see their hauls here"}
+      </Text>
+      <TouchableOpacity
+        style={styles.findFriendsButton}
+        onPress={() => router.push("/(profile)/suggestedFriends")}
+        activeOpacity={0.85}
+      >
+        <Ionicons
+          name="person-add-outline"
+          size={16}
+          color={colors.background}
+        />
+        <Text style={styles.findFriendsText}>Find Friends</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <>
       <SafeAreaView style={styles.containerViewStyle} edges={["top"]} />
+      <Animated.View
+        pointerEvents="box-none"
+        style={[
+          styles.miniTabBar,
+          {
+            top: insets.top,
+            opacity: miniBarOpacity,
+            transform: [{ translateY: miniBarTranslateY }],
+          },
+        ]}
+      >
+        {renderMiniTabLabel("fits", "Fits")}
+        {renderMiniTabLabel("hauls", "Hauls")}
+      </Animated.View>
       <View style={styles.ViewStyle}>
         <Animated.View
-          style={[styles.header, { height: headerHeight, overflow: "hidden" }]}
+          style={[
+            styles.header,
+            {
+              height: headerHeight,
+              overflow: "hidden",
+              opacity: headerOpacity,
+            },
+          ]}
         >
           <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
             <Ionicons name="menu-outline" size={24} color={colors.text} />
@@ -177,7 +286,11 @@ export default function Index() {
             onPress={() => router.push("/notifications")}
             style={styles.Noticontainer}
           >
-            <Ionicons name="notifications-outline" size={24} color="#000" />
+            <Ionicons
+              name="notifications-outline"
+              size={24}
+              color={colors.text}
+            />
             {unreadCount > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
@@ -187,43 +300,32 @@ export default function Index() {
             )}
           </TouchableOpacity>
         </Animated.View>
-        {/*List*/}
+
         <Animated.View style={{ height: tabHeight, overflow: "hidden" }}>
           {tabSwitcher}
         </Animated.View>
+
         {activeTab === "fits" ? (
           <SectionList
             key="fits"
             sections={sections}
             keyExtractor={(item) => item.id}
             renderItem={renderPost}
-            stickySectionHeadersEnabled={false} //This makes the headers nt move
+            stickySectionHeadersEnabled={false}
             renderSectionHeader={({ section: { title } }) => (
               <Text style={styles.sectionHeader}>{title}</Text>
             )}
             onScroll={handleScroll}
+            scrollEventThrottle={16}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary} // iOS spinner color
+                colors={[colors.primary]}
+              />
             }
-            ListEmptyComponent={
-              <View style={styles.emptyContent}>
-                <Text style={styles.emptyTitle}>No posts yet</Text>
-                <Text style={styles.emptySubtitle}>
-                  Follow people to see their fits here
-                </Text>
-                <TouchableOpacity
-                  style={styles.findFriendsButton}
-                  onPress={() => router.push("/(profile)/suggestedFriends")}
-                >
-                  <Ionicons
-                    name="person-add-outline"
-                    size={16}
-                    color={colors.background}
-                  />
-                  <Text style={styles.findFriendsText}>Find Friends</Text>
-                </TouchableOpacity>
-              </View>
-            }
+            ListEmptyComponent={renderEmptyState("fits")}
             contentContainerStyle={
               sections.length === 0 ? styles.emptyContent : styles.content
             }
@@ -241,62 +343,37 @@ export default function Index() {
             renderItem={renderHaulPost}
             keyExtractor={(item) => item.id}
             onScroll={handleScroll}
+            scrollEventThrottle={16}
             ListFooterComponent={<View style={styles.whitespace} />}
             contentContainerStyle={
               followingPosts.length === 0 ? styles.emptyContent : styles.content
             }
-            ListEmptyComponent={
-              <View style={styles.emptyContent}>
-                <Text style={styles.emptyTitle}>No posts yet</Text>
-                <Text style={styles.emptySubtitle}>
-                  Follow people to see their hauls here
-                </Text>
-                <TouchableOpacity
-                  style={styles.findFriendsButton}
-                  onPress={() => router.push("/(profile)/suggestedFriends")}
-                >
-                  <Ionicons
-                    name="person-add-outline"
-                    size={16}
-                    color={colors.background}
-                  />
-                  <Text style={styles.findFriendsText}>Find Friends</Text>
-                </TouchableOpacity>
-              </View>
-            }
+            ListEmptyComponent={renderEmptyState("hauls")}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary} // iOS spinner color
+                colors={[colors.primary]}
+              />
             }
-
-            // ListHeaderComponent={
-            //   <View style={styles.headerContainer}>
-            //     <Text
-            //       style={{
-            //         fontSize: 30,
-            //         fontWeight: "600",
-            //         marginBottom: 16,
-            //         fontFamily: "Times New Roman",
-            //         color: "#000",
-            //       }}
-            //     >
-            //       Today's Fits
-            //     </Text>
-            //     <View style={styles.headerBorder} />
-            //   </View>
-            // }
           />
         )}
+
         {!hasActivePost && !bannerDismissed && (
           <View style={styles.postTodayBanner}>
             <TouchableOpacity
               style={styles.postTodayInner}
               onPress={() => router.push("/(post)/fit")}
+              activeOpacity={0.9}
             >
-              <Ionicons
-                name="camera-outline"
-                size={20}
-                color={colors.background}
-              />
+              <View style={styles.postTodayIconBadge}>
+                <Ionicons
+                  name="camera-outline"
+                  size={18}
+                  color={colors.primary}
+                />
+              </View>
               <Text style={styles.postTodayText}>Post your fit for today</Text>
               <Ionicons
                 name="chevron-forward"
@@ -317,15 +394,16 @@ export default function Index() {
     </>
   );
 }
+
 // ---- Dynamic Styles ----
-const createStyles = (colors: any, currentTab?: any) =>
+const createStyles = (colors: any) =>
   StyleSheet.create({
     Noticontainer: { position: "relative", padding: 4 },
     badge: {
       position: "absolute",
       top: 0,
       right: 0,
-      backgroundColor: "#FF3B30",
+      backgroundColor: colors.accent,
       borderRadius: 9,
       minWidth: 18,
       height: 18,
@@ -333,7 +411,7 @@ const createStyles = (colors: any, currentTab?: any) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    badgeText: { color: "#fff", fontSize: 11, fontWeight: "600" },
+    badgeText: { color: colors.background, fontSize: 11, fontWeight: "600" },
     ViewStyle: {
       flex: 1,
       backgroundColor: colors.background,
@@ -341,18 +419,53 @@ const createStyles = (colors: any, currentTab?: any) =>
     containerViewStyle: {
       backgroundColor: colors.background,
     },
+    miniTabBar: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      zIndex: 50,
+      flexDirection: "row",
+      justifyContent: "center",
+      gap: 20,
+      paddingVertical: 0,
 
+      backgroundColor: colors.background,
+    },
+    miniTabItem: {
+      paddingHorizontal: 20,
+      paddingVertical: 2,
+    },
+    miniTabText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.textMuted,
+    },
+    miniTabTextActive: {
+      color: colors.text,
+      fontWeight: "800",
+    },
+
+    emptyIconBadge: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      backgroundColor: colors.primary + "1F",
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 14,
+    },
     emptyTitle: {
       fontSize: 18,
-      fontWeight: "600",
+      fontWeight: "700",
       color: colors.text,
-      marginBottom: 8,
+      marginBottom: 6,
     },
     emptySubtitle: {
       fontSize: 14,
       color: colors.textMuted,
       marginBottom: 24,
       textAlign: "center",
+      lineHeight: 20,
     },
     findFriendsButton: {
       flexDirection: "row",
@@ -376,11 +489,11 @@ const createStyles = (colors: any, currentTab?: any) =>
       flexDirection: "row",
       alignItems: "center",
       backgroundColor: colors.primary,
-      borderRadius: 12,
+      borderRadius: 16,
       shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.25,
+      shadowRadius: 10,
       elevation: 6,
       zIndex: 10,
     },
@@ -388,15 +501,24 @@ const createStyles = (colors: any, currentTab?: any) =>
       flex: 1,
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
-      paddingVertical: 14,
-      paddingLeft: 16,
+      gap: 10,
+      paddingVertical: 12,
+      paddingLeft: 12,
+      paddingRight: 16,
+    },
+    postTodayIconBadge: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: colors.background,
+      alignItems: "center",
+      justifyContent: "center",
     },
     postTodayText: {
       flex: 1,
       color: colors.background,
       fontSize: 15,
-      fontWeight: "600",
+      fontWeight: "700",
     },
     bannerDismiss: {
       position: "absolute",
@@ -420,21 +542,13 @@ const createStyles = (colors: any, currentTab?: any) =>
       justifyContent: "center",
       backgroundColor: colors.background,
     },
-    headerContainer: {
-      padding: 15,
-      marginBottom: -15,
-    },
-    headerBorder: {
-      width: "100%",
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      marginTop: -2,
-    },
     sectionHeader: {
-      fontSize: 30,
-      fontWeight: "600",
+      fontSize: 22,
+      fontWeight: "700",
+      letterSpacing: 0.2,
       paddingHorizontal: 16,
-      paddingVertical: 8,
+      paddingTop: 12,
+      paddingBottom: 6,
       color: colors.text,
     },
     content: {
@@ -447,87 +561,12 @@ const createStyles = (colors: any, currentTab?: any) =>
       padding: 16,
       marginBottom: 90,
     },
-    postContainer: {
-      backgroundColor: colors.background,
-      overflow: "hidden",
-      marginBottom: 16,
-      shadowColor: colors.primary,
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 3,
-    },
-    postHeader: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      padding: 16,
-    },
-    userInfo: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-    },
-    avatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-    },
-    avatarPlaceholder: {
-      backgroundColor: colors.surface,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    avatarText: {
-      fontSize: 18,
-      fontWeight: "600",
-      color: colors.textMuted,
-    },
-    username: {
-      fontSize: 16,
-      fontWeight: "600",
-      color: colors.text,
-    },
-    timeAgo: {
-      fontSize: 12,
-      color: colors.secondary,
-    },
-    timeRemainingBadge: {
-      backgroundColor: colors.accent, // Using accent here makes timers pop across layouts
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 12,
-    },
-    timeRemainingText: {
-      color: colors.background,
-      fontSize: 12,
-      fontWeight: "600",
-    },
-    postImage: {
-      width: "100%",
-      aspectRatio: 1,
-      backgroundColor: colors.surface,
-    },
-    postFooter: {
-      padding: 16,
-    },
-    postDescription: {
-      fontSize: 15,
-      color: colors.text,
-      marginBottom: 8,
-      lineHeight: 20,
-    },
-    postInfo: {
-      fontSize: 14,
-      color: colors.secondary,
-    },
     header: {
       backgroundColor: colors.background,
       flexDirection: "row",
       justifyContent: "space-between",
       alignItems: "center",
       width: "100%",
-      paddingTop: -120,
       paddingHorizontal: 16,
       paddingVertical: 12,
       marginBottom: 0,
@@ -535,12 +574,10 @@ const createStyles = (colors: any, currentTab?: any) =>
       borderBottomColor: colors.border,
     },
     headerTitle: {
-      fontSize: 30,
-      fontWeight: "bold",
-      color: colors.text,
-    },
-    headerIcon: {
       fontSize: 22,
+      fontWeight: "800",
+      letterSpacing: -0.3,
+      color: colors.text,
     },
     whitespace: {
       padding: 50,
@@ -548,46 +585,34 @@ const createStyles = (colors: any, currentTab?: any) =>
     tabSwitcher: {
       flexDirection: "row",
       marginHorizontal: 16,
-      marginBottom: 12,
-      borderBottomColor: colors.border,
+      marginTop: 12,
+      marginBottom: 6,
+      backgroundColor: colors.surface,
+      borderRadius: 14,
       padding: 4,
+      gap: 4,
     },
-    tab: {
+    tabPill: {
       flex: 1,
       paddingVertical: 8,
       alignItems: "center",
-      borderRadius: 8,
+      borderRadius: 10,
     },
-    activeTab: {
-      borderBottomWidth: 1,
-      borderBottomColor: colors.primary,
-      marginBottom: -1,
+    tabPillActive: {
+      backgroundColor: colors.background,
+      shadowColor: colors.primary,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.12,
+      shadowRadius: 3,
+      elevation: 2,
     },
     tabText: {
-      fontSize: 20,
-      fontWeight: "500",
+      fontSize: 15,
+      fontWeight: "600",
       color: colors.textMuted,
     },
     activeTabText: {
       color: colors.text,
-      fontWeight: "600",
-    },
-    dotsContainer: {
-      flexDirection: "row",
-      justifyContent: "center",
-      alignItems: "center",
-      gap: 6,
-      paddingVertical: 8,
-    },
-    dot: {
-      width: 7,
-      height: 7,
-      borderRadius: 4,
-    },
-    dotActive: {
-      backgroundColor: colors.primary,
-    },
-    dotInactive: {
-      backgroundColor: colors.border,
+      fontWeight: "700",
     },
   });

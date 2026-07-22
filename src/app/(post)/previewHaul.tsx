@@ -1,9 +1,10 @@
 import { useTheme } from "@/context/ThemeContext";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Dimensions,
+  InputAccessoryView,
   Keyboard,
   KeyboardAvoidingView,
   NativeScrollEvent,
@@ -29,6 +30,8 @@ export default function PreviewHaul() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const captionInputRef = useRef<TextInput>(null);
+  const INPUT_ACCESSORY_ID = "captionInputDone";
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / PREVIEW_SIZE);
@@ -87,6 +90,7 @@ export default function PreviewHaul() {
           )}
 
           <TextInput
+            ref={captionInputRef}
             style={styles.captionInput}
             placeholder="Write a caption..."
             placeholderTextColor={colors.textMuted}
@@ -94,7 +98,22 @@ export default function PreviewHaul() {
             onChangeText={setCaption}
             multiline
             maxLength={300}
+            inputAccessoryViewID={
+              Platform.OS === "ios" ? INPUT_ACCESSORY_ID : undefined
+            }
           />
+
+          {Platform.OS === "ios" && (
+            <InputAccessoryView nativeID={INPUT_ACCESSORY_ID}>
+              <View style={styles.accessoryBar}>
+                <TouchableOpacity
+                  onPress={() => captionInputRef.current?.blur()}
+                >
+                  <Text style={styles.accessoryDoneText}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            </InputAccessoryView>
+          )}
           <Text style={styles.charCount}>{caption.length}/300</Text>
 
           <TouchableOpacity
@@ -155,6 +174,19 @@ const createStyles = (colors: any) =>
       width: 7,
       height: 7,
       borderRadius: 4,
+    },
+    accessoryBar: {
+      backgroundColor: colors.surface,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      alignItems: "flex-end",
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+    },
+    accessoryDoneText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.primary,
     },
     dotActive: { backgroundColor: colors.text },
     dotInactive: { backgroundColor: colors.border },

@@ -57,6 +57,8 @@ export const LikersSheet = ({
       enablePanDownToClose
       onDismiss={onClose}
       backgroundStyle={styles.background}
+      handleStyle={styles.handle}
+      handleIndicatorStyle={styles.handleIndicator}
     >
       <View style={styles.header}>
         <Text style={styles.title}>Liked by</Text>
@@ -155,5 +157,15 @@ const createStyles = (colors: any) =>
     username: {
       fontSize: 13,
       color: colors.textMuted,
+    },
+    handle: {
+      backgroundColor: colors.background,
+      paddingTop: 8,
+      paddingBottom: 4,
+    },
+    handleIndicator: {
+      backgroundColor: colors.border,
+      width: 36,
+      height: 4,
     },
   });

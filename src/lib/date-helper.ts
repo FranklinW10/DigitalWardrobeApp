@@ -10,6 +10,14 @@ export const formatTimeAgo = (createdAt: string): string => {
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
 };
+export const formatCommentCentralTime = (isoString: string) => {
+  return new Date(isoString).toLocaleString("en-US", {
+    timeZone: "America/Chicago",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+};
 
 export function formatDate(dateInput: string | Date): string {
   let year: number, month: number, day: number;
@@ -85,7 +93,7 @@ export const daysAgo = (timestamp: string): string => {
       month: "long",
       day: "numeric",
     });
-    return `${formatted} (2 days ago)`;
+    return `${formatted}`;
   }
   if (days === 3) {
     const date = new Date(timestamp);
@@ -95,7 +103,7 @@ export const daysAgo = (timestamp: string): string => {
       month: "long",
       day: "numeric",
     });
-    return `${formatted} (3 days ago)`;
+    return `${formatted}`;
   }
   if (days === 4) {
     const date = new Date(timestamp);
@@ -115,7 +123,7 @@ export const daysAgo = (timestamp: string): string => {
       month: "long",
       day: "numeric",
     });
-    return `${formatted} (5 days ago)`;
+    return `${formatted}`;
   }
   if (days === 6) {
     const date = new Date(timestamp);
@@ -125,7 +133,7 @@ export const daysAgo = (timestamp: string): string => {
       month: "long",
       day: "numeric",
     });
-    return `${formatted} (6 days ago)`;
+    return `${formatted}`;
   }
   if (days === 7) {
     const date = new Date(timestamp);
@@ -135,7 +143,7 @@ export const daysAgo = (timestamp: string): string => {
       month: "long",
       day: "numeric",
     });
-    return `${formatted} (7 days ago)`;
+    return `${formatted}`;
   }
   return `expired`;
 };

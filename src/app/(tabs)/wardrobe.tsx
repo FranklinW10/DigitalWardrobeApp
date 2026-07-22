@@ -1069,7 +1069,7 @@ const createStyles = (colors: any) =>
     },
     floatingTabs: {
       flexDirection: "row",
-      backgroundColor: colors.background,
+      backgroundColor: colors.surface,
       borderRadius: 20,
       paddingHorizontal: 6,
       paddingVertical: 4,
@@ -1085,7 +1085,7 @@ const createStyles = (colors: any) =>
       borderRadius: 16,
     },
     floatingTabPillActive: {
-      backgroundColor: colors.border,
+      backgroundColor: colors.background,
     },
     floatingTabText: {
       fontSize: 16,
