@@ -2,13 +2,7 @@
 // Design tokens + selectable palettes. Palette choice lives in ThemeContext,
 // this file just defines what's available.
 
-export type ThemeName =
-  | "light"
-  | "blush"
-  | "sky"
-  | "dark"
-  | "midnight"
-  | "ember";
+export type ThemeName = "light" | "blush" | "sky" | "dark" | "orchid" | "ember";
 
 export interface Palette {
   background: string;
@@ -79,16 +73,17 @@ export const palettes: Record<ThemeName, Palette> = {
     danger: "#FF6B6B",
     success: "#4ADE80",
   },
-  midnight: {
-    // Deep blue-black, calm and cool
-    background: "#0B1220",
-    surface: "#141E30",
-    primary: "#E6EDF7",
-    secondary: "#8CA0C4",
-    accent: "#5B8CFF",
-    border: "#22304A",
-    text: "#E6EDF7",
-    textMuted: "#8CA0C4",
+
+  orchid: {
+    // Deep plum-black, girly dark — rose gold + hot pink accent
+    background: "#1A0F17",
+    surface: "#2A1620",
+    primary: "#F7E6EF",
+    secondary: "#C99BB0",
+    accent: "#FF5FA2",
+    border: "#3D2130",
+    text: "#F5E1EC",
+    textMuted: "#B98CA6",
     danger: "#FF6B6B",
     success: "#4ADE80",
   },
@@ -112,7 +107,7 @@ export const themeMeta: Record<ThemeName, { label: string }> = {
   blush: { label: "Blush" },
   sky: { label: "Sky" },
   dark: { label: "Dark" },
-  midnight: { label: "Midnight" },
+  orchid: { label: "Orchid" },
   ember: { label: "Ember" },
 };
 

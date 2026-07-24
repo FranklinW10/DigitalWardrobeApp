@@ -166,7 +166,7 @@ export default function Fit() {
                 ]}
                 onPress={() => {
                   router.push({
-                    pathname: "/preview",
+                    pathname: "/fitTags",
                     params: {
                       imageUri: previewImage,
                       description: description,
@@ -179,7 +179,7 @@ export default function Fit() {
                 {isUploading ? (
                   <ActivityIndicator size={24} color={colors.background} />
                 ) : (
-                  <Text style={styles.postButtonText}>Preview Post </Text>
+                  <Text style={styles.postButtonText}>Add Tags → </Text>
                 )}
               </TouchableOpacity>
             </View>

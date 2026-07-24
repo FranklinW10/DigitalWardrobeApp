@@ -81,14 +81,14 @@ export function SaveButton({
       </TouchableOpacity>
 
       <Modal visible={showPicker} transparent animationType="slide">
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-          keyboardVerticalOffset={10}
+        <TouchableOpacity
+          style={styles.backdrop}
+          activeOpacity={1}
+          onPress={() => setShowPicker(false)}
         >
-          <TouchableOpacity
-            style={styles.backdrop}
-            activeOpacity={1}
-            onPress={() => setShowPicker(false)}
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={10}
           >
             <TouchableOpacity activeOpacity={1} style={styles.sheet}>
               <Text style={styles.title}>Save to...</Text>
@@ -138,8 +138,8 @@ export function SaveButton({
                 <Text style={styles.doneButtonText}>Done</Text>
               </TouchableOpacity>
             </TouchableOpacity>
-          </TouchableOpacity>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </TouchableOpacity>
       </Modal>
     </>
   );
@@ -158,7 +158,7 @@ const createStyles = (colors: any) =>
       borderTopLeftRadius: 16,
       borderTopRightRadius: 16,
       padding: 20,
-      maxHeight: "70%",
+      maxHeight: "100%",
     },
     title: {
       fontSize: 18,
@@ -200,7 +200,12 @@ const createStyles = (colors: any) =>
       fontWeight: "600",
       fontSize: 14,
     },
-    doneButton: { marginTop: 20, alignItems: "center", padding: 12 },
+    doneButton: {
+      marginTop: 15,
+      alignItems: "center",
+      padding: 12,
+      color: colors.background,
+    },
     doneButtonText: {
       color: colors.textMuted,
       fontSize: 15,

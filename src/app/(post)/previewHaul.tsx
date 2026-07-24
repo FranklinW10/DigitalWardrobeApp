@@ -120,7 +120,7 @@ export default function PreviewHaul() {
             style={styles.button}
             onPress={() =>
               router.push({
-                pathname: "/finalPreviewHaul",
+                pathname: "/haulTags",
                 params: {
                   imageUris: JSON.stringify(images),
                   caption,
@@ -128,7 +128,7 @@ export default function PreviewHaul() {
               })
             }
           >
-            <Text style={styles.buttonText}>Preview Post →</Text>
+            <Text style={styles.buttonText}>Add Tags →</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

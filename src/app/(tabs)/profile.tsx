@@ -207,7 +207,7 @@ export default function Profile() {
       // Load posts
       const { data: postsData, error: postsError } = await supabase
         .from("posts")
-        .select("*, profiles(*), images(*)")
+        .select("*, profiles(*), images(*), tags(*)")
         .eq("user_id", user?.id)
         .eq("is_active", true)
         .order("post_date", { ascending: false });

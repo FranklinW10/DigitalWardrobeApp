@@ -227,7 +227,15 @@ export default function Index() {
   const renderEmptyState = (kind: "fits" | "hauls") => (
     <View style={styles.emptyContent}>
       <View style={styles.emptyIconBadge}>
-        <Ionicons name="shirt-outline" size={28} color={colors.primary} />
+        {kind === "fits" ? (
+          <Ionicons name="shirt-outline" size={28} color={colors.primary} />
+        ) : (
+          <Ionicons
+            name="bag-handle-outline"
+            size={28}
+            color={colors.primary}
+          />
+        )}
       </View>
       <Text style={styles.emptyTitle}>No posts yet</Text>
       <Text style={styles.emptySubtitle}>
