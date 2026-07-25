@@ -3,7 +3,6 @@ import { LikersSheet } from "@/components/LikerSheet";
 import { useTheme } from "@/context/ThemeContext";
 import { useComments } from "@/hooks/useComments";
 import { useLikes } from "@/hooks/useLikes";
-
 import { Post, PostTag } from "@/hooks/usePosts";
 import { formatDate, formatTimeAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,6 +21,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
+
 import { SaveButton } from "./saveButton";
 
 interface PostCardProps {
@@ -58,7 +65,7 @@ const TagPin = ({
         tagPinStyles.pinWrap,
         {
           left: left - 70,
-          top: top - 54,
+          top: top - 20,
         },
       ]}
     >
@@ -99,13 +106,11 @@ const TagPin = ({
 const tagPinStyles = StyleSheet.create({
   pinWrap: {
     position: "absolute",
-    width: 140,
+
     alignItems: "center",
-    justifyContent: "flex-end",
   },
 
   pinBubble: {
-    maxWidth: 132,
     borderRadius: 14,
     borderWidth: 1,
     paddingVertical: 6,
@@ -163,29 +168,123 @@ const TaggableImage = ({
 }) => {
   const [showTags, setShowTags] = useState(false);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [isZoomed, setIsZoomed] = useState(false);
   const hasTags = !!tags && tags.length > 0;
+
+  const scale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+
+  // Anchor point + baseline translation captured at the start of each pinch,
+  // so we can measure how far the pinch has moved (for two-finger drag)
+  // independently of how much it has scaled (for zoom-into-focal-point).
+  const pinchStartFocalX = useSharedValue(0);
+  const pinchStartFocalY = useSharedValue(0);
+  const pinchStartTranslateX = useSharedValue(0);
+  const pinchStartTranslateY = useSharedValue(0);
+
+  const pinchGesture = Gesture.Pinch()
+    .onBegin((e) => {
+      pinchStartFocalX.value = e.focalX;
+      pinchStartFocalY.value = e.focalY;
+      pinchStartTranslateX.value = translateX.value;
+      pinchStartTranslateY.value = translateY.value;
+    })
+    .onUpdate((e) => {
+      scale.value = Math.max(1, Math.min(e.scale, 4));
+      if (scale.value > 1 && !isZoomed) {
+        runOnJS(setIsZoomed)(true);
+      }
+
+      // Keeps the zoom centered under where the pinch started...
+      const anchorX =
+        (pinchStartFocalX.value - containerSize.width / 2) *
+        (1 - scale.value) *
+        0.5;
+      const anchorY =
+        (pinchStartFocalY.value - containerSize.height / 2) *
+        (1 - scale.value) *
+        0.5;
+
+      // ...and lets the image be dragged by however far the two fingers
+      // have physically moved together since the pinch began.
+      const dragX = e.focalX - pinchStartFocalX.value;
+      const dragY = e.focalY - pinchStartFocalY.value;
+
+      translateX.value = pinchStartTranslateX.value + anchorX + dragX;
+      translateY.value = pinchStartTranslateY.value + anchorY + dragY;
+    })
+    .onEnd(() => {
+      scale.value = withSpring(1);
+      translateX.value = withSpring(0);
+      translateY.value = withSpring(0);
+      savedTranslateX.value = 0;
+      savedTranslateY.value = 0;
+      runOnJS(setIsZoomed)(false);
+    });
+
+  const panGesture = Gesture.Pan()
+    .enabled(isZoomed)
+    .onUpdate((e) => {
+      const maxTranslateX = (containerSize.width * (scale.value - 1)) / 2;
+      const maxTranslateY = (containerSize.height * (scale.value - 1)) / 2;
+
+      translateX.value = Math.max(
+        -maxTranslateX,
+        Math.min(maxTranslateX, savedTranslateX.value + e.translationX),
+      );
+      translateY.value = Math.max(
+        -maxTranslateY,
+        Math.min(maxTranslateY, savedTranslateY.value + e.translationY),
+      );
+    })
+    .onEnd(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    });
+
+  const composedGesture = Gesture.Simultaneous(pinchGesture, panGesture);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
 
   return (
     <View
-      style={{ position: "relative" }}
+      style={[
+        { position: "relative" },
+        isZoomed
+          ? { overflow: "visible", zIndex: 999, elevation: 999 }
+          : { overflow: "hidden", zIndex: 0, elevation: 0 },
+      ]}
       onLayout={(e) => {
         const { width, height } = e.nativeEvent.layout;
         setContainerSize({ width, height });
       }}
     >
-      <DoubleTapButton
-        onDoubleTap={onDoubleTap}
-        onSingleTap={() => {
-          if (hasTags) setShowTags((v) => !v);
-        }}
-      >
-        <Image
-          cachePolicy={"memory-disk"}
-          source={{ uri: imageUri }}
-          style={imageStyle}
-          contentFit="cover"
-        />
-      </DoubleTapButton>
+      <GestureDetector gesture={composedGesture}>
+        <Animated.View style={animatedStyle}>
+          <DoubleTapButton
+            onDoubleTap={onDoubleTap}
+            onSingleTap={() => {
+              if (hasTags) setShowTags((v) => !v);
+            }}
+          >
+            <Image
+              cachePolicy={"memory-disk"}
+              source={{ uri: imageUri }}
+              style={imageStyle}
+              contentFit="cover"
+            />
+          </DoubleTapButton>
+        </Animated.View>
+      </GestureDetector>
 
       {showTags &&
         hasTags &&
@@ -487,15 +586,15 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
           </TouchableOpacity>
           {/*Post content*/}
         </View>
-        <DoubleTapButton onDoubleTap={toggleLike}>
-          <TaggableImage
-            imageUri={post.image_url}
-            tags={post.tags}
-            onDoubleTap={toggleLike}
-            imageStyle={styles.postImage}
-            colors={colors}
-          />
-        </DoubleTapButton>
+
+        <TaggableImage
+          imageUri={post.image_url}
+          tags={post.tags}
+          onDoubleTap={toggleLike}
+          imageStyle={styles.postImage}
+          colors={colors}
+        />
+
         <PostActions
           post={post}
           currentUserId={currentUserId}

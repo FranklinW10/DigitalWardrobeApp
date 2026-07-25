@@ -56,12 +56,29 @@ export const useLikes = (postId: string, currentUserId?: string) => {
     if (!user) return;
 
     try {
+      const { data: post } = await supabase
+        .from("posts")
+        .select("user_id")
+        .eq("id", postId)
+        .single();
+
+      if (!post) return;
       if (isLiked) {
         await supabase
           .from("likes")
           .delete()
           .eq("post_id", postId)
           .eq("user_id", user.id);
+
+        if (post.user_id !== user.id) {
+          await supabase
+            .from("notifications")
+            .delete()
+            .eq("recipient_id", post.user_id)
+            .eq("actor_id", user.id)
+            .eq("post_id", postId)
+            .eq("type", "like");
+        }
         setLikeCount((likeCount) => likeCount - 1);
         setIsLiked(false);
       } else {

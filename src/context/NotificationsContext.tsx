@@ -1,11 +1,11 @@
 // src/context/NotificationsContext.tsx
 import { supabase } from "@/lib/supabase/client";
 import {
-    createContext,
-    ReactNode,
-    useContext,
-    useEffect,
-    useState,
+  createContext,
+  ReactNode,
+  useContext,
+  useEffect,
+  useState,
 } from "react";
 
 interface Notification {
@@ -62,6 +62,16 @@ export const NotificationsProvider = ({
       setUnreadCount(data?.filter((n) => !n.is_read).length ?? 0);
     };
 
+    const fetchNotification = async (id: string) => {
+      return supabase
+        .from("notifications")
+        .select(
+          "*, actor:profiles!actor_id(username, profile_image_url, id), posts(image_url)",
+        )
+        .eq("id", id)
+        .single();
+    };
+
     fetchNotifications();
 
     const sub = supabase
@@ -74,8 +84,12 @@ export const NotificationsProvider = ({
           table: "notifications",
           filter: `recipient_id=eq.${userId}`,
         },
-        (payload) => {
-          setNotifications((prev) => [payload.new as Notification, ...prev]);
+        async (payload) => {
+          const { data } = await fetchNotification(payload.new.id);
+
+          if (!data) return;
+
+          setNotifications((prev) => [data as Notification, ...prev]);
           setUnreadCount((c) => c + 1);
         },
       )
