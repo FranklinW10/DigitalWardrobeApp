@@ -1,13 +1,13 @@
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { useComments } from "@/hooks/useComments";
+import { formatTimeAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
-import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
-
 import {
   BottomSheetFlatList,
   BottomSheetFooter,
   BottomSheetModal,
+  BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
 import { Image } from "expo-image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -124,6 +124,8 @@ export const CommentsSheet = ({
       onDismiss={onClose}
       backgroundStyle={styles.background}
       footerComponent={renderFooter}
+      handleStyle={styles.handle}
+      handleIndicatorStyle={styles.handleIndicator}
     >
       {/* Header */}
       <View style={styles.header}>
@@ -155,9 +157,14 @@ export const CommentsSheet = ({
               </View>
             )}
             <View style={styles.commentContent}>
-              <Text style={styles.commentUsername}>
-                @{item.profiles?.username}
-              </Text>
+              <View style={styles.commentHeaderRow}>
+                <Text style={styles.commentUsername}>
+                  @{item.profiles?.username}
+                </Text>
+                <Text style={styles.commentTime}>
+                  {formatTimeAgo(item.created_at)}
+                </Text>
+              </View>
               <Text style={styles.commentText}>{item.content}</Text>
             </View>
             {/* Delete if own comment */}
@@ -181,6 +188,16 @@ export const CommentsSheet = ({
 // ---- Dynamic Styles ----
 const createStyles = (colors: any) =>
   StyleSheet.create({
+    commentHeaderRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginBottom: 2,
+    },
+    commentTime: {
+      fontSize: 11,
+      color: colors.textMuted,
+    },
     background: {
       backgroundColor: colors.background,
       borderTopLeftRadius: 24,
@@ -203,6 +220,16 @@ const createStyles = (colors: any) =>
     list: {
       padding: 16,
       gap: 16,
+    },
+    handle: {
+      backgroundColor: colors.background,
+      paddingTop: 8,
+      paddingBottom: 4,
+    },
+    handleIndicator: {
+      backgroundColor: colors.border,
+      width: 36,
+      height: 4,
     },
     empty: {
       textAlign: "center",

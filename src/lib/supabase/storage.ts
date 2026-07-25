@@ -79,28 +79,35 @@ export const uploadPostImage = async (
     throw error;
   }
 };
-
 export const uploadHaulImages = async (
   userId: string,
   postId: string,
   imageUris: string[],
 ) => {
   try {
-    await Promise.all(
+    // Promise.all preserves result order matching the input array's order,
+    // regardless of which upload finishes first — so results[i] always
+    // corresponds to imageUris[i].
+    const results = await Promise.all(
       imageUris.map(async (imageUri, index) => {
-        // upload to storage
         const publicUrl = await uploadPostImage(userId, imageUri, postId);
 
-        // insert row into post_images
-        const { error } = await supabase.from("images").insert({
-          post_id: postId,
-          image_url: publicUrl,
-          order_index: index,
-        });
+        const { data, error } = await supabase
+          .from("images")
+          .insert({
+            post_id: postId,
+            image_url: publicUrl,
+            order_index: index,
+          })
+          .select()
+          .single();
 
         if (error) throw error;
+        return data; // { id, post_id, image_url, order_index, ... }
       }),
     );
+
+    return results;
   } catch (error) {
     console.error("Error uploading haul images:", error);
     throw error;

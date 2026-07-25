@@ -183,7 +183,7 @@ export default function followList() {
             @{isOwnList ? user?.username : (headerUsername ?? "...")}
           </Text>
           <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
-            <Ionicons name="menu" size={26} color="#000" />
+            <Ionicons name="menu" size={26} color={colors.background} />
           </TouchableOpacity>
         </View>
 
@@ -192,13 +192,13 @@ export default function followList() {
           <Ionicons
             name="search"
             size={18}
-            color="#999"
+            color={colors.textMuted}
             style={styles.searchIcon}
           />
           <TextInput
             style={styles.searchInput}
             placeholder="Search..."
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.textMuted}
             value={search}
             onChangeText={setSearch}
             autoCapitalize="none"

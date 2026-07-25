@@ -21,7 +21,7 @@ import {
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 export default function FinalPreviewHaul() {
-  const { imageUris, caption } = useLocalSearchParams();
+  const { imageUris, caption, tags } = useLocalSearchParams();
   const images: string[] = JSON.parse(imageUris as string);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -37,11 +37,27 @@ export default function FinalPreviewHaul() {
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [uploading, setUploading] = useState<"archive" | "public" | null>(null);
+  const parsedTags = useMemo(() => {
+    if (!tags) return undefined;
+    try {
+      return JSON.parse(tags as string);
+    } catch (e) {
+      console.error("Failed to parse tags param:", e);
+      return undefined;
+    }
+  }, [tags]);
 
   const handlePost = async (isPublic: boolean) => {
     setUploading(isPublic ? "public" : "archive");
     try {
-      await createPost(undefined, caption as string, isPublic, false, images);
+      await createPost(
+        undefined,
+        caption as string,
+        isPublic,
+        false,
+        images,
+        parsedTags,
+      );
       router.replace("/(tabs)");
     } catch (error) {
       Alert.alert("Error", "Failed to create post. Please try again.");

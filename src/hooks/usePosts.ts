@@ -15,6 +15,19 @@ export interface PostImage {
   order_index: number;
 }
 
+export interface PostTag {
+  id: string;
+  post_id: string;
+  image_id: string | null;
+  location_x: number;
+  location_y: number;
+  brand: string;
+  store: string;
+  price: number | null;
+  is_clothing_tag: boolean;
+  color: string;
+}
+
 export interface Post {
   id: string;
   user_id: string;
@@ -27,10 +40,20 @@ export interface Post {
   is_post_today: boolean;
   profiles?: PostUser;
   images?: PostImage[];
+  tags?: PostTag[]; // ← new
   post_date: string;
   ispostedontime: boolean;
 }
-
+export interface PostTagInput {
+  location_x: number;
+  location_y: number;
+  store: string;
+  brand: string;
+  price: number | null;
+  is_clothing_tag: boolean;
+  color: string;
+  imageIndex: number;
+}
 export const usePosts = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,7 +70,8 @@ export const usePosts = () => {
           `
                     *,
                     profiles(id,name,username,profile_image_url),
-                    images(id,post_id,image_url,order_index)
+                    images(id,post_id,image_url,order_index),
+                    tags(*)
                     `,
         )
         .eq("is_active", true)
@@ -88,7 +112,8 @@ export const usePosts = () => {
           `
         *,
         profiles(id, name, username, profile_image_url, isPrivate),
-        images(id, post_id, image_url, order_index)
+        images(id, post_id, image_url, order_index),
+        tags(*)
       `,
         )
         .eq("is_active", true)
@@ -119,9 +144,11 @@ export const usePosts = () => {
         .from("posts")
         .select(
           `
-                    *,
-                    profiles(id,name,username,profile_image_url)
-                    `,
+                  *,
+                  profiles(id,name,username,profile_image_url),
+                  images(id,post_id,image_url,order_index),
+                  tags(*)
+                  `,
         )
         .eq("user_id", user.id)
         .eq("is_active", true)
@@ -151,18 +178,20 @@ export const usePosts = () => {
     }
   };
 
+  // usePosts.ts
+
   const createPost = async (
     imageUri?: string,
     description?: string,
     isPublic?: boolean,
     isOutfitPost?: boolean,
     imageUris?: string[],
+    tags?: PostTagInput[],
   ) => {
     if (!user) {
       throw new Error("User Not Authenticated");
     }
     try {
-      //deactivate any existing posts today
       if (isOutfitPost) {
         const { error: deactivateError } = await supabase
           .from("posts")
@@ -175,53 +204,74 @@ export const usePosts = () => {
           console.error("Error deactivating old posts:", deactivateError);
         }
       }
-      //adding to the table
-      const { error } = await supabase.from("posts").insert({
-        user_id: user.id,
-        image_url: null,
-        description: description || null,
-        is_active: true,
-        is_public: isPublic,
-        isoutfit_post: isOutfitPost || false,
-        is_post_today: true,
-        post_date: new Date().toISOString().split("T")[0], // ← "YYYY-MM-DD"
-      });
 
-      const { data: post, error: fetchError } = await supabase
+      const { data: post, error } = await supabase
         .from("posts")
+        .insert({
+          user_id: user.id,
+          image_url: null,
+          description: description || null,
+          is_active: true,
+          is_public: isPublic,
+          isoutfit_post: isOutfitPost || false,
+          is_post_today: true,
+          post_date: new Date().toISOString().split("T")[0],
+        })
         .select()
-        .eq("user_id", user.id)
-        .eq("is_post_today", true)
-        .eq("is_active", true)
-        .order("created_at", { ascending: false })
-        .limit(1)
         .single();
 
-      if (fetchError) {
-        console.error("Error fetching created post:", fetchError);
-        throw fetchError;
-      }
-
-      console.log("Created post:", post);
-      console.log("Post id:", post?.id);
       if (error) {
         console.error("Error creating post:", error);
         throw error;
       }
 
+      console.log("Created post:", post);
+
+      // Track uploaded images so tags can be linked to the right one by index
+      let uploadedImages: { id: string; order_index: number }[] = [];
+
       if (imageUris && imageUris.length > 0) {
-        // haul post — upload to post_images table
-        await uploadHaulImages(user.id, post.id, imageUris);
-      }
-      //Refresh posts
-      else if (imageUri) {
-        // fit post — upload single image and update image_url
+        uploadedImages = await uploadHaulImages(user.id, post.id, imageUris);
+      } else if (imageUri) {
         const imageUrl = await uploadPostImage(user.id, imageUri, post.id);
         await supabase
           .from("posts")
           .update({ image_url: imageUrl })
           .eq("id", post.id);
       }
+
+      if (tags && tags.length > 0) {
+        const tagRows = tags.map((t) => {
+          // Match each tag to the image it was placed on via imageIndex.
+          // Falls back to null (no image link) for single-image posts or
+          // if something's out of range — tag still saves, just unlinked.
+          const matchedImage = uploadedImages.find(
+            (img) => img.order_index === t.imageIndex,
+          );
+
+          return {
+            post_id: post.id,
+            image_id: matchedImage?.id ?? null,
+            location_x: t.location_x,
+            location_y: t.location_y,
+            store: t.store,
+            brand: t.brand,
+            price: t.price,
+            is_clothing_tag: t.is_clothing_tag,
+            color: t.color,
+          };
+        });
+
+        const { error: tagsError } = await supabase
+          .from("tags")
+          .insert(tagRows);
+
+        if (tagsError) {
+          console.error("Error saving post tags:", tagsError);
+        }
+      }
+
+      return post;
     } catch (error) {
       console.error("Error in createPost:", error);
       throw error;

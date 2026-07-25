@@ -19,13 +19,27 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const POST_WIDTH = SCREEN_WIDTH - 32;
 
 export default function FinalPreviewFit() {
-  const { imageUri, description } = useLocalSearchParams();
+  const { imageUri, description, tags } = useLocalSearchParams<{
+    imageUri: string;
+    description: string;
+    tags?: string;
+  }>();
   const { createPost } = usePosts();
   const { user } = useAuth();
   const router = useRouter();
   const [uploading, setUploading] = useState<"archive" | "public" | null>(null);
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const parsedTags = useMemo(() => {
+    if (!tags) return undefined;
+    try {
+      return JSON.parse(tags);
+    } catch (e) {
+      console.error("Failed to parse tags param:", e);
+      return undefined;
+    }
+  }, [tags]);
 
   const handlePost = async (isPublic: boolean) => {
     setUploading(isPublic ? "public" : "archive");
@@ -35,6 +49,8 @@ export default function FinalPreviewFit() {
         description as string,
         isPublic,
         true,
+        undefined, // imageUris (haul-only, not used on this fit screen)
+        parsedTags,
       );
       router.replace("/(tabs)");
     } catch (error) {
@@ -43,7 +59,7 @@ export default function FinalPreviewFit() {
       setUploading(null);
     }
   };
-
+  // ...rest unchanged
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Preview Post</Text>

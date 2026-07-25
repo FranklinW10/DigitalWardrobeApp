@@ -123,7 +123,12 @@ export default function CollectionScrollScreen() {
             renderItem={renderPost}
             onScroll={handleScroll}
             refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary} // iOS spinner color
+                colors={[colors.primary]}
+              />
             }
             ListEmptyComponent={
               <Text style={styles.empty}>No posts saved here yet</Text>

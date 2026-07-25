@@ -207,7 +207,7 @@ export default function Profile() {
       // Load posts
       const { data: postsData, error: postsError } = await supabase
         .from("posts")
-        .select("*, profiles(*), images(*)")
+        .select("*, profiles(*), images(*), tags(*)")
         .eq("user_id", user?.id)
         .eq("is_active", true)
         .order("post_date", { ascending: false });
@@ -467,7 +467,12 @@ export default function Profile() {
           columnWrapperStyle={{ gap: 2 }}
           contentContainerStyle={{ paddingBottom: 100 }}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary} // iOS spinner color
+              colors={[colors.primary]}
+            />
           }
           ListHeaderComponent={
             <View style={styles.header}>
@@ -779,7 +784,7 @@ export default function Profile() {
                   onPress={handleComplete}
                 >
                   {isSubmitting ? (
-                    <ActivityIndicator size={24} color="#fff" />
+                    <ActivityIndicator size={24} color={colors.background} />
                   ) : (
                     <Text style={styles.buttontext}>Save Changes</Text>
                   )}

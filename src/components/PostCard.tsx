@@ -3,13 +3,13 @@ import { LikersSheet } from "@/components/LikerSheet";
 import { useTheme } from "@/context/ThemeContext";
 import { useComments } from "@/hooks/useComments";
 import { useLikes } from "@/hooks/useLikes";
-import { Post } from "@/hooks/usePosts";
+import { Post, PostTag } from "@/hooks/usePosts";
 import { formatDate, formatTimeAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dimensions,
   NativeScrollEvent,
@@ -21,6 +21,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
+
 import { SaveButton } from "./saveButton";
 
 interface PostCardProps {
@@ -28,18 +36,307 @@ interface PostCardProps {
   currentUserId?: string;
 }
 
+const TagPin = ({
+  tag,
+  containerSize,
+  colors,
+}: {
+  tag: PostTag;
+  containerSize: { width: number; height: number };
+  colors: any;
+}) => {
+  if (!containerSize.width || !containerSize.height) return null;
+
+  const left = (tag.location_x / 100) * containerSize.width;
+  const top = (tag.location_y / 100) * containerSize.height;
+
+  const bubbleText = [
+    tag.brand && `Brand: ${tag.brand}`,
+    tag.store && `Store: ${tag.store}`,
+    tag.price && `Price: $${tag.price}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return (
+    <View
+      pointerEvents="none"
+      style={[
+        tagPinStyles.pinWrap,
+        {
+          left: left - 70,
+          top: top - 20,
+        },
+      ]}
+    >
+      <View
+        style={[
+          tagPinStyles.pinBubble,
+          {
+            backgroundColor: `${colors.surface}CC`,
+            borderColor: `${colors.border}CC`,
+          },
+        ]}
+      >
+        <Text style={[tagPinStyles.pinText, { color: colors.text }]}>
+          {bubbleText}
+        </Text>
+      </View>
+
+      <View
+        style={[
+          tagPinStyles.pinArrow,
+          {
+            borderTopColor: `${colors.surface}CC`,
+          },
+        ]}
+      />
+
+      <View
+        style={[
+          tagPinStyles.pinDot,
+          {
+            backgroundColor: tag.color || colors.primary,
+          },
+        ]}
+      />
+    </View>
+  );
+};
+const tagPinStyles = StyleSheet.create({
+  pinWrap: {
+    position: "absolute",
+
+    alignItems: "center",
+  },
+
+  pinBubble: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+  },
+
+  pinText: {
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 16,
+  },
+
+  pinArrow: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 6,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    marginTop: -1,
+  },
+
+  pinDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginTop: 2,
+  },
+
+  bagButton: {
+    position: "absolute",
+    bottom: 12,
+    right: 12,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
+const TaggableImage = ({
+  imageUri,
+  tags,
+  onDoubleTap,
+  imageStyle,
+  colors,
+}: {
+  imageUri: string;
+  tags?: PostTag[];
+  onDoubleTap: () => void;
+  imageStyle: any;
+  colors: any;
+}) => {
+  const [showTags, setShowTags] = useState(false);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [isZoomed, setIsZoomed] = useState(false);
+  const hasTags = !!tags && tags.length > 0;
+
+  const scale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+
+  // Anchor point + baseline translation captured at the start of each pinch,
+  // so we can measure how far the pinch has moved (for two-finger drag)
+  // independently of how much it has scaled (for zoom-into-focal-point).
+  const pinchStartFocalX = useSharedValue(0);
+  const pinchStartFocalY = useSharedValue(0);
+  const pinchStartTranslateX = useSharedValue(0);
+  const pinchStartTranslateY = useSharedValue(0);
+
+  const pinchGesture = Gesture.Pinch()
+    .onBegin((e) => {
+      pinchStartFocalX.value = e.focalX;
+      pinchStartFocalY.value = e.focalY;
+      pinchStartTranslateX.value = translateX.value;
+      pinchStartTranslateY.value = translateY.value;
+    })
+    .onUpdate((e) => {
+      scale.value = Math.max(1, Math.min(e.scale, 4));
+      if (scale.value > 1 && !isZoomed) {
+        runOnJS(setIsZoomed)(true);
+      }
+
+      // Keeps the zoom centered under where the pinch started...
+      const anchorX =
+        (pinchStartFocalX.value - containerSize.width / 2) *
+        (1 - scale.value) *
+        0.5;
+      const anchorY =
+        (pinchStartFocalY.value - containerSize.height / 2) *
+        (1 - scale.value) *
+        0.5;
+
+      // ...and lets the image be dragged by however far the two fingers
+      // have physically moved together since the pinch began.
+      const dragX = e.focalX - pinchStartFocalX.value;
+      const dragY = e.focalY - pinchStartFocalY.value;
+
+      translateX.value = pinchStartTranslateX.value + anchorX + dragX;
+      translateY.value = pinchStartTranslateY.value + anchorY + dragY;
+    })
+    .onEnd(() => {
+      scale.value = withSpring(1);
+      translateX.value = withSpring(0);
+      translateY.value = withSpring(0);
+      savedTranslateX.value = 0;
+      savedTranslateY.value = 0;
+      runOnJS(setIsZoomed)(false);
+    });
+
+  const panGesture = Gesture.Pan()
+    .enabled(isZoomed)
+    .onUpdate((e) => {
+      const maxTranslateX = (containerSize.width * (scale.value - 1)) / 2;
+      const maxTranslateY = (containerSize.height * (scale.value - 1)) / 2;
+
+      translateX.value = Math.max(
+        -maxTranslateX,
+        Math.min(maxTranslateX, savedTranslateX.value + e.translationX),
+      );
+      translateY.value = Math.max(
+        -maxTranslateY,
+        Math.min(maxTranslateY, savedTranslateY.value + e.translationY),
+      );
+    })
+    .onEnd(() => {
+      savedTranslateX.value = translateX.value;
+      savedTranslateY.value = translateY.value;
+    });
+
+  const composedGesture = Gesture.Simultaneous(pinchGesture, panGesture);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+      { scale: scale.value },
+    ],
+  }));
+
+  return (
+    <View
+      style={[
+        { position: "relative" },
+        isZoomed
+          ? { overflow: "visible", zIndex: 999, elevation: 999 }
+          : { overflow: "hidden", zIndex: 0, elevation: 0 },
+      ]}
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setContainerSize({ width, height });
+      }}
+    >
+      <GestureDetector gesture={composedGesture}>
+        <Animated.View style={animatedStyle}>
+          <DoubleTapButton
+            onDoubleTap={onDoubleTap}
+            onSingleTap={() => {
+              if (hasTags) setShowTags((v) => !v);
+            }}
+          >
+            <Image
+              cachePolicy={"memory-disk"}
+              source={{ uri: imageUri }}
+              style={imageStyle}
+              contentFit="cover"
+            />
+          </DoubleTapButton>
+        </Animated.View>
+      </GestureDetector>
+
+      {showTags &&
+        hasTags &&
+        tags!.map((tag) => (
+          <TagPin
+            key={tag.id}
+            tag={tag}
+            containerSize={containerSize}
+            colors={colors}
+          />
+        ))}
+
+      {hasTags && (
+        <TouchableOpacity
+          style={tagPinStyles.bagButton}
+          onPress={() => setShowTags((v) => !v)}
+          hitSlop={8}
+        >
+          <Ionicons
+            name={showTags ? "bag-handle" : "bag-handle-outline"}
+            size={18}
+            color="#fff"
+          />
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
 const DOUBLE_PRESS_DELAY = 250;
 
-export function DoubleTapButton({ onDoubleTap, children }: any) {
+export function DoubleTapButton({ onDoubleTap, onSingleTap, children }: any) {
   const lastTap = useRef(0);
+  const singleTapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handlePress = () => {
     const now = Date.now();
     if (now - lastTap.current < DOUBLE_PRESS_DELAY) {
       lastTap.current = 0;
+      if (singleTapTimeout.current) {
+        clearTimeout(singleTapTimeout.current);
+        singleTapTimeout.current = null;
+      }
       onDoubleTap?.();
     } else {
       lastTap.current = now;
+      if (singleTapTimeout.current) clearTimeout(singleTapTimeout.current);
+      // Wait to see if a second tap follows before treating this as a single tap
+      singleTapTimeout.current = setTimeout(() => {
+        onSingleTap?.();
+        singleTapTimeout.current = null;
+      }, DOUBLE_PRESS_DELAY);
     }
   };
 
@@ -49,6 +346,130 @@ export function DoubleTapButton({ onDoubleTap, children }: any) {
     </Pressable>
   );
 }
+const MAX_SEARCH_ITERATIONS = 8;
+
+const ExpandableCaption = ({
+  text,
+  textStyle,
+  moreStyle,
+}: {
+  text: string;
+  textStyle: any;
+  moreStyle: any;
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const [needsExpansion, setNeedsExpansion] = useState(false);
+  const [checkedFullText, setCheckedFullText] = useState(false);
+  const [truncateAt, setTruncateAt] = useState<number | null>(null);
+  const [settled, setSettled] = useState(false);
+  const bounds = useRef({ low: 0, high: text.length });
+  const iterations = useRef(0);
+
+  useEffect(() => {
+    setCheckedFullText(false);
+    setNeedsExpansion(false);
+    setTruncateAt(null);
+    setSettled(false);
+    bounds.current = { low: 0, high: text.length };
+    iterations.current = 0;
+  }, [text]);
+
+  if (expanded) {
+    return (
+      <Text style={textStyle}>
+        {text}
+        <Text onPress={() => setExpanded(false)} style={moreStyle}>
+          {"  less"}
+        </Text>
+      </Text>
+    );
+  }
+
+  // Pass 1: does the full caption even need truncating?
+  if (!checkedFullText) {
+    return (
+      <Text
+        style={textStyle}
+        onTextLayout={(e) => {
+          const overflows = e.nativeEvent.lines.length > 1;
+          setNeedsExpansion(overflows);
+          setCheckedFullText(true);
+          if (overflows) {
+            const mid = Math.floor(text.length / 2);
+            bounds.current = { low: 0, high: text.length };
+            setTruncateAt(mid);
+          } else {
+            setSettled(true);
+          }
+        }}
+      >
+        {text}
+      </Text>
+    );
+  }
+
+  if (!needsExpansion) {
+    return <Text style={textStyle}>{text}</Text>;
+  }
+
+  // Pass 2+: binary search for the longest substring that still fits
+  // on one line alongside "… more" — always visible, never hidden,
+  // and guaranteed to terminate within MAX_SEARCH_ITERATIONS.
+  const candidate = text.slice(0, truncateAt ?? 0).trimEnd();
+
+  return (
+    <Text
+      style={textStyle}
+      onTextLayout={(e) => {
+        if (settled) return;
+        iterations.current += 1;
+
+        const { low, high } = bounds.current;
+        const fits = e.nativeEvent.lines.length <= 1;
+
+        if (high - low <= 1 || iterations.current >= MAX_SEARCH_ITERATIONS) {
+          setSettled(true);
+          return;
+        }
+
+        const newBounds = fits
+          ? { low: truncateAt ?? 0, high }
+          : { low, high: truncateAt ?? 0 };
+        bounds.current = newBounds;
+
+        const mid = Math.floor((newBounds.low + newBounds.high) / 2);
+        setTruncateAt(mid);
+      }}
+    >
+      {candidate}
+      {"… "}
+      <Text onPress={() => setExpanded(true)} style={moreStyle}>
+        more
+      </Text>
+    </Text>
+  );
+};
+
+const styles = StyleSheet.create({
+  measureHidden: {
+    position: "absolute",
+    opacity: 0,
+    left: 0,
+    right: 0,
+  },
+});
+
+// Static styles for ExpandableCaption — not theme-dependent, so this
+// doesn't need to live inside createStyles(colors).
+const captionStyles = StyleSheet.create({
+  moreOverlay: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    paddingLeft: 24,
+  },
+});
+
 const LikeButton = ({
   likeCount,
   isLiked,
@@ -69,7 +490,7 @@ const LikeButton = ({
       <Ionicons
         name={isLiked ? "heart" : "heart-outline"}
         size={24}
-        color={isLiked ? "red" : colors.text}
+        color={isLiked ? colors.accent : colors.text}
       />
     </TouchableOpacity>
     <TouchableOpacity onPress={onLikeCountPress}>
@@ -165,14 +586,15 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
           </TouchableOpacity>
           {/*Post content*/}
         </View>
-        <DoubleTapButton onDoubleTap={toggleLike}>
-          <Image
-            cachePolicy={"memory-disk"}
-            source={{ uri: post.image_url }}
-            style={styles.postImage}
-            contentFit="cover"
-          />
-        </DoubleTapButton>
+
+        <TaggableImage
+          imageUri={post.image_url}
+          tags={post.tags}
+          onDoubleTap={toggleLike}
+          imageStyle={styles.postImage}
+          colors={colors}
+        />
+
         <PostActions
           post={post}
           currentUserId={currentUserId}
@@ -191,10 +613,14 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
       </View>
       <View style={styles.postFooter}>
         {post.description && (
-          <Text style={styles.postDescription}>{post.description}</Text>
+          <ExpandableCaption
+            text={post.description}
+            textStyle={styles.postDescription}
+            moreStyle={styles.moreText}
+          />
         )}
         <Text style={styles.postInfo}>
-          {isOwnPost ? "Your Post" : `${postUser?.name}'post`} -{" "}
+          {isOwnPost ? "Your Post" : `${postUser?.name}'s post`} -{" "}
           {formatDate(post.post_date)}
         </Text>
       </View>
@@ -239,6 +665,13 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
     fetchLikers,
   } = useLikes(post.id, currentUserId);
   const [showLikers, setShowLikers] = useState(false);
+  // Actual on-screen width of the carousel, measured via onLayout rather
+  // than assumed from Dimensions — if this card ever sits inside a
+  // container with horizontal padding/margin, SCREEN_WIDTH would be wider
+  // than the visible viewport, so each "page" would overflow it and
+  // partially reveal the next slide when swiping. Falls back to
+  // SCREEN_WIDTH only until the first layout pass reports the real width.
+  const [carouselWidth, setCarouselWidth] = useState(SCREEN_WIDTH);
 
   const lastTap = useRef(0);
 
@@ -256,7 +689,7 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
   );
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+    const index = Math.round(e.nativeEvent.contentOffset.x / carouselWidth);
     setActiveIndex(index);
   };
   const { colors } = useTheme();
@@ -297,7 +730,7 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
       </View>
 
       {/* Scrollable images */}
-      <View>
+      <View onLayout={(e) => setCarouselWidth(e.nativeEvent.layout.width)}>
         <ScrollView
           horizontal
           pagingEnabled
@@ -305,15 +738,14 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
           onMomentumScrollEnd={handleScroll}
         >
           {images.map((img, index) => (
-            <Pressable key={index} onPress={handleDoubleTap}>
-              <Image
-                key={index}
-                cachePolicy="memory-disk"
-                source={{ uri: img.image_url }}
-                style={[styles.postImage, { width: SCREEN_WIDTH }]}
-                contentFit="cover"
-              />
-            </Pressable>
+            <TaggableImage
+              key={index}
+              imageUri={img.image_url}
+              tags={post.tags?.filter((t) => t.image_id === img.id)}
+              onDoubleTap={toggleLike}
+              imageStyle={[styles.postImage, { width: carouselWidth }]}
+              colors={colors}
+            />
           ))}
         </ScrollView>
 
@@ -349,7 +781,11 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
       />
       <View style={styles.postFooter}>
         {post.description && (
-          <Text style={styles.postDescription}>{post.description}</Text>
+          <ExpandableCaption
+            text={post.description}
+            textStyle={styles.postDescription}
+            moreStyle={styles.moreText}
+          />
         )}
         <Text style={styles.postInfo}>
           {isOwnPost ? "Your Post" : `${postUser?.name}'s post`} -{" "}
@@ -507,11 +943,12 @@ export const ModalPostCard = ({
           {/*Post content*/}
         </View>
         <DoubleTapButton onDoubleTap={toggleLike}>
-          <Image
-            cachePolicy={"memory-disk"}
-            source={{ uri: post.image_url }}
-            style={styles.postImage}
-            contentFit="cover"
+          <TaggableImage
+            imageUri={post.image_url}
+            tags={post.tags}
+            onDoubleTap={toggleLike}
+            imageStyle={styles.postImage}
+            colors={colors}
           />
         </DoubleTapButton>
         <PostActions
@@ -529,10 +966,14 @@ export const ModalPostCard = ({
       </View>
       <View style={styles.postFooter}>
         {post.description && (
-          <Text style={styles.postDescription}>{post.description}</Text>
+          <ExpandableCaption
+            text={post.description}
+            textStyle={styles.postDescription}
+            moreStyle={styles.moreText}
+          />
         )}
         <Text style={styles.postInfo}>
-          {isOwnPost ? "Your Post" : `${postUser?.name}'post`} -{" "}
+          {isOwnPost ? "Your Post" : `${postUser?.name}'s post`} -{" "}
           {formatDate(post.post_date)}
         </Text>
       </View>
@@ -573,6 +1014,10 @@ export const ModalHaulPostCard = ({
   // Generate the stylesheet dynamically using the current theme colors
   const styles = createStyles(colors);
   const lastTap = useRef(0);
+  // Same fix as HaulPostCard — measure the real viewport instead of trusting
+  // Dimensions.get("window"), since the modal's carousel may not be exactly
+  // screen-width once its own padding/margins are applied.
+  const [carouselWidth, setCarouselWidth] = useState(SCREEN_WIDTH);
 
   const handleDoubleTap = () => {
     const now = Date.now();
@@ -589,7 +1034,7 @@ export const ModalHaulPostCard = ({
   );
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+    const index = Math.round(e.nativeEvent.contentOffset.x / carouselWidth);
     setActiveIndex(index);
   };
 
@@ -629,7 +1074,7 @@ export const ModalHaulPostCard = ({
       </View>
 
       {/* Scrollable images */}
-      <View>
+      <View onLayout={(e) => setCarouselWidth(e.nativeEvent.layout.width)}>
         <ScrollView
           horizontal
           pagingEnabled
@@ -637,15 +1082,17 @@ export const ModalHaulPostCard = ({
           onMomentumScrollEnd={handleScroll}
         >
           {images.map((img, index) => (
-            <Pressable key={index} onPress={handleDoubleTap}>
-              <Image
-                key={index}
-                cachePolicy="memory-disk"
-                source={{ uri: img.image_url }}
-                style={[styles.postImage, { width: SCREEN_WIDTH - 20 }]}
-                contentFit="cover"
-              />
-            </Pressable>
+            <TaggableImage
+              key={index}
+              imageUri={img.image_url}
+              tags={post.tags?.filter((t) => t.image_id === img.id)}
+              onDoubleTap={toggleLike}
+              imageStyle={[
+                styles.postImage,
+                { width: carouselWidth, aspectRatio: 1 },
+              ]}
+              colors={colors}
+            />
           ))}
         </ScrollView>
 
@@ -678,7 +1125,11 @@ export const ModalHaulPostCard = ({
       />
       <View style={styles.postFooter}>
         {post.description && (
-          <Text style={styles.postDescription}>{post.description}</Text>
+          <ExpandableCaption
+            text={post.description}
+            textStyle={styles.postDescription}
+            moreStyle={styles.moreText}
+          />
         )}
         <Text style={styles.postInfo}>
           {isOwnPost ? "Your Post" : `${postUser?.name}'s post`} -{" "}
@@ -769,6 +1220,12 @@ const createStyles = (colors: any) =>
       fontSize: 12,
       color: colors.textMuted,
     },
+    moreText: {
+      fontSize: 13,
+      fontWeight: "600",
+      color: colors.textMuted,
+      marginTop: 2,
+    },
     timeRemainingBadge: {
       backgroundColor: colors.primary,
       paddingHorizontal: 12,
@@ -787,7 +1244,7 @@ const createStyles = (colors: any) =>
     },
     postFooter: {
       padding: 12,
-      paddingTop: 4,
+      marginTop: -10,
       backgroundColor: colors.background,
     },
     postContainer: {
@@ -804,9 +1261,11 @@ const createStyles = (colors: any) =>
       fontSize: 15,
       color: colors.text,
       marginBottom: 8,
+      marginTop: -4,
       lineHeight: 20,
     },
     postInfo: {
+      marginTop: -6,
       fontSize: 14,
       color: colors.textMuted,
     },

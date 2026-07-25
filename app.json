@@ -26,7 +26,6 @@
       "package": "com.franklinwohnoutka.fitcheck"
     },
     "web": {
-      "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
@@ -39,6 +38,14 @@
             "image": "./assets/images/splash-icon.png",
             "imageWidth": 76
           }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/IMG_20260713_141034 copy 2.png",
+          "color": "#111111",
+          "defaultChannel": "default"
         }
       ]
     ],
@@ -56,7 +63,9 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/3ff01854-5ffd-400b-a008-00d4d6e0f86e"
+      "url": "https://u.expo.dev/3ff01854-5ffd-400b-a008-00d4d6e0f86e",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
     }
   }
 }

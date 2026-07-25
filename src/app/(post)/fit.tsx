@@ -5,13 +5,14 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
+  InputAccessoryView,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
   TouchableWithoutFeedback,
 } from "react-native";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -34,6 +35,8 @@ export default function Fit() {
   const [refreshing, setRefreshing] = useState(false);
   const { createPost } = usePosts();
   const { colors } = useTheme();
+  const captionInputRef = useRef<TextInput>(null);
+  const INPUT_ACCESSORY_ID = "captionInputDone";
 
   // Generate the stylesheet dynamically using the current theme colors
   const styles = createStyles(colors);
@@ -129,6 +132,7 @@ export default function Fit() {
             )}
 
             <TextInput
+              ref={captionInputRef}
               style={styles.captionInput}
               placeholder="Write a caption..."
               placeholderTextColor={colors.textMuted}
@@ -136,7 +140,22 @@ export default function Fit() {
               onChangeText={setDescription}
               multiline
               maxLength={300}
+              inputAccessoryViewID={
+                Platform.OS === "ios" ? INPUT_ACCESSORY_ID : undefined
+              }
             />
+
+            {Platform.OS === "ios" && (
+              <InputAccessoryView nativeID={INPUT_ACCESSORY_ID}>
+                <View style={styles.accessoryBar}>
+                  <TouchableOpacity
+                    onPress={() => captionInputRef.current?.blur()}
+                  >
+                    <Text style={styles.accessoryDoneText}>Done</Text>
+                  </TouchableOpacity>
+                </View>
+              </InputAccessoryView>
+            )}
             <Text style={styles.charCount}>{description.length}/300</Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -147,7 +166,7 @@ export default function Fit() {
                 ]}
                 onPress={() => {
                   router.push({
-                    pathname: "/preview",
+                    pathname: "/fitTags",
                     params: {
                       imageUri: previewImage,
                       description: description,
@@ -160,7 +179,7 @@ export default function Fit() {
                 {isUploading ? (
                   <ActivityIndicator size={24} color={colors.background} />
                 ) : (
-                  <Text style={styles.postButtonText}>Preview Post </Text>
+                  <Text style={styles.postButtonText}>Add Tags → </Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -230,6 +249,19 @@ const createStyles = (colors: any) =>
     },
     postButton: {
       backgroundColor: colors.primary,
+    },
+    accessoryBar: {
+      backgroundColor: colors.surface,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      alignItems: "flex-end",
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: colors.border,
+    },
+    accessoryDoneText: {
+      fontSize: 16,
+      fontWeight: "600",
+      color: colors.primary,
     },
     postButtonText: {
       color: colors.background,

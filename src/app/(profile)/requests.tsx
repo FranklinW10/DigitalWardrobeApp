@@ -83,7 +83,7 @@ export default function RequestsScreen() {
         <ActivityIndicator style={{ marginTop: 40 }} />
       ) : requests.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Ionicons name="people-outline" size={40} color="#ccc" />
+          <Ionicons name="people-outline" size={40} color={colors.textMuted} />
           <Text style={styles.emptyText}>No pending requests</Text>
         </View>
       ) : (

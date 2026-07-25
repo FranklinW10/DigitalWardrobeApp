@@ -1,12 +1,15 @@
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { usePosts } from "@/hooks/usePosts";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  Animated,
   AppState,
   Modal,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -18,6 +21,10 @@ export default function TabsLayout() {
   const [showModal, setShowModal] = useState(false);
   const { posts, refreshPosts } = usePosts();
   const { user } = useAuth();
+
+  const sheetY = useRef(new Animated.Value(40)).current;
+  const sheetOpacity = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     if (user?.id) {
       refreshPosts();
@@ -33,7 +40,6 @@ export default function TabsLayout() {
     return () => sub.remove();
   }, [user?.id]);
 
-  // Refetch whenever this layout regains focus (e.g. coming back from another route)
   useFocusEffect(
     useCallback(() => {
       if (user?.id) {
@@ -42,6 +48,45 @@ export default function TabsLayout() {
     }, [user?.id]),
   );
 
+  useEffect(() => {
+    if (showModal) {
+      sheetY.setValue(40);
+      sheetOpacity.setValue(0);
+      Animated.parallel([
+        Animated.spring(sheetY, {
+          toValue: 0,
+          useNativeDriver: true,
+          damping: 18,
+          stiffness: 220,
+          mass: 0.9,
+        }),
+        Animated.timing(sheetOpacity, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [showModal]);
+
+  const closeModal = (onDone?: () => void) => {
+    Animated.parallel([
+      Animated.timing(sheetY, {
+        toValue: 40,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheetOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowModal(false);
+      onDone?.();
+    });
+  };
+
   const userActivePost = (posts ?? []).find(
     (post) =>
       post.user_id === user?.id &&
@@ -49,7 +94,6 @@ export default function TabsLayout() {
       post.is_post_today &&
       post.isoutfit_post,
   );
-  console.log("userActivePost", userActivePost);
 
   const hasActivePost = !!userActivePost;
   const { colors } = useTheme();
@@ -87,56 +131,105 @@ export default function TabsLayout() {
         <Text style={styles.fabText}>+</Text>
       </TouchableOpacity>
 
-      <Modal visible={showModal} transparent animationType="fade">
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity
-              style={styles.modalTitle}
-              onPress={() => {
-                setShowModal(false);
-                router.push({
-                  pathname: "/(post)/fit",
-                  params: { hasActivePost: hasActivePost ? "true" : "false" },
-                });
-              }}
-            >
-              <Text style={styles.modalTitle}>
-                {" "}
-                {hasActivePost ? "Replace your post" : "Post your Fit"}
-              </Text>
-            </TouchableOpacity>
+      <Modal
+        visible={showModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => closeModal()}
+      >
+        <Pressable style={styles.modalContainer} onPress={() => closeModal()}>
+          <Animated.View
+            style={[
+              styles.sheet,
+              {
+                opacity: sheetOpacity,
+                transform: [{ translateY: sheetY }],
+              },
+            ]}
+          >
+            <Pressable onPress={(e) => e.stopPropagation()}>
+              <View style={styles.handle} />
 
-            <TouchableOpacity
-              style={styles.modalTitle}
-              onPress={() => {
-                setShowModal(false);
-                router.push("/(post)/haul");
-              }}
-            >
-              <Text style={styles.modalTitle}>Post your Haul</Text>
-            </TouchableOpacity>
-            <View style={styles.modalButtons}>
+              <Text style={styles.eyebrow}>New post</Text>
+              <Text style={styles.sheetTitle}>What are you sharing?</Text>
+
+              <View style={styles.cardRow}>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={styles.card}
+                  onPress={() =>
+                    closeModal(() =>
+                      router.push({
+                        pathname: "/(post)/fit",
+                        params: {
+                          hasActivePost: hasActivePost ? "true" : "false",
+                        },
+                      }),
+                    )
+                  }
+                >
+                  <View
+                    style={[
+                      styles.iconBadge,
+                      { backgroundColor: colors.primary + "1F" },
+                    ]}
+                  >
+                    <Ionicons
+                      name="shirt-outline"
+                      size={26}
+                      color={colors.primary}
+                    />
+                  </View>
+                  <Text style={styles.cardTitle}>
+                    {hasActivePost ? "Replace fit" : "Fit"}
+                  </Text>
+                  <Text style={styles.cardSubtitle}>
+                    {hasActivePost ? "Swap today's post" : "Today's outfit"}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={styles.card}
+                  onPress={() => closeModal(() => router.push("/(post)/haul"))}
+                >
+                  <View
+                    style={[
+                      styles.iconBadge,
+                      { backgroundColor: colors.primary + "1F" },
+                    ]}
+                  >
+                    <Ionicons
+                      name="bag-handle-outline"
+                      size={26}
+                      color={colors.primary}
+                    />
+                  </View>
+                  <Text style={styles.cardTitle}>Haul</Text>
+                  <Text style={styles.cardSubtitle}>New pieces</Text>
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => {
-                  setShowModal(false);
-                }}
+                style={styles.cancelButton}
+                onPress={() => closeModal()}
               >
-                <Text style={styles.cancelButtonText}> Cancel</Text>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+            </Pressable>
+          </Animated.View>
+        </Pressable>
       </Modal>
     </View>
   );
 }
+
 // ---- Dynamic Styles ----
 const createStyles = (colors: any) =>
   StyleSheet.create({
     fab: {
       position: "absolute",
-      bottom: 23, // sits just above the tab bar
+      bottom: 23,
       left: "50%",
       marginLeft: -33,
       width: 60,
@@ -150,45 +243,83 @@ const createStyles = (colors: any) =>
       color: colors.background,
       fontSize: 50,
       fontWeight: "300",
-      lineHeight: 54, // this centers the + vertically
+      lineHeight: 54,
     },
     modalContainer: {
       flex: 1,
-      backgroundColor: "rgba(0,0,0,0.5)",
+      backgroundColor: "rgba(0,0,0,0.55)",
       justifyContent: "flex-end",
     },
-    modalContent: {
+    sheet: {
       backgroundColor: colors.background,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
-      padding: 24,
-      paddingBottom: 40,
-      gap: 12,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingTop: 12,
+      paddingHorizontal: 20,
+      paddingBottom: 36,
     },
-    modalTitle: {
-      fontSize: 18,
-      fontWeight: "600",
+    handle: {
+      alignSelf: "center",
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.border,
+      marginBottom: 18,
+    },
+    eyebrow: {
+      fontSize: 12,
+      fontWeight: "700",
+      letterSpacing: 1.2,
+      textTransform: "uppercase",
+      color: colors.textMuted ?? colors.secondary,
+      textAlign: "center",
+      marginBottom: 4,
+    },
+    sheetTitle: {
+      fontSize: 20,
+      fontWeight: "700",
       color: colors.text,
       textAlign: "center",
-      paddingVertical: 16,
-      paddingHorizontal: 20,
+      marginBottom: 20,
+    },
+    cardRow: {
+      flexDirection: "row",
+      gap: 12,
+      marginBottom: 16,
+    },
+    card: {
+      flex: 1,
       backgroundColor: colors.surface,
-      borderRadius: 12,
-    },
-    modalButtons: {
-      marginTop: 8,
-    },
-    modalButton: {
-      padding: 16,
-      borderRadius: 12,
+      borderRadius: 20,
+      paddingVertical: 22,
+      paddingHorizontal: 12,
       alignItems: "center",
+      gap: 4,
+    },
+    iconBadge: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 10,
+    },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    cardSubtitle: {
+      fontSize: 12,
+      color: colors.textMuted ?? colors.secondary,
     },
     cancelButton: {
-      backgroundColor: colors.surface,
+      paddingVertical: 14,
+      alignItems: "center",
     },
     cancelButtonText: {
-      color: colors.text,
-      fontSize: 16,
+      color: colors.textMuted ?? colors.secondary,
+      fontSize: 15,
       fontWeight: "600",
     },
   });

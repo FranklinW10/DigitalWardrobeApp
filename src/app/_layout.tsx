@@ -2,6 +2,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { FollowsProvider } from "@/context/FollowsContext";
 import { NotificationsProvider } from "@/context/NotificationsContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
@@ -11,6 +12,7 @@ function RouteGaurd() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
   const segments = useSegments();
+  usePushNotifications();
   const inAuthGroup = segments[0] === "(auth)";
   const inTabsGroup = segments[0] === "(tabs)";
   const inProfilesGroup = segments[0] === "(profile)";

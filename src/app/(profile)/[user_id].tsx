@@ -150,7 +150,7 @@ export default function UserProfileScreen() {
       if (canView) {
         const { data: postsData, error: postsError } = await supabase
           .from("posts")
-          .select("*, profiles(*), images(*)")
+          .select("*, profiles(*), images(*), tags(*)")
           .eq("user_id", user_id)
           .eq("is_active", true)
           .eq("is_public", true)
