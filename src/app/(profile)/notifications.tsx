@@ -98,6 +98,21 @@ export default function NotificationsScreen() {
     </TouchableOpacity>
   );
 
+  const handleNotificationPress = (item: any) => {
+    // Comment notifications are about a post you own — the actor is whoever
+    // commented, not the profile containing the post — so these always route
+    // to your own profile with the target post + comments sheet flagged,
+    // rather than to the actor's profile like other notification types.
+    if (item.type === "comment" && item.post_id) {
+      router.push({
+        pathname: "/profile",
+        params: { postId: item.post_id, openComments: "true" },
+      });
+      return;
+    }
+    router.push(`/(profile)/${item.actor?.id}`);
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <View style={styles.header}>
@@ -116,9 +131,7 @@ export default function NotificationsScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={requestsPreview || null}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            onPress={() => router.push(`/(profile)/${item.actor?.id}`)}
-          >
+          <TouchableOpacity onPress={() => handleNotificationPress(item)}>
             <View style={[styles.row, !item.is_read && styles.unread]}>
               {/* Avatar */}
               {item.actor?.profile_image_url ? (

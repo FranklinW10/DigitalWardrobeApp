@@ -33,17 +33,16 @@ export const palettes: Record<ThemeName, Palette> = {
     success: "#2E9E5B",
   },
   blush: {
-    // Soft pink/cream, romantic
-    background: "#FFF6F4",
-    surface: "#FCE9E6",
-    primary: "#402226",
-    secondary: "#B98A8F",
-    accent: "#E88A9A",
-    border: "#F2D6D2",
-    text: "#402226",
-    textMuted: "#9C7B7E",
-    danger: "#C1442E",
-    success: "#4C8C6A",
+    background: "#FBF2EB", // warmer, slightly more peach-leaning cream
+    surface: "#F0D4C7", // more saturated dusty terracotta-pink — more separation from background
+    primary: "#1C3626", // deeper, more confident forest green — less "dark neutral," more "color"
+    secondary: "#7A5240", // warm brown instead of muddy rose-brown — ties to terracotta surface
+    accent: "#DB5C6E", // slightly warmer, less pastel pink — more coral-rose than baby pink
+    border: "#E2BCA9", // clearly distinct from surface now, adds real definition
+    text: "#1C3626",
+    textMuted: "#8C6B5C",
+    danger: "#A8341F",
+    success: "#2F6B45",
   },
   sky: {
     // Airy, soft blue — light and open

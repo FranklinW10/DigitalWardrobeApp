@@ -167,14 +167,18 @@ export const FollowsProvider = ({ children }: { children: ReactNode }) => {
 
   const declineFollowRequest = async (requesterId: string) => {
     if (!user) return;
+    console.log("Declining follow request:");
+    console.log("requesterId (follower_id):", requesterId);
+    console.log("current user.id (following_id):", user.id);
     try {
-      const { error } = await supabase
+      const { data, error, count } = await supabase
         .from("follows")
         .delete()
         .eq("follower_id", requesterId)
         .eq("following_id", user.id)
         .eq("status", false);
       if (error) throw error;
+      console.log({ data, error, count });
     } catch (error) {
       console.error("Error declining follow request:", error);
     }

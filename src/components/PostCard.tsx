@@ -12,6 +12,7 @@ import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Dimensions,
+  GestureResponderEvent,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -26,7 +27,10 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
+  withSequence,
   withSpring,
+  withTiming,
 } from "react-native-reanimated";
 
 import { SaveButton } from "./saveButton";
@@ -315,12 +319,53 @@ const TaggableImage = ({
 };
 
 const DOUBLE_PRESS_DELAY = 250;
+const HEART_SIZE = 90;
 
-export function DoubleTapButton({ onDoubleTap, onSingleTap, children }: any) {
+export function DoubleTapButton({
+  onDoubleTap,
+  onSingleTap,
+  isLiked,
+  children,
+}: any) {
   const lastTap = useRef(0);
   const singleTapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const handlePress = () => {
+  // Heart burst: scales up past 1, settles back down, then fades out — same
+  // beat as Instagram's like animation. Position now tracks the actual tap
+  // location instead of always being centered.
+  const heartScale = useSharedValue(0);
+  const heartOpacity = useSharedValue(0);
+  const heartX = useSharedValue(0);
+  const heartY = useSharedValue(0);
+  const { colors } = useTheme();
+
+  // Generate the stylesheet dynamically using the current theme colors
+  const styles = createStyles(colors);
+
+  const playHeartBurst = (x: number, y: number) => {
+    heartX.value = x - HEART_SIZE / 2;
+    heartY.value = y - HEART_SIZE / 2;
+    heartScale.value = 0;
+    heartOpacity.value = 0;
+    heartScale.value = withSequence(
+      withSpring(1.15, { damping: 9, stiffness: 300 }),
+      withSpring(1, { damping: 10, stiffness: 300 }),
+    );
+    heartOpacity.value = withSequence(
+      withTiming(1, { duration: 350 }),
+      withDelay(350, withTiming(0, { duration: 250 })),
+    );
+  };
+
+  const heartStyle = useAnimatedStyle(() => ({
+    left: heartX.value,
+    top: heartY.value,
+    opacity: heartOpacity.value,
+    transform: [{ scale: heartScale.value }],
+  }));
+
+  const handlePress = (e: GestureResponderEvent) => {
+    const { locationX, locationY } = e.nativeEvent;
     const now = Date.now();
     if (now - lastTap.current < DOUBLE_PRESS_DELAY) {
       lastTap.current = 0;
@@ -328,7 +373,14 @@ export function DoubleTapButton({ onDoubleTap, onSingleTap, children }: any) {
         clearTimeout(singleTapTimeout.current);
         singleTapTimeout.current = null;
       }
-      onDoubleTap?.();
+      // Always show the heart on a double tap (matches Instagram — tapping
+      // an already-liked post still bursts a heart), but only fire the
+      // like callback if the post isn't already liked, so this can never
+      // unlike it.
+      playHeartBurst(locationX, locationY);
+      if (!isLiked) {
+        onDoubleTap?.();
+      }
     } else {
       lastTap.current = now;
       if (singleTapTimeout.current) clearTimeout(singleTapTimeout.current);
@@ -343,9 +395,46 @@ export function DoubleTapButton({ onDoubleTap, onSingleTap, children }: any) {
   return (
     <Pressable onPress={handlePress} unstable_pressDelay={0}>
       {children}
+      <Animated.View
+        style={[heartstyles.heart, heartStyle]}
+        pointerEvents="none"
+      >
+        <Ionicons
+          name="heart"
+          size={HEART_SIZE}
+          color={colors.accent}
+          style={heartstyles.heartShadow}
+        />
+      </Animated.View>
     </Pressable>
   );
 }
+
+const heartstyles = StyleSheet.create({
+  heart: {
+    position: "absolute",
+    width: HEART_SIZE,
+    height: HEART_SIZE,
+  },
+  heartShadow: {
+    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+});
+
+const Heartstyles = StyleSheet.create({
+  heartWrap: {
+    ...StyleSheet.absoluteFill,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  heartShadow: {
+    textShadowColor: "rgba(0,0,0,0.35)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+});
 const MAX_SEARCH_ITERATIONS = 8;
 
 const ExpandableCaption = ({

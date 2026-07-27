@@ -267,7 +267,7 @@ export default function UserProfileScreen() {
         </TouchableOpacity>
       </View>
       <FlatList
-        key={activeTab}
+        key={`${activeTab}-${canViewContent ? 3 : 1}`}
         numColumns={canViewContent ? 3 : 1}
         data={canViewContent ? filteredPosts : null}
         keyExtractor={(item) => item.id}

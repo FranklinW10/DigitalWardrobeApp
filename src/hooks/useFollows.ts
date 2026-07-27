@@ -102,7 +102,11 @@ export const useFollows = () => {
     }
   };
   const declineFollowRequest = async (requesterId: string) => {
+    console.log(user);
     if (!user) return;
+    console.log("Declining follow request:");
+    console.log("requesterId (follower_id):", requesterId);
+    console.log("current user.id (following_id):", user.id);
     try {
       const { error } = await supabase
         .from("follows")

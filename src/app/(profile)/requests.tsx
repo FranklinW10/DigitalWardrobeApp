@@ -60,9 +60,12 @@ export default function RequestsScreen() {
   };
 
   const handleDecline = async (requesterId: string) => {
+    console.log("handleDecline called with:", requesterId);
     setProcessingIds((prev) => [...prev, requesterId]);
     try {
+      console.log("About to call declineFollowRequest");
       await declineFollowRequest(requesterId);
+      console.log("Returned from declineFollowRequest");
       setRequests((prev) => prev.filter((r) => r.follower_id !== requesterId));
     } finally {
       setProcessingIds((prev) => prev.filter((id) => id !== requesterId));

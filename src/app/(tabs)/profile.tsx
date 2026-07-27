@@ -15,7 +15,7 @@ import { uploadProfileImage } from "@/lib/supabase/storage";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { Keyboard, KeyboardAvoidingView, Platform } from "react-native";
 
@@ -65,6 +65,10 @@ export default function Profile() {
   // Separate loading state for the form submit
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showFilter, setShowFilter] = useState(true);
+  const { postId, openComments } = useLocalSearchParams<{
+    postId?: string;
+    openComments?: string;
+  }>();
   const filteredPosts = posts.filter((post) =>
     activeTab === "fits" ? post.isoutfit_post : !post.isoutfit_post,
   );
@@ -190,6 +194,23 @@ export default function Profile() {
       loadProfile();
     }
   }, [user?.id]);
+
+  const handledNotificationRef = useRef(false);
+
+  useEffect(() => {
+    if (handledNotificationRef.current) return;
+    if (!postId || posts.length === 0) return;
+
+    const targetPost = posts.find((p) => p.id === postId);
+    if (!targetPost) return;
+
+    handledNotificationRef.current = true;
+    setSelectedPost(targetPost);
+    setShowFilter(false); // matches what renderExplorePost's onPress already does when opening a post
+    if (openComments === "true") {
+      handleOpenComments(targetPost.id, targetPost.user_id);
+    }
+  }, [posts, postId, openComments]);
 
   const loadProfile = async () => {
     if (!user?.id) return;
