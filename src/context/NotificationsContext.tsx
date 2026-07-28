@@ -12,7 +12,7 @@ interface Notification {
   id: string;
   recipient_id: string;
   actor_id: string;
-  type: "like" | "comment" | "follow";
+  type: "like" | "comment" | "follow" | "comment_reply" | "comment_like";
   post_id: string | null;
   comment_id: string | null;
   is_read: boolean;
@@ -21,9 +21,12 @@ interface Notification {
     username: string;
     profile_image_url: string | null;
   };
-  posts: {
+  posts?: {
     image_url: string | null;
-  } | null;
+    images?: {
+      image_url: string;
+    }[];
+  };
 }
 
 interface NotificationsContextValue {
@@ -53,12 +56,26 @@ export const NotificationsProvider = ({
       const { data } = await supabase
         .from("notifications")
         .select(
-          "*, actor:profiles!actor_id(username, profile_image_url, id), posts(image_url)",
+          `
+    *,
+    actor:profiles!actor_id(
+      username,
+      profile_image_url,
+      id
+    ),
+    posts(
+      image_url,
+      images(
+        image_url
+      )
+    )
+    `,
         )
         .eq("recipient_id", userId)
         .order("created_at", { ascending: false })
         .limit(50);
       setNotifications(data ?? []);
+      console.log("noti", data);
       setUnreadCount(data?.filter((n) => !n.is_read).length ?? 0);
     };
 
@@ -66,7 +83,20 @@ export const NotificationsProvider = ({
       return supabase
         .from("notifications")
         .select(
-          "*, actor:profiles!actor_id(username, profile_image_url, id), posts(image_url)",
+          `
+  *,
+  actor:profiles!actor_id(
+    username,
+    profile_image_url,
+    id
+  ),
+  posts(
+    image_url,
+    images(
+      image_url
+    )
+  )
+`,
         )
         .eq("id", id)
         .single();

@@ -15,7 +15,7 @@ import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -65,6 +65,10 @@ export default function UserProfileScreen() {
   const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
     null,
   );
+  const { postId, openComments } = useLocalSearchParams<{
+    postId?: string;
+    openComments?: string;
+  }>();
   // Pass a callback down into your modal post cards
   const handleOpenComments = (postId: string, postOwnerId: string) => {
     console.log("postId:", postId, "postOwnerId:", postOwnerId);
@@ -96,6 +100,23 @@ export default function UserProfileScreen() {
     };
     init();
   }, [user_id]);
+
+  const handledNotificationRef = useRef(false);
+
+  useEffect(() => {
+    if (handledNotificationRef.current) return;
+    if (!postId || posts.length === 0) return;
+
+    const targetPost = posts.find((p) => p.id === postId);
+    if (!targetPost) return;
+
+    handledNotificationRef.current = true;
+    setSelectedPost(targetPost);
+    // matches what renderExplorePost's onPress already does when opening a post
+    if (openComments === "true") {
+      handleOpenComments(targetPost.id, targetPost.user_id);
+    }
+  }, [posts, postId, openComments]);
 
   const renderExplorePost = ({ item }: { item: Post }) => (
     <ExplorePostCard

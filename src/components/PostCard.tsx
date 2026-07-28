@@ -435,7 +435,9 @@ const Heartstyles = StyleSheet.create({
     textShadowRadius: 6,
   },
 });
-const MAX_SEARCH_ITERATIONS = 8;
+const MAX_SEARCH_ITERATIONS = 12;
+const SETTLE_RECHECK_DELAY = 400; // ms — long enough to clear virtualization/layout
+// timing glitches, short enough nobody notices a caption "fixing itself"
 
 const ExpandableCaption = ({
   text,
@@ -453,15 +455,35 @@ const ExpandableCaption = ({
   const [settled, setSettled] = useState(false);
   const bounds = useRef({ low: 0, high: text.length });
   const iterations = useRef(0);
+  // Bumping this forces a full re-run of the truncation search — used for
+  // the one-time settle recheck below, and could be reused elsewhere later.
+  const [remeasureGen, setRemeasureGen] = useState(0);
 
-  useEffect(() => {
+  const resetSearch = () => {
     setCheckedFullText(false);
     setNeedsExpansion(false);
     setTruncateAt(null);
     setSettled(false);
     bounds.current = { low: 0, high: text.length };
     iterations.current = 0;
+  };
+
+  useEffect(() => {
+    resetSearch();
   }, [text]);
+
+  useEffect(() => {
+    // The very first measurement can land before the surrounding list/
+    // header layout has actually settled (virtualization, animated header
+    // height, etc.), locking in a wrong truncation that never gets
+    // rechecked. This forces one guaranteed second pass once things have
+    // had a moment to stabilize — cheap, and only runs once per mount.
+    const timeout = setTimeout(() => {
+      resetSearch();
+      setRemeasureGen((g) => g + 1);
+    }, SETTLE_RECHECK_DELAY);
+    return () => clearTimeout(timeout);
+  }, []);
 
   if (expanded) {
     return (
@@ -478,9 +500,10 @@ const ExpandableCaption = ({
   if (!checkedFullText) {
     return (
       <Text
+        key={`full-${remeasureGen}`}
         style={textStyle}
         onTextLayout={(e) => {
-          const overflows = e.nativeEvent.lines.length > 1;
+          const overflows = e.nativeEvent.lines.length > 2;
           setNeedsExpansion(overflows);
           setCheckedFullText(true);
           if (overflows) {
@@ -508,6 +531,7 @@ const ExpandableCaption = ({
 
   return (
     <Text
+      key={`search-${remeasureGen}`}
       style={textStyle}
       onTextLayout={(e) => {
         if (settled) return;
@@ -516,8 +540,16 @@ const ExpandableCaption = ({
         const { low, high } = bounds.current;
         const fits = e.nativeEvent.lines.length <= 1;
 
-        if (high - low <= 1 || iterations.current >= MAX_SEARCH_ITERATIONS) {
+        if (high - low <= 1) {
           setSettled(true);
+          return;
+        }
+
+        if (iterations.current >= MAX_SEARCH_ITERATIONS) {
+          setSettled(true);
+          if (truncateAt !== low) {
+            setTruncateAt(low);
+          }
           return;
         }
 
@@ -620,7 +652,7 @@ const PostActions = ({
 );
 
 export const PostCard = ({ post, currentUserId }: PostCardProps) => {
-  const { comments } = useComments(post.id);
+  const { comments, commentCount } = useComments(post.id);
   const postUser = post.profiles;
   const isOwnPost = post.user_id === currentUserId;
   const [showComments, setShowComments] = useState(false);
@@ -651,7 +683,7 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
             <View style={styles.userInfo}>
               {postUser?.profile_image_url ? (
                 <Image
-                  cachePolicy={"memory"}
+                  cachePolicy={"memory-disk"}
                   source={{ uri: postUser.profile_image_url }}
                   style={styles.avatar}
                 />
@@ -687,7 +719,7 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
         <PostActions
           post={post}
           currentUserId={currentUserId}
-          commentCount={comments.length}
+          commentCount={commentCount}
           likeCount={likeCount}
           isLiked={isLiked}
           toggleLike={toggleLike}
@@ -744,7 +776,7 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
   const isOwnPost = post.user_id === currentUserId;
   const [activeIndex, setActiveIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
-  const { comments } = useComments(post.id);
+  const { comments, commentCount } = useComments(post.id);
   const {
     likeCount,
     isLiked,
@@ -790,12 +822,16 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
     <View style={styles.postContainer}>
       <View style={styles.postHeader}>
         <TouchableOpacity
-          onPress={() => router.push(`/(profile)/${post.user_id}`)}
+          onPress={() =>
+            isOwnPost
+              ? router.push("/profile")
+              : router.push(`/(profile)/${post.user_id}`)
+          }
         >
           <View style={styles.userInfo}>
             {postUser?.profile_image_url ? (
               <Image
-                cachePolicy="memory"
+                cachePolicy="memory-disk"
                 source={{ uri: postUser.profile_image_url }}
                 style={styles.avatar}
               />
@@ -856,7 +892,7 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
       <PostActions
         post={post}
         currentUserId={currentUserId}
-        commentCount={comments.length}
+        commentCount={commentCount}
         likeCount={likeCount}
         isLiked={isLiked}
         toggleLike={toggleLike}
@@ -986,7 +1022,7 @@ export const ModalPostCard = ({
   const postUser = post.profiles;
   const isOwnPost = post.user_id === currentUserId;
   const [showComments, setShowComments] = useState(false);
-  const { comments } = useComments(post.id);
+  const { comments, commentCount } = useComments(post.id);
   const [showLikers, setShowLikers] = useState(false);
   const { colors } = useTheme();
 
@@ -1007,7 +1043,7 @@ export const ModalPostCard = ({
             <View style={styles.userInfo}>
               {postUser?.profile_image_url ? (
                 <Image
-                  cachePolicy={"memory"}
+                  cachePolicy={"memory-disk"}
                   source={{ uri: postUser.profile_image_url }}
                   style={styles.avatar}
                 />
@@ -1043,7 +1079,7 @@ export const ModalPostCard = ({
         <PostActions
           post={post}
           currentUserId={currentUserId}
-          commentCount={comments.length}
+          commentCount={commentCount}
           likeCount={likeCount}
           isLiked={isLiked}
           toggleLike={toggleLike}
@@ -1096,7 +1132,7 @@ export const ModalHaulPostCard = ({
   const isOwnPost = post.user_id === currentUserId;
   const [activeIndex, setActiveIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
-  const { comments } = useComments(post.id);
+  const { comments, commentCount } = useComments(post.id);
   const [showLikers, setShowLikers] = useState(false);
   const { colors } = useTheme();
 
@@ -1133,13 +1169,15 @@ export const ModalHaulPostCard = ({
         <TouchableOpacity
           onPress={() => {
             onNavigateAway();
-            router.push(`/(profile)/${post.user_id}`);
+            isOwnPost
+              ? router.push("/profile")
+              : router.push(`/(profile)/${post.user_id}`);
           }}
         >
           <View style={styles.userInfo}>
             {postUser?.profile_image_url ? (
               <Image
-                cachePolicy="memory"
+                cachePolicy="memory-disk"
                 source={{ uri: postUser.profile_image_url }}
                 style={styles.avatar}
               />
@@ -1203,7 +1241,7 @@ export const ModalHaulPostCard = ({
       <PostActions
         post={post}
         currentUserId={currentUserId}
-        commentCount={comments.length}
+        commentCount={commentCount}
         likeCount={likeCount}
         isLiked={isLiked}
         toggleLike={toggleLike}

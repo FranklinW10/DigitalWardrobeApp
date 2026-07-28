@@ -506,7 +506,7 @@ export default function Profile() {
                     <Image
                       source={{ uri: user.profileImage }}
                       style={styles.profileImage}
-                      cachePolicy={"memory"}
+                      cachePolicy={"memory-disk"}
                     />
                   ) : (
                     <View
@@ -671,7 +671,7 @@ export default function Profile() {
                 >
                   {user?.profileImage ? (
                     <Image
-                      cachePolicy="memory"
+                      cachePolicy="memory-disk"
                       source={{ uri: user.profileImage }}
                       style={styles.profileImage}
                     />

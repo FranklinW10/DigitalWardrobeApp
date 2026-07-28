@@ -34,6 +34,7 @@ export default function Index() {
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const [refreshKey, setRefreshKey] = useState(0);
   const lastScrollY = useRef(0);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const { unreadCount } = useNotifications();
@@ -113,8 +114,12 @@ export default function Index() {
 
   const onRefresh = async () => {
     setRefreshing(true);
+
     try {
       await refreshPosts();
+
+      // Force remount
+      setRefreshKey((prev) => prev + 1);
     } catch (error) {
       console.error("Error refreshing posts:", error);
     } finally {
@@ -315,7 +320,7 @@ export default function Index() {
 
         {activeTab === "fits" ? (
           <SectionList
-            key="fits"
+            key={`fits-${refreshKey}`}
             sections={sections}
             keyExtractor={(item) => item.id}
             renderItem={renderPost}
@@ -341,6 +346,7 @@ export default function Index() {
           />
         ) : (
           <FlatList
+            key={`hauls-${refreshKey}`}
             data={followingHaulPosts}
             style={{ width: "100%" }}
             ListHeaderComponent={

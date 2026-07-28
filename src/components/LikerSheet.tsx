@@ -30,32 +30,46 @@ export const LikersSheet = ({
 }: LikersSheetProps) => {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ["94%", "75%"], []);
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
+  const { user } = useAuth();
 
   useEffect(() => {
+    console.log("visible:", visible);
     if (visible) {
+      console.log("present()");
       bottomSheetRef.current?.present();
     } else {
+      console.log("dismiss()");
       bottomSheetRef.current?.dismiss();
     }
   }, [visible]);
-  const { colors } = useTheme();
+
+  useEffect(() => {
+    return () => {
+      console.log("LikersSheet unmounted");
+    };
+  }, []);
 
   // Generate the stylesheet dynamically using the current theme colors
-  const styles = createStyles(colors);
 
   const handleClose = useCallback(() => {
     bottomSheetRef.current?.close();
     onClose();
   }, [onClose]);
   if (!visible) return null;
-  const { user } = useAuth();
+
   return (
     <BottomSheetModal
       ref={bottomSheetRef}
       index={1}
       snapPoints={snapPoints}
       enablePanDownToClose
-      onDismiss={onClose}
+      onChange={(index) => console.log("sheet index", index)}
+      onDismiss={() => {
+        console.log("dismissed");
+        onClose();
+      }}
       backgroundStyle={styles.background}
       handleStyle={styles.handle}
       handleIndicatorStyle={styles.handleIndicator}
@@ -91,7 +105,7 @@ export const LikersSheet = ({
                 <Image
                   source={{ uri: item.profiles.profile_image_url }}
                   style={styles.avatar}
-                  cachePolicy="memory"
+                  cachePolicy="memory-disk"
                 />
               ) : (
                 <View style={[styles.avatar, styles.avatarPlaceholder]}>
@@ -118,8 +132,6 @@ const createStyles = (colors: any) =>
   StyleSheet.create({
     background: {
       backgroundColor: colors.background,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
     },
     header: {
       flexDirection: "row",
@@ -162,6 +174,8 @@ const createStyles = (colors: any) =>
       backgroundColor: colors.background,
       paddingTop: 8,
       paddingBottom: 4,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
     },
     handleIndicator: {
       backgroundColor: colors.border,

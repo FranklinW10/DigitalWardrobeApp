@@ -1,8 +1,12 @@
+import { LikersSheet } from "@/components/LikerSheet";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
-import { useComments } from "@/hooks/useComments";
+import { Comment, useComments } from "@/hooks/useComments";
+import { Liker } from "@/hooks/useLikes";
 import { formatTimeAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+
 import {
   BottomSheetFlatList,
   BottomSheetFooter,
@@ -27,6 +31,12 @@ interface CommentsSheetProps {
   onClose: () => void;
 }
 
+interface ReplyTarget {
+  commentId: string;
+  userId: string;
+  username: string;
+}
+
 export const CommentsSheet = ({
   postId,
   postOwnerId,
@@ -34,16 +44,37 @@ export const CommentsSheet = ({
   onClose,
 }: CommentsSheetProps) => {
   const { user } = useAuth();
-  const { comments, addComment, deleteComment } = useComments(postId);
-  const [text, setText] = useState("");
+  const {
+    comments,
+    addComment,
+    deleteComment,
+    toggleCommentLike,
+    fetchCommentLikers,
+  } = useComments(postId);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null);
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(
+    new Set(),
+  );
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ["94%", "75%"], []);
   const textRef = useRef("");
   const inputRef = useRef<any>(null);
   const { colors } = useTheme();
 
-  // Generate the stylesheet dynamically using the current theme colors
+  useEffect(() => {
+    console.log("CommentsSheet mounted");
+
+    return () => {
+      console.log("CommentsSheet unmounted");
+    };
+  }, []);
+
+  // Comment-likers sheet state
+  const [showLikers, setShowLikers] = useState(false);
+  const [commentLikers, setCommentLikers] = useState<Liker[]>([]);
+  const [isLoadingLikers, setIsLoadingLikers] = useState(false);
+
   const styles = createStyles(colors);
 
   useEffect(() => {
@@ -51,6 +82,7 @@ export const CommentsSheet = ({
       bottomSheetRef.current?.present();
     } else {
       bottomSheetRef.current?.dismiss();
+      setReplyTarget(null);
     }
   }, [visible]);
 
@@ -58,21 +90,91 @@ export const CommentsSheet = ({
     const val = textRef.current.trim();
     if (!val || !user) return;
     try {
-      await addComment(val, postOwnerId);
+      await addComment(
+        val,
+        postOwnerId,
+        replyTarget?.commentId,
+        replyTarget?.userId,
+      );
       textRef.current = "";
       inputRef.current?.clear();
+      setReplyTarget(null);
     } finally {
       // nothing
     }
-  }, [user, addComment, postOwnerId]);
+  }, [user, addComment, postOwnerId, replyTarget]);
+
+  const startReply = useCallback(
+    (topLevelCommentId: string, userId: string, username: string) => {
+      setReplyTarget({ commentId: topLevelCommentId, userId, username });
+      inputRef.current?.focus();
+    },
+    [],
+  );
+
+  const cancelReply = useCallback(() => {
+    setReplyTarget(null);
+  }, []);
+
+  const toggleReplies = useCallback((commentId: string) => {
+    setExpandedReplies((prev) => {
+      const next = new Set(prev);
+      if (next.has(commentId)) {
+        next.delete(commentId);
+      } else {
+        next.add(commentId);
+      }
+      return next;
+    });
+  }, []);
+
+  const navigateToProfile = (userId: string) => {
+    onClose();
+
+    // Small delay lets the bottom sheet dismiss smoothly before navigation
+    setTimeout(() => {
+      router.push({
+        pathname: "/[user_id]",
+        params: {
+          user_id: userId,
+        },
+      });
+    }, 100);
+  };
+
+  const handleOpenCommentLikers = useCallback(
+    async (commentId: string) => {
+      setShowLikers(true);
+      setIsLoadingLikers(true);
+      try {
+        const likers = await fetchCommentLikers(commentId);
+        console.log("comment likers:", likers);
+        setCommentLikers((likers as any) ?? []);
+      } finally {
+        setIsLoadingLikers(false);
+      }
+    },
+    [fetchCommentLikers],
+  );
 
   const renderFooter = useCallback(
     (props: any) => (
-      <BottomSheetFooter {...props} bottomInset={24}>
+      <BottomSheetFooter {...props}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           keyboardVerticalOffset={10}
         >
+          {replyTarget && (
+            <View style={styles.replyBanner}>
+              <Text style={styles.replyBannerText}>
+                Replying to @{replyTarget.username}
+              </Text>
+              <TouchableOpacity onPress={cancelReply} hitSlop={8}>
+                <Ionicons name="close" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          )}
+
           <View style={styles.inputRow}>
             {user?.profileImage ? (
               <Image
@@ -91,7 +193,11 @@ export const CommentsSheet = ({
             <BottomSheetTextInput
               ref={inputRef}
               style={styles.input}
-              placeholder="Add a comment..."
+              placeholder={
+                replyTarget
+                  ? `Reply to @${replyTarget.username}...`
+                  : "Add a comment..."
+              }
               placeholderTextColor={colors.textMuted}
               onChangeText={(val) => {
                 textRef.current = val;
@@ -105,7 +211,7 @@ export const CommentsSheet = ({
         </KeyboardAvoidingView>
       </BottomSheetFooter>
     ),
-    [isSubmitting, user, handleSubmit],
+    [isSubmitting, user, handleSubmit, replyTarget, cancelReply],
   );
 
   const handleClose = useCallback(() => {
@@ -115,48 +221,45 @@ export const CommentsSheet = ({
 
   if (!visible) return null;
 
-  return (
-    <BottomSheetModal
-      ref={bottomSheetRef}
-      index={1}
-      snapPoints={snapPoints}
-      enablePanDownToClose
-      onDismiss={onClose}
-      backgroundStyle={styles.background}
-      footerComponent={renderFooter}
-      handleStyle={styles.handle}
-      handleIndicatorStyle={styles.handleIndicator}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Comments</Text>
-        <TouchableOpacity onPress={handleClose}>
-          <Ionicons name="close" size={24} color={colors.text} />
-        </TouchableOpacity>
-      </View>
+  const renderCommentRow = (item: Comment, isReply: boolean) => {
+    const isExpanded = expandedReplies.has(item.id);
+    const hasReplies = !isReply && item.replies.length > 0;
+    const isOwnComment = item.user_id === user?.id;
 
-      {/* Comments list */}
-      <BottomSheetFlatList
-        data={comments}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        ListEmptyComponent={<Text style={styles.empty}>No comments yet.</Text>}
-        renderItem={({ item }) => (
-          <View style={styles.comment}>
+    return (
+      <View>
+        <View style={[styles.comment, isReply && styles.replyIndent]}>
+          <TouchableOpacity
+            onPress={() =>
+              navigateToProfile(isOwnComment ? user?.id! : item.user_id)
+            }
+          >
             {item.profiles?.profile_image_url ? (
               <Image
                 source={{ uri: item.profiles.profile_image_url }}
-                style={styles.avatar}
+                style={isReply ? styles.replyAvatar : styles.avatar}
                 cachePolicy="memory"
               />
             ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+              <View
+                style={[
+                  isReply ? styles.replyAvatar : styles.avatar,
+                  styles.avatarPlaceholder,
+                ]}
+              >
                 <Text style={styles.avatarText}>
                   {item.profiles?.username?.[0]?.toUpperCase() || "U"}
                 </Text>
               </View>
             )}
-            <View style={styles.commentContent}>
+          </TouchableOpacity>
+
+          <View style={styles.commentContent}>
+            <TouchableOpacity
+              onPress={() =>
+                navigateToProfile(isOwnComment ? user?.id! : item.user_id)
+              }
+            >
               <View style={styles.commentHeaderRow}>
                 <Text style={styles.commentUsername}>
                   @{item.profiles?.username}
@@ -166,33 +269,152 @@ export const CommentsSheet = ({
                 </Text>
               </View>
               <Text style={styles.commentText}>{item.content}</Text>
+            </TouchableOpacity>
+
+            <View style={styles.actionRow}>
+              {!isReply && (
+                <TouchableOpacity
+                  style={styles.actionRowItem}
+                  onPress={() =>
+                    startReply(
+                      item.id,
+                      item.user_id,
+                      item.profiles?.username ?? "",
+                    )
+                  }
+                  hitSlop={6}
+                >
+                  <Text style={styles.actionRowText}>Reply</Text>
+                </TouchableOpacity>
+              )}
+
+              {item.user_id === user?.id && (
+                <TouchableOpacity
+                  style={styles.actionRowItem}
+                  onPress={() => deleteComment(item.id)}
+                  hitSlop={6}
+                >
+                  <Text style={styles.actionRowText}>Delete</Text>
+                </TouchableOpacity>
+              )}
             </View>
-            {/* Delete if own comment */}
-            {item.user_id === user?.id && (
-              <TouchableOpacity onPress={() => deleteComment(item.id)}>
-                <Ionicons
-                  name="trash-outline"
-                  size={16}
-                  color={colors.textMuted}
-                />
+
+            {hasReplies && (
+              <TouchableOpacity
+                onPress={() => toggleReplies(item.id)}
+                hitSlop={6}
+                style={styles.viewRepliesButton}
+              >
+                <View style={styles.viewRepliesLine} />
+                <Text style={styles.viewRepliesText}>
+                  {isExpanded
+                    ? "Hide replies"
+                    : `View ${item.replies.length} ${
+                        item.replies.length === 1 ? "reply" : "replies"
+                      }`}
+                </Text>
               </TouchableOpacity>
             )}
           </View>
-        )}
-      />
 
-      {/* Input */}
-    </BottomSheetModal>
+          <View
+            style={[isReply ? styles.replylikeContainer : styles.likeContainer]}
+          >
+            <TouchableOpacity
+              style={styles.likeButton}
+              onPress={() => toggleCommentLike(item.id, item.user_id)}
+            >
+              <Ionicons
+                name={item.is_liked ? "heart" : "heart-outline"}
+                size={14}
+                color={item.is_liked ? colors.accent : colors.textMuted}
+              />
+            </TouchableOpacity>
+            {item.like_count > 0 && (
+              <TouchableOpacity
+                onPress={() => handleOpenCommentLikers(item.id)}
+                hitSlop={6}
+              >
+                <Text style={styles.likeButtonText}>{item.like_count}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {hasReplies &&
+          isExpanded &&
+          item.replies.map((reply) => (
+            <View key={reply.id}>{renderCommentRow(reply, true)}</View>
+          ))}
+      </View>
+    );
+  };
+
+  return (
+    <>
+      <BottomSheetModal
+        ref={bottomSheetRef}
+        index={1}
+        snapPoints={snapPoints}
+        enablePanDownToClose
+        onDismiss={onClose}
+        backgroundStyle={styles.background}
+        footerComponent={renderFooter}
+        handleStyle={styles.handle}
+        handleIndicatorStyle={styles.handleIndicator}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>Comments</Text>
+          <TouchableOpacity onPress={handleClose}>
+            <Ionicons name="close" size={24} color={colors.text} />
+          </TouchableOpacity>
+        </View>
+
+        <BottomSheetFlatList
+          data={comments}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <Text style={styles.empty}>No comments yet.</Text>
+          }
+          renderItem={({ item }) => renderCommentRow(item, false)}
+        />
+      </BottomSheetModal>
+      <LikersSheet
+        likers={commentLikers}
+        isLoading={isLoadingLikers}
+        visible={showLikers}
+        onClose={() => setShowLikers(false)}
+      />
+    </>
   );
 };
+
 // ---- Dynamic Styles ----
 const createStyles = (colors: any) =>
   StyleSheet.create({
     commentHeaderRow: {
       flexDirection: "row",
       alignItems: "center",
+
       gap: 6,
       marginBottom: 2,
+    },
+    viewRepliesButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginTop: 8,
+    },
+    viewRepliesLine: {
+      width: 16,
+      height: 1,
+      backgroundColor: colors.border,
+    },
+    viewRepliesText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: colors.textMuted,
     },
     commentTime: {
       fontSize: 11,
@@ -200,8 +422,6 @@ const createStyles = (colors: any) =>
     },
     background: {
       backgroundColor: colors.background,
-      borderTopLeftRadius: 24,
-      borderTopRightRadius: 24,
     },
     header: {
       flexDirection: "row",
@@ -221,10 +441,24 @@ const createStyles = (colors: any) =>
       padding: 16,
       gap: 16,
     },
+    likeContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 2,
+      paddingTop: 20,
+    },
+    replylikeContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 2,
+      paddingTop: 6,
+    },
     handle: {
       backgroundColor: colors.background,
       paddingTop: 8,
       paddingBottom: 4,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
     },
     handleIndicator: {
       backgroundColor: colors.border,
@@ -240,11 +474,24 @@ const createStyles = (colors: any) =>
       flexDirection: "row",
       alignItems: "flex-start",
       gap: 10,
+      marginTop: 0,
+    },
+    replyIndent: {
+      marginLeft: 30,
+      marginTop: 10,
     },
     avatar: {
       width: 36,
       height: 36,
       borderRadius: 18,
+    },
+    BannerX: {
+      marginBottom: 8,
+    },
+    replyAvatar: {
+      width: 28,
+      height: 28,
+      borderRadius: 14,
     },
     avatarPlaceholder: {
       backgroundColor: colors.surface,
@@ -269,11 +516,53 @@ const createStyles = (colors: any) =>
       fontSize: 14,
       color: colors.text,
     },
+    actionRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 16,
+      marginTop: 6,
+    },
+    actionRowItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    actionRowText: {
+      fontSize: 12,
+      fontWeight: "600",
+      color: colors.textMuted,
+    },
+    likeButton: {
+      padding: 0,
+    },
+
+    likeButtonText: {
+      fontSize: 11,
+      fontWeight: "600",
+      color: colors.textMuted,
+    },
+    replyBanner: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 16,
+      paddingTop: 10,
+      backgroundColor: colors.surface,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+    },
+    replyBannerText: {
+      fontSize: 12,
+      color: colors.textMuted,
+      fontWeight: "600",
+      marginBottom: 8,
+    },
     inputRow: {
       flexDirection: "row",
       alignItems: "center",
       paddingHorizontal: 16,
       paddingVertical: 16,
+      paddingBottom: 32,
       borderTopWidth: 1,
       borderTopColor: colors.border,
       gap: 12,

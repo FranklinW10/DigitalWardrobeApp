@@ -43,6 +43,8 @@ Deno.serve(async (req) => {
       like: `${actorName} liked your post`,
       comment: `${actorName} commented on your post`,
       follow: `${actorName} started following you`,
+      comment_reply: `${actorName} replied to your comment`,
+      comment_like: `${actorName} liked your comment`,
     };
     const body = messages[notification.type] ?? "You have a new notification";
 

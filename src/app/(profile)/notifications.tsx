@@ -3,6 +3,7 @@ import { useFollows } from "@/context/FollowsContext";
 import { useNotifications } from "@/context/NotificationsContext";
 import { useTheme } from "@/context/ThemeContext";
 import { formatTimeAgo } from "@/lib/date-helper";
+import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -51,6 +52,11 @@ export default function NotificationsScreen() {
         return `${username} requested to follow you`;
       case "follow_accepted":
         return `${username} accepted your follow request`;
+      case "comment_like":
+        return `${username} liked your comment`;
+      case "comment_reply":
+        return `${username} replied to your comment`;
+
       default:
         return "";
     }
@@ -98,18 +104,48 @@ export default function NotificationsScreen() {
     </TouchableOpacity>
   );
 
-  const handleNotificationPress = (item: any) => {
+  const handleNotificationPress = async (item: any) => {
     // Comment notifications are about a post you own — the actor is whoever
     // commented, not the profile containing the post — so these always route
     // to your own profile with the target post + comments sheet flagged,
     // rather than to the actor's profile like other notification types.
-    if (item.type === "comment" && item.post_id) {
-      router.push({
-        pathname: "/profile",
-        params: { postId: item.post_id, openComments: "true" },
-      });
+    if (
+      ["comment", "comment_like", "comment_reply"].includes(item.type) &&
+      item.post_id
+    ) {
+      const { data: post, error } = await supabase
+        .from("posts")
+        .select("user_id")
+        .eq("id", item.post_id)
+        .single();
+
+      if (error || !post) {
+        console.log("Could not find post owner", error);
+        return;
+      }
+
+      const profileId = post.user_id;
+      if (profileId === user?.id) {
+        router.push({
+          pathname: "/profile",
+          params: {
+            postId: item.post_id,
+            openComments: "true",
+          },
+        });
+      } else {
+        router.push({
+          pathname: "/[user_id]",
+          params: {
+            user_id: profileId,
+            postId: item.post_id,
+            openComments: "true",
+          },
+        });
+      }
       return;
     }
+
     router.push(`/(profile)/${item.actor?.id}`);
   };
 
@@ -130,50 +166,54 @@ export default function NotificationsScreen() {
         data={notifications}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={requestsPreview || null}
-        renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => handleNotificationPress(item)}>
-            <View style={[styles.row, !item.is_read && styles.unread]}>
-              {/* Avatar */}
-              {item.actor?.profile_image_url ? (
-                <Image
-                  source={{ uri: item.actor.profile_image_url }}
-                  style={styles.avatar}
-                  cachePolicy="memory"
-                />
-              ) : (
-                <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                  <Text style={styles.avatarText}>
-                    {item.actor?.username?.[0]?.toUpperCase() || "U"}
+        renderItem={({ item }) => {
+          const thumbnail =
+            item.posts?.image_url ?? item.posts?.images?.[0]?.image_url;
+          return (
+            <TouchableOpacity onPress={() => handleNotificationPress(item)}>
+              <View style={[styles.row, !item.is_read && styles.unread]}>
+                {/* Avatar */}
+                {item.actor?.profile_image_url ? (
+                  <Image
+                    source={{ uri: item.actor.profile_image_url }}
+                    style={styles.avatar}
+                    cachePolicy="memory-disk"
+                  />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                    <Text style={styles.avatarText}>
+                      {item.actor?.username?.[0]?.toUpperCase() || "U"}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Text */}
+                <View style={styles.textContent}>
+                  <Text style={styles.notificationText}>
+                    <Text style={styles.bold}>@{item.actor?.username}</Text>{" "}
+                    {getNotificationText(item.type, "")}
+                  </Text>
+                  <Text style={styles.time}>
+                    {formatTimeAgo(item.created_at)}
                   </Text>
                 </View>
-              )}
 
-              {/* Text */}
-              <View style={styles.textContent}>
-                <Text style={styles.notificationText}>
-                  <Text style={styles.bold}>@{item.actor?.username}</Text>{" "}
-                  {getNotificationText(item.type, "")}
-                </Text>
-                <Text style={styles.time}>
-                  {formatTimeAgo(item.created_at)}
-                </Text>
+                {/* Post thumbnail if applicable */}
+                {thumbnail && (
+                  <Image
+                    source={{ uri: thumbnail }}
+                    style={styles.thumbnail}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                  />
+                )}
+
+                {/* Unread dot */}
+                {!item.is_read && <View style={styles.unreadDot} />}
               </View>
-
-              {/* Post thumbnail if applicable */}
-              {item.posts?.image_url && (
-                <Image
-                  source={{ uri: item.posts.image_url }}
-                  style={styles.thumbnail}
-                  contentFit="cover"
-                  cachePolicy="memory-disk"
-                />
-              )}
-
-              {/* Unread dot */}
-              {!item.is_read && <View style={styles.unreadDot} />}
-            </View>
-          </TouchableOpacity>
-        )}
+            </TouchableOpacity>
+          );
+        }}
         ListEmptyComponent={
           <Text style={styles.empty}>No notifications yet.</Text>
         }

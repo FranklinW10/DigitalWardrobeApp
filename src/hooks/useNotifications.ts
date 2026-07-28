@@ -5,7 +5,7 @@ interface Notification {
   id: string;
   recipient_id: string;
   actor_id: string;
-  type: "like" | "comment" | "follow";
+  type: "like" | "comment" | "follow" | "comment_reply" | "comment_like";
   post_id: string | null;
   comment_id: string | null;
   is_read: boolean;

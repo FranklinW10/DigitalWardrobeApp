@@ -72,7 +72,7 @@ export default function FinalPreviewFit() {
               <Image
                 source={{ uri: user.profileImage }}
                 style={styles.avatar}
-                cachePolicy="memory"
+                cachePolicy="memory-disk"
               />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>

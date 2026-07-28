@@ -113,7 +113,7 @@ export const daysAgo = (timestamp: string): string => {
       month: "long",
       day: "numeric",
     });
-    return `${formatted} (4 days ago)`;
+    return `${formatted}`;
   }
   if (days === 5) {
     const date = new Date(timestamp);
