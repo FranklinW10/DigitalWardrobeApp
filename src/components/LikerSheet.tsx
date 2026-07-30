@@ -1,9 +1,10 @@
+import { StreakAvatar } from "@/components/StreakAvatar";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Liker } from "@/hooks/useLikes";
+
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetFlatList, BottomSheetModal } from "@gorhom/bottom-sheet";
-import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
@@ -65,6 +66,7 @@ export const LikersSheet = ({
       index={1}
       snapPoints={snapPoints}
       enablePanDownToClose
+      stackBehavior="push"
       onChange={(index) => console.log("sheet index", index)}
       onDismiss={() => {
         console.log("dismissed");
@@ -101,19 +103,15 @@ export const LikersSheet = ({
                 }
               }}
             >
-              {item.profiles?.profile_image_url ? (
-                <Image
-                  source={{ uri: item.profiles.profile_image_url }}
-                  style={styles.avatar}
-                  cachePolicy="memory-disk"
-                />
-              ) : (
-                <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                  <Text style={styles.avatarText}>
-                    {item.profiles?.name?.[0]?.toUpperCase() || "U"}
-                  </Text>
-                </View>
-              )}
+              <StreakAvatar
+                uri={item.profiles?.profile_image_url}
+                initial={item.profiles?.username?.[0]?.toUpperCase() || "U"}
+                streak={item.profiles?.streak ?? 0}
+                size={40}
+                colors={colors}
+                RING_WIDTH={2.5}
+                RING_GAP={2}
+              />
               <View>
                 <Text style={styles.name}>
                   {item.user_id === user?.id ? "You" : item.profiles?.name}

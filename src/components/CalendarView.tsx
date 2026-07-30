@@ -31,6 +31,40 @@ const MONTHS = [
   "December",
 ];
 
+const getStreakPostIds = (posts: Post[]) => {
+  const streakPostIds = new Set<string>();
+
+  for (const post of posts) {
+    const streak = Number(post.streak);
+
+    if (!streak || streak < 2) continue;
+
+    const postDate = new Date(post.created_at);
+
+    // The current post and previous streak days are highlighted
+    for (let i = 0; i < streak; i++) {
+      const streakDate = new Date(postDate);
+      streakDate.setDate(postDate.getDate() - i);
+
+      const matchingPost = posts.find((p) => {
+        const pDate = new Date(p.created_at);
+
+        return (
+          pDate.getFullYear() === streakDate.getFullYear() &&
+          pDate.getMonth() === streakDate.getMonth() &&
+          pDate.getDate() === streakDate.getDate()
+        );
+      });
+
+      if (matchingPost) {
+        streakPostIds.add(matchingPost.id);
+      }
+    }
+  }
+
+  return streakPostIds;
+};
+
 export const CalendarView = ({
   posts,
   visible,
@@ -76,6 +110,11 @@ export const CalendarView = ({
     }
     return acc;
   }, {});
+  const streakPostIds = getStreakPostIds(posts);
+
+  const isStreakPost = (post: Post) => {
+    return streakPostIds.has(post.id);
+  };
   return (
     <Modal visible={visible} transparent>
       <TouchableOpacity style={styles.backdrop} onPress={onClose}>
@@ -115,6 +154,7 @@ export const CalendarView = ({
                           style={[
                             styles.dayThumb,
                             isToday(day) && styles.todayThumb,
+                            isStreakPost(postByDay[day]) && styles.streakThumb,
                           ]}
                         />
                       ) : (
@@ -218,6 +258,10 @@ const styles = StyleSheet.create({
   },
   todayCircle: {
     backgroundColor: "#007AFF",
+  },
+  streakThumb: {
+    borderWidth: 3,
+    borderColor: "#FF9500",
   },
   dayText: {
     fontSize: 14,

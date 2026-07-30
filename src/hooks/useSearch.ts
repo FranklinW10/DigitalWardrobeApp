@@ -7,6 +7,7 @@ export interface SearchUser {
   name: string;
   username: string;
   profile_image_url?: string;
+  streak?: number;
 }
 
 export const useSearch = () => {
@@ -23,7 +24,7 @@ export const useSearch = () => {
     try {
       const { data, error } = await supabase
         .from("profiles")
-        .select("id, name, username, profile_image_url")
+        .select("id, name, username, profile_image_url, streak")
         .or(`username.ilike.%${query}%,name.ilike.%${query}%`)
         .neq("id", user?.id) // exclude yourself
         .limit(20);

@@ -7,6 +7,7 @@ export interface PostUser {
   name: string;
   username: string;
   profile_image_url?: string;
+  streak: number;
 }
 export interface PostImage {
   id: string;
@@ -43,6 +44,7 @@ export interface Post {
   tags?: PostTag[]; // ← new
   post_date: string;
   ispostedontime: boolean;
+  streak: number;
 }
 export interface PostTagInput {
   location_x: number;
@@ -77,7 +79,7 @@ export const usePosts = () => {
         .select(
           `
                     *,
-                    profiles(id,name,username,profile_image_url),
+                    profiles(id,name,username,profile_image_url, streak),
                     images(id,post_id,image_url,order_index),
                     tags(*)
                     `,
@@ -119,7 +121,7 @@ export const usePosts = () => {
         .select(
           `
         *,
-        profiles(id, name, username, profile_image_url, isPrivate),
+        profiles(id, name, username, profile_image_url, isPrivate, streak),
         images(id, post_id, image_url, order_index),
         tags(*)
       `,
@@ -153,7 +155,7 @@ export const usePosts = () => {
         .select(
           `
                   *,
-                  profiles(id,name,username,profile_image_url),
+                  profiles(id,name,username,profile_image_url, streak),
                   images(id,post_id,image_url,order_index),
                   tags(*)
                   `,
@@ -200,7 +202,22 @@ export const usePosts = () => {
       throw new Error("User Not Authenticated");
     }
     try {
+      const todayStr = getLocalDateString();
+      let postStreak: number | null = null;
       if (isOutfitPost) {
+        const { data: existingTodayPosts, error: checkError } = await supabase
+          .from("posts")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("isoutfit_post", true)
+          .eq("post_date", todayStr);
+
+        if (checkError) {
+          console.error("Error checking today's post:", checkError);
+        }
+
+        const alreadyPostedToday = (existingTodayPosts ?? []).length > 0;
+
         const { error: deactivateError } = await supabase
           .from("posts")
           .update({ is_post_today: false, is_active: false })
@@ -210,6 +227,39 @@ export const usePosts = () => {
           .eq("isoutfit_post", true);
         if (deactivateError) {
           console.error("Error deactivating old posts:", deactivateError);
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("streak, max_streak")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError) {
+          console.error("Error fetching streak:", profileError);
+          throw profileError;
+        }
+        if (!alreadyPostedToday) {
+          const newStreak = (profile.streak ?? 0) + 1;
+          const newMaxStreak = Math.max(newStreak, profile.max_streak ?? 0);
+
+          const { error: streakError } = await supabase
+            .from("profiles")
+            .update({
+              streak: newStreak,
+              max_streak: newMaxStreak,
+            })
+            .eq("id", user.id);
+
+          if (streakError) {
+            console.error("Error updating streak:", streakError);
+            throw streakError;
+          }
+          postStreak = newStreak;
+        } else {
+          // Replacing today's post — the streak itself doesn't change,
+          // just carry the current value onto this post too.
+          postStreak = profile.streak ?? 0;
         }
       }
 
@@ -223,7 +273,8 @@ export const usePosts = () => {
           is_public: isPublic,
           isoutfit_post: isOutfitPost || false,
           is_post_today: true,
-          post_date: getLocalDateString(),
+          post_date: todayStr,
+          streak: postStreak,
         })
         .select()
         .single();

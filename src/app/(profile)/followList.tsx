@@ -1,3 +1,4 @@
+import { StreakAvatar } from "@/components/StreakAvatar";
 import { useAuth } from "@/context/AuthContext";
 import { useFollows } from "@/context/FollowsContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -5,8 +6,8 @@ import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
+
 import {
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -101,7 +102,8 @@ export default function followList() {
             id,
             username,
             profile_image_url,
-            name
+            name,
+            streak
         )
         `,
       )
@@ -124,7 +126,8 @@ export default function followList() {
             id,
             username,
             profile_image_url,
-            name
+            name,
+            streak
         )
         `,
       )
@@ -213,18 +216,15 @@ export default function followList() {
               style={styles.userRow}
               onPress={() => router.push(`/(profile)/${u.id}`)}
             >
-              {u.profile_image_url ? (
-                <Image
-                  source={{ uri: u.profile_image_url }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                  <Text style={styles.avatarText}>
-                    {u.name?.[0]?.toUpperCase() || "U"}
-                  </Text>
-                </View>
-              )}
+              <StreakAvatar
+                uri={u?.profile_image_url}
+                initial={u?.username?.[0]?.toUpperCase() || "U"}
+                streak={u?.streak ?? 0}
+                size={46}
+                colors={colors}
+                RING_WIDTH={2.7}
+                RING_GAP={2.1}
+              />
               <View style={styles.userInfo}>
                 <Text style={styles.name}>{u.name}</Text>
                 <Text style={styles.username}>@{u.username}</Text>
