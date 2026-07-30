@@ -1,4 +1,5 @@
 import { LikersSheet } from "@/components/LikerSheet";
+import { StreakAvatar } from "@/components/StreakAvatar";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Comment, useComments } from "@/hooks/useComments";
@@ -234,24 +235,15 @@ export const CommentsSheet = ({
               navigateToProfile(isOwnComment ? user?.id! : item.user_id)
             }
           >
-            {item.profiles?.profile_image_url ? (
-              <Image
-                source={{ uri: item.profiles.profile_image_url }}
-                style={isReply ? styles.replyAvatar : styles.avatar}
-                cachePolicy="memory"
-              />
-            ) : (
-              <View
-                style={[
-                  isReply ? styles.replyAvatar : styles.avatar,
-                  styles.avatarPlaceholder,
-                ]}
-              >
-                <Text style={styles.avatarText}>
-                  {item.profiles?.username?.[0]?.toUpperCase() || "U"}
-                </Text>
-              </View>
-            )}
+            <StreakAvatar
+              uri={item.profiles?.profile_image_url}
+              initial={item.profiles?.username?.[0]?.toUpperCase() || "U"}
+              streak={item.profiles?.streak ?? 0}
+              size={item.parent_comment_id ? 30 : 36}
+              colors={colors}
+              RING_WIDTH={1.5}
+              RING_GAP={1}
+            />
           </TouchableOpacity>
 
           <View style={styles.commentContent}>

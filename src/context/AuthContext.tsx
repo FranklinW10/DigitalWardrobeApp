@@ -18,6 +18,7 @@ export interface User {
   friendsStepCompleted?: boolean;
   PhoneAsked?: boolean;
   theme?: string; // Add this line to include the theme preference
+  streak?: number;
 }
 
 interface AuthContextType {
@@ -96,6 +97,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         friendsStepCompleted: data.friends_step_completed,
         PhoneAsked: data.PhoneAsked,
         theme: data.Theme, // Add this line to include the theme preference
+        streak: data.streak,
       };
     } catch (error) {
       console.error("Error in fethchUserProfile:", error);

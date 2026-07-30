@@ -1,5 +1,6 @@
 import { CommentsSheet } from "@/components/CommentSheet";
 import { LikersSheet } from "@/components/LikerSheet";
+import { StreakAvatar } from "@/components/StreakAvatar";
 import { useTheme } from "@/context/ThemeContext";
 import { useComments } from "@/hooks/useComments";
 import { useLikes } from "@/hooks/useLikes";
@@ -620,6 +621,15 @@ const LikeButton = ({
   </View>
 );
 
+// Replace getStreakColor with a two-color gradient per tier
+const getStreakGradient = (streak: number): [string, string] => {
+  if (streak >= 60) return ["#4FE3FF", "#0066FF"]; // electric blue — legendary
+  if (streak >= 30) return ["#D9B3FF", "#7B2FF7"]; // purple — epic
+  if (streak >= 14) return ["#FF8A8A", "#FF3B30"]; // red — hot
+  if (streak >= 7) return ["#FFB35C", "#FF6B35"]; // red-orange — warm
+  return ["#FFD866", "#FF9500"]; // orange — just starting
+};
+
 const PostActions = ({
   post,
   commentCount,
@@ -630,6 +640,7 @@ const PostActions = ({
   onLikeCountPress,
   colors,
   styles, // <-- Receive styles here
+  streak,
 }: any) => (
   <View style={styles.actions}>
     <LikeButton
@@ -645,6 +656,20 @@ const PostActions = ({
       <Text style={styles.actionCount}>{commentCount}</Text>
     </TouchableOpacity>
 
+    {streak >= 3 && (
+      <LinearGradient
+        colors={getStreakGradient(streak)}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[
+          styles.streakBadge,
+          { shadowColor: getStreakGradient(streak)[0] },
+        ]}
+      >
+        <Ionicons name="flame-outline" size={20} color="#fff" />
+        <Text style={styles.streakText}>{streak}</Text>
+      </LinearGradient>
+    )}
     <View style={{ marginLeft: "auto" }}>
       <SaveButton postId={post.id} color={colors.text} />
     </View>
@@ -669,6 +694,7 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
 
   // Generate the stylesheet dynamically using the current theme colors
   const styles = createStyles(colors);
+
   return (
     <>
       <View style={styles.postContainer}>
@@ -681,19 +707,13 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
             }
           >
             <View style={styles.userInfo}>
-              {postUser?.profile_image_url ? (
-                <Image
-                  cachePolicy={"memory-disk"}
-                  source={{ uri: postUser.profile_image_url }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                  <Text style={styles.avatarText}>
-                    {postUser?.name?.[0]?.toUpperCase() || "U"}
-                  </Text>
-                </View>
-              )}
+              <StreakAvatar
+                uri={postUser?.profile_image_url}
+                initial={postUser?.username?.[0]?.toUpperCase() || "U"}
+                streak={postUser?.streak ?? 0}
+                size={40}
+                colors={colors}
+              />
 
               <View>
                 <Text style={styles.username}>
@@ -730,6 +750,7 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
           }}
           colors={colors}
           styles={styles}
+          streak={post.streak ?? 0}
         />
       </View>
       <View style={styles.postFooter}>
@@ -829,19 +850,13 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
           }
         >
           <View style={styles.userInfo}>
-            {postUser?.profile_image_url ? (
-              <Image
-                cachePolicy="memory-disk"
-                source={{ uri: postUser.profile_image_url }}
-                style={styles.avatar}
-              />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Text style={styles.avatarText}>
-                  {postUser?.name?.[0]?.toUpperCase() || "U"}
-                </Text>
-              </View>
-            )}
+            <StreakAvatar
+              uri={postUser?.profile_image_url}
+              initial={postUser?.username?.[0]?.toUpperCase() || "U"}
+              streak={postUser?.streak ?? 0}
+              size={40}
+              colors={colors}
+            />
             <View>
               <Text style={styles.username}>
                 {isOwnPost ? "You" : `@${postUser?.username}`}
@@ -1041,19 +1056,13 @@ export const ModalPostCard = ({
             }}
           >
             <View style={styles.userInfo}>
-              {postUser?.profile_image_url ? (
-                <Image
-                  cachePolicy={"memory-disk"}
-                  source={{ uri: postUser.profile_image_url }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                  <Text style={styles.avatarText}>
-                    {postUser?.name?.[0]?.toUpperCase() || "U"}
-                  </Text>
-                </View>
-              )}
+              <StreakAvatar
+                uri={postUser?.profile_image_url}
+                initial={postUser?.username?.[0]?.toUpperCase() || "U"}
+                streak={postUser?.streak ?? 0}
+                size={40}
+                colors={colors}
+              />
 
               <View>
                 <Text style={styles.username}>
@@ -1087,6 +1096,7 @@ export const ModalPostCard = ({
           onLikeCountPress={() => onOpenLikers(post.id)}
           colors={colors}
           styles={styles}
+          streak={post.streak ?? 0}
         />
       </View>
       <View style={styles.postFooter}>
@@ -1175,19 +1185,13 @@ export const ModalHaulPostCard = ({
           }}
         >
           <View style={styles.userInfo}>
-            {postUser?.profile_image_url ? (
-              <Image
-                cachePolicy="memory-disk"
-                source={{ uri: postUser.profile_image_url }}
-                style={styles.avatar}
-              />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Text style={styles.avatarText}>
-                  {postUser?.name?.[0]?.toUpperCase() || "U"}
-                </Text>
-              </View>
-            )}
+            <StreakAvatar
+              uri={postUser?.profile_image_url}
+              initial={postUser?.username?.[0]?.toUpperCase() || "U"}
+              streak={postUser?.streak ?? 0}
+              size={40}
+              colors={colors}
+            />
             <View>
               <Text style={styles.username}>
                 {isOwnPost ? "You" : `@${postUser?.username}`}
@@ -1270,6 +1274,24 @@ export const ModalHaulPostCard = ({
 // ---- Dynamic Styles ----
 const createStyles = (colors: any) =>
   StyleSheet.create({
+    streakBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 20,
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.5,
+      shadowRadius: 4,
+      elevation: 2,
+      marginTop: -2,
+    },
+    streakText: {
+      fontSize: 13,
+      fontWeight: "700",
+      color: "#fff",
+    },
     explorePostContainer: {
       backgroundColor: colors.background,
       overflow: "hidden",
@@ -1388,7 +1410,7 @@ const createStyles = (colors: any) =>
       fontSize: 15,
       color: colors.text,
       marginBottom: 8,
-      marginTop: -4,
+      marginTop: -10,
       lineHeight: 20,
     },
     postInfo: {
@@ -1469,6 +1491,7 @@ const createStyles = (colors: any) =>
       paddingHorizontal: 12,
       paddingVertical: 8,
       gap: 16,
+      marginBottom: 4,
     },
     actionButton: {
       flexDirection: "row",

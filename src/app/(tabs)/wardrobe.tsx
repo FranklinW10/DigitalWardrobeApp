@@ -1,6 +1,7 @@
 import { CommentsSheet } from "@/components/CommentSheet";
 import { LikersSheet } from "@/components/LikerSheet";
 import { ModalHaulPostCard, ModalPostCard } from "@/components/PostCard";
+import { StreakFireBadge } from "@/components/steakBadge";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Liker } from "@/hooks/useLikes";
@@ -9,6 +10,7 @@ import { useSavedPosts } from "@/hooks/useSavedPosts";
 import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -43,6 +45,69 @@ const MONTHS = [
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const CELL_SIZE = Math.floor((SCREEN_WIDTH - 32) / 7);
+const getStreakGradient = (streak: number): [string, string] => {
+  if (streak >= 60) return ["#4FE3FF", "#0066FF"];
+  if (streak >= 30) return ["#D9B3FF", "#7B2FF7"];
+  if (streak >= 14) return ["#FF8A8A", "#FF3B30"];
+  if (streak >= 7) return ["#FFB35C", "#FF6B35"];
+  return ["#FFD866", "#FF9500"];
+};
+
+export const getStreakPostIds = (posts: Post[]) => {
+  const streakPostIds = new Set<string>();
+
+  const outfitPosts = posts.filter((p) => p.isoutfit_post);
+
+  for (const post of outfitPosts) {
+    const streak = Number(post.streak);
+
+    if (!streak || streak < 3) continue;
+
+    const postDate = new Date(post.created_at);
+
+    for (let i = 0; i < streak; i++) {
+      const streakDate = new Date(postDate);
+      streakDate.setDate(postDate.getDate() - i);
+
+      const matchingPost = outfitPosts.find((p) => {
+        const pDate = new Date(p.created_at);
+
+        return (
+          pDate.getFullYear() === streakDate.getFullYear() &&
+          pDate.getMonth() === streakDate.getMonth() &&
+          pDate.getDate() === streakDate.getDate()
+        );
+      });
+
+      if (matchingPost) {
+        streakPostIds.add(matchingPost.id);
+      }
+    }
+  }
+
+  return streakPostIds;
+};
+
+export const isStreakEnd = (post: Post, posts: Post[]) => {
+  if (!post.streak || post.streak < 3) return false;
+
+  const postDate = new Date(post.created_at);
+  const nextDay = new Date(postDate);
+  nextDay.setDate(postDate.getDate() + 1);
+
+  const hasContinuation = posts.some((p) => {
+    if (!p.isoutfit_post || !p.streak) return false;
+    const pDate = new Date(p.created_at);
+    return (
+      pDate.getFullYear() === nextDay.getFullYear() &&
+      pDate.getMonth() === nextDay.getMonth() &&
+      pDate.getDate() === nextDay.getDate() &&
+      p.streak === post.streak + 1
+    );
+  });
+
+  return !hasContinuation;
+};
 
 const MonthBlock = ({
   month,
@@ -50,18 +115,24 @@ const MonthBlock = ({
   postByDay,
   onSelectPost,
   onSelectEmptyDay,
+  isStreakPost,
+  streakEndIds,
 }: {
   month: number;
   year: number;
   postByDay: Record<number, Post>;
   onSelectPost: (post: Post) => void;
   onSelectEmptyDay: (date: Date) => void;
+  isStreakPost: (post: Post) => boolean;
+  streakEndIds: Set<string>;
 }) => {
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const today = new Date();
   const { colors } = useTheme();
   const styles = createStyles(colors);
+  const [labelsHeight, setLabelsHeight] = useState(0);
+
   const isToday = (day: number) =>
     day === today.getDate() &&
     month === today.getMonth() &&
@@ -72,7 +143,7 @@ const MonthBlock = ({
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ];
 
-  const rows = [];
+  const rows: (number | null)[][] = [];
   for (let i = 0; i < cells.length; i += 7) {
     rows.push(cells.slice(i, i + 7));
   }
@@ -83,72 +154,114 @@ const MonthBlock = ({
         {MONTHS[month]} {year}
       </Text>
 
-      <View style={styles.dayLabelsRow}>
-        {DAYS.map((d) => (
-          <Text key={d} style={styles.dayLabel}>
-            {d}
-          </Text>
-        ))}
-      </View>
-
-      {rows.map((row, ri) => (
-        <View key={ri} style={styles.row}>
-          {[...row, ...Array(7 - row.length).fill(null)].map((day, ci) => (
-            <TouchableOpacity
-              key={ci}
-              style={[styles.cell, { position: "relative" }]}
-              onPress={() => {
-                if (day && postByDay[day]) {
-                  onSelectPost(postByDay[day]);
-                }
-                if (day && !postByDay[day]) {
-                  onSelectEmptyDay(new Date(year, month, day));
-                }
-              }}
-              disabled={!day}
-            >
-              {day !== null && (
-                <>
-                  {postByDay[day] ? (
-                    <Image
-                      source={{
-                        uri:
-                          postByDay[day].images?.[0]?.image_url ??
-                          postByDay[day].image_url,
-                      }}
-                      style={[
-                        styles.dayThumb,
-                        isToday(day) && styles.todayThumb,
-                      ]}
-                      contentFit="cover"
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.dayCircle,
-                        isToday(day) && styles.todayCircle,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.dayText,
-                          isToday(day) && styles.todayText,
-                        ]}
-                      >
-                        {day}
-                      </Text>
-                    </View>
-                  )}
-                  {/* Always show day number on top of image
-                  {postByDay[day] && (
-                    <Text style={styles.dayOverlay}>{day}</Text>
-                  )} */}
-                </>
-              )}
-            </TouchableOpacity>
+      <View style={{ position: "relative" }}>
+        <View
+          style={styles.dayLabelsRow}
+          onLayout={(e) => setLabelsHeight(e.nativeEvent.layout.height)}
+        >
+          {DAYS.map((d) => (
+            <Text key={d} style={styles.dayLabel}>
+              {d}
+            </Text>
           ))}
         </View>
-      ))}
+
+        {rows.map((row, ri) => (
+          <View key={ri} style={styles.row}>
+            {[...row, ...Array(7 - row.length).fill(null)].map((day, ci) => (
+              <TouchableOpacity
+                key={ci}
+                style={[styles.cell, { position: "relative" }]}
+                onPress={() => {
+                  if (day && postByDay[day]) {
+                    onSelectPost(postByDay[day]);
+                  }
+                  if (day && !postByDay[day]) {
+                    onSelectEmptyDay(new Date(year, month, day));
+                  }
+                }}
+                disabled={!day}
+              >
+                {day !== null && (
+                  <View style={styles.imageWrapper}>
+                    {postByDay[day] ? (
+                      isStreakPost(postByDay[day]) ? (
+                        <LinearGradient
+                          colors={getStreakGradient(
+                            Number(postByDay[day].streak),
+                          )}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={[styles.streakThumbWrapper]}
+                        >
+                          <Image
+                            source={{
+                              uri:
+                                postByDay[day].images?.[0]?.image_url ??
+                                postByDay[day].image_url,
+                            }}
+                            style={styles.streakThumbImage}
+                          />
+                        </LinearGradient>
+                      ) : (
+                        <Image
+                          source={{
+                            uri:
+                              postByDay[day].images?.[0]?.image_url ??
+                              postByDay[day].image_url,
+                          }}
+                          style={[
+                            styles.dayThumb,
+                            isToday(day) && styles.todayThumb,
+                          ]}
+                          contentFit="cover"
+                        />
+                      )
+                    ) : (
+                      <View
+                        style={[
+                          styles.dayCircle,
+                          isToday(day) && styles.todayCircle,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.dayText,
+                            isToday(day) && styles.todayText,
+                          ]}
+                        >
+                          {day}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        ))}
+
+        {rows.map((row, ri) =>
+          row.map((day, ci) => {
+            if (!day || !postByDay[day] || !streakEndIds.has(postByDay[day].id))
+              return null;
+            return (
+              <View
+                key={`badge-${ri}-${ci}`}
+                pointerEvents="none"
+                style={{
+                  position: "absolute",
+                  left: 8 + ci * CELL_SIZE + CELL_SIZE - 3,
+                  top: labelsHeight + ri * CELL_SIZE + CELL_SIZE - 6,
+                  zIndex: 50,
+                }}
+              >
+                <StreakFireBadge streak={postByDay[day].streak} />
+              </View>
+            );
+          }),
+        )}
+      </View>
     </View>
   );
 };
@@ -494,6 +607,15 @@ export default function WardrobeScreen() {
     setCommentPostId(postId);
     setCommentPostOwnerId(postOwnerId);
   };
+  const streakPostIds = getStreakPostIds(posts ?? []);
+
+  const isStreakPost = (post: Post) => {
+    return streakPostIds.has(post.id);
+  };
+
+  const streakEndIds = new Set(
+    posts.filter((p) => isStreakEnd(p, posts)).map((p) => p.id),
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -619,6 +741,8 @@ export default function WardrobeScreen() {
                 postByDay={getPostByDay(month, year)}
                 onSelectPost={setSelectedPost}
                 onSelectEmptyDay={handleSelectEmptyDay}
+                isStreakPost={isStreakPost}
+                streakEndIds={streakEndIds}
               />
             ))}
             <View style={styles.whitespace} />
@@ -1110,7 +1234,7 @@ const createStyles = (colors: any) =>
       flexDirection: "row",
       flexWrap: "wrap",
       borderRadius: 8,
-      overflow: "hidden",
+      overflow: "visible",
     },
     collectionPreviewImage: {
       width: 32,
@@ -1417,6 +1541,10 @@ const createStyles = (colors: any) =>
       fontWeight: "300",
       color: colors.text,
     },
+    imageWrapper: {
+      position: "relative",
+      overflow: "visible",
+    },
     monthBlock: {
       paddingHorizontal: 8,
       paddingBottom: 24,
@@ -1440,6 +1568,18 @@ const createStyles = (colors: any) =>
       fontSize: 14,
       color: colors.text,
     },
+    streakThumbWrapper: {
+      width: CELL_SIZE - 6,
+      height: CELL_SIZE - 6,
+      borderRadius: 10,
+      padding: 2.5,
+    },
+
+    streakThumbImage: {
+      width: "100%",
+      height: "100%",
+      borderRadius: 7,
+    },
     tab: { flex: 1, paddingVertical: 12, alignItems: "center" },
     tabText: { fontSize: 15, fontWeight: "500", color: colors.textMuted },
     tabTextActive: { color: colors.text, fontWeight: "700" },
@@ -1453,6 +1593,30 @@ const createStyles = (colors: any) =>
     savedCollectionHeader: {
       paddingHorizontal: 16,
       paddingVertical: 12,
+    },
+
+    streakCornerBadge: {
+      position: "absolute",
+      right: 2,
+      bottom: 2,
+      width: 28,
+      height: 32,
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 10,
+      elevation: 10,
+    },
+
+    streakCornerText: {
+      position: "absolute",
+      color: "#fff",
+      fontSize: 10,
+      fontWeight: "800",
+      top: 9,
+      textAlign: "center",
+      textShadowColor: "rgba(0,0,0,0.6)",
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
     },
     backText: {
       fontSize: 24,

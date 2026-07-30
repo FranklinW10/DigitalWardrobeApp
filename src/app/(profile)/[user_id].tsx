@@ -1,5 +1,7 @@
 import { CommentsSheet } from "@/components/CommentSheet";
 import { LikersSheet } from "@/components/LikerSheet";
+import { StreakFireBadge } from "@/components/profileStreak";
+import { StreakAvatar } from "@/components/StreakAvatar";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Liker } from "@/hooks/useLikes";
@@ -13,7 +15,6 @@ import { useFollows } from "@/context/FollowsContext";
 import { Post } from "@/hooks/usePosts";
 import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -38,6 +39,7 @@ interface ProfileUser {
   name: string;
   username: string;
   profile_image_url?: string;
+  streak?: number;
 }
 
 export default function UserProfileScreen() {
@@ -132,7 +134,7 @@ export default function UserProfileScreen() {
       // Load profile
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id, name, username, profile_image_url, isPrivate")
+        .select("id, name, username, profile_image_url, isPrivate, streak")
         .eq("id", user_id)
         .single();
       if (profileError) throw profileError;
@@ -296,17 +298,22 @@ export default function UserProfileScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             {/* Avatar */}
-            {profileUser?.profile_image_url ? (
-              <Image
-                source={{ uri: profileUser.profile_image_url }}
-                style={styles.avatar}
+            <StreakAvatar
+              uri={profileUser?.profile_image_url}
+              initial={profileUser?.username?.[0]?.toUpperCase() || "U"}
+              streak={profileUser?.streak ?? 0}
+              size={90}
+              colors={colors}
+              RING_WIDTH={3.3}
+              RING_GAP={2.75}
+            />
+            {(profileUser?.streak ?? 0) >= 3 && (
+              <StreakFireBadge
+                streak={profileUser?.streak ?? 0}
+                size={44}
+                offsetY={250}
+                offsetX={140}
               />
-            ) : (
-              <View style={[styles.profileImage, styles.avatarPlaceholder]}>
-                <Text style={styles.avatarText}>
-                  {profileUser?.name?.[0]?.toUpperCase() || "U"}
-                </Text>
-              </View>
             )}
 
             {/* Name + username */}
@@ -466,6 +473,7 @@ const createStyles = (colors: any) =>
       color: colors.textMuted,
     },
     name: {
+      marginTop: 12,
       fontSize: 20,
       fontWeight: "700",
       color: colors.text,

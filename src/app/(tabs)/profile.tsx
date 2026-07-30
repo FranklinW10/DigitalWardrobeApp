@@ -1,10 +1,15 @@
 import { CommentsSheet } from "@/components/CommentSheet";
 import { LikersSheet } from "@/components/LikerSheet";
+import { MaxStreakBadge } from "@/components/MaxStreakBadge";
 import {
   ModalHaulPostCard,
   ModalPostCard,
   ProfilePostCard,
 } from "@/components/PostCard";
+import { StreakFireBadge } from "@/components/profileStreak";
+import { StreakAvatar } from "@/components/StreakAvatar";
+import { SuperBadge } from "@/components/SuperBadge";
+import { TotalLikesBadge } from "@/components/TotalLikesBadge";
 import { palettes, themeMeta, ThemeName } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -22,6 +27,7 @@ import { Keyboard, KeyboardAvoidingView, Platform } from "react-native";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Dimensions,
   FlatList,
   Modal,
@@ -44,6 +50,8 @@ interface ProfileUser {
   username: string;
   profile_image_url?: string;
   phone?: string;
+  streak?: number;
+  maxStreak?: number;
 }
 
 export default function Profile() {
@@ -92,8 +100,20 @@ export default function Profile() {
   );
   const { colors, setTheme } = useTheme();
 
-  // Generate the stylesheet dynamically using the current theme colors
   const styles = createStyles(colors);
+  const [showBadges, setShowBadges] = useState(false);
+  const statSlide = useRef(new Animated.Value(0)).current;
+  const [statBarWidth, setStatBarWidth] = useState(0);
+  const ARROW_SIZE = 26;
+
+  const toggleStatBar = () => {
+    Animated.timing(statSlide, {
+      toValue: showBadges ? 0 : 1,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+    setShowBadges((prev) => !prev);
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -120,7 +140,7 @@ export default function Profile() {
     setIsLoadingLikers(true);
     const { data } = await supabase
       .from("likes")
-      .select("user_id, profiles(username, name, profile_image_url)")
+      .select("user_id, profiles(username, name, profile_image_url, streak)")
       .eq("post_id", postId);
     setLikers((data as any) ?? []);
     setIsLoadingLikers(false);
@@ -219,11 +239,15 @@ export default function Profile() {
       // Load profile
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id, name, username, profile_image_url")
+        .select("id, name, username, profile_image_url, streak, max_streak")
         .eq("id", user?.id)
         .single();
       if (profileError) throw profileError;
-      setProfileUser(profile);
+      setProfileUser({
+        ...profile,
+        maxStreak: profile.max_streak,
+      });
+      console.log(profile);
 
       // Load posts
       const { data: postsData, error: postsError } = await supabase
@@ -502,28 +526,27 @@ export default function Profile() {
                 disabled={isUpdating}
               >
                 <View>
-                  {user?.profileImage ? (
-                    <Image
-                      source={{ uri: user.profileImage }}
-                      style={styles.profileImage}
-                      cachePolicy={"memory-disk"}
-                    />
-                  ) : (
-                    <View
-                      style={[
-                        styles.profileImage,
-                        styles.profileImagePlaceholder,
-                      ]}
-                    >
-                      <Text style={styles.profileImageText}>
-                        {user?.name?.[0]?.toUpperCase() || "U"}
-                      </Text>
-                    </View>
-                  )}
+                  <StreakAvatar
+                    uri={user?.profileImage}
+                    initial={user?.username?.[0]?.toUpperCase() || "U"}
+                    streak={user?.streak ?? 0}
+                    size={110}
+                    colors={colors}
+                    RING_WIDTH={3.5}
+                    RING_GAP={2.9}
+                  />
+                  <View style={styles.padding} />
 
                   <View style={styles.editBadge}>
                     <Text style={styles.editBadgeText}>Edit</Text>
                   </View>
+                  {(user?.streak ?? 0) >= 3 && (
+                    <StreakFireBadge
+                      streak={user?.streak ?? 0}
+                      size={44}
+                      offsetY={20}
+                    />
+                  )}
                 </View>
               </TouchableOpacity>
 
@@ -532,37 +555,90 @@ export default function Profile() {
               <Text style={styles.username}>@{profileUser?.username}</Text>
 
               {/* Follower counts */}
-              <View style={styles.statsRow}>
-                <TouchableOpacity
-                  onPress={() => {
-                    router.push({
-                      pathname: "/(profile)/followList",
-                      params: { initialTab: "followers" },
-                    });
-                  }}
+              {/* replaces your existing statsRow block */}
+              <View style={styles.statBarRow}>
+                <View style={{ width: ARROW_SIZE }} />
+                <View
+                  style={styles.statBarClip}
+                  onLayout={(e) => setStatBarWidth(e.nativeEvent.layout.width)}
                 >
-                  <View style={styles.stat}>
-                    <Text style={styles.statNumber}>{followerCount}</Text>
-                    <Text style={styles.statLabel}>Followers</Text>
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => {
-                    router.push({
-                      pathname: "/(profile)/followList",
-                      params: { initialTab: "following" },
-                    });
-                  }}
-                >
-                  <View style={styles.stat}>
-                    <Text style={styles.statNumber}>{followingCount}</Text>
-                    <Text style={styles.statLabel}>Following</Text>
-                  </View>
-                </TouchableOpacity>
-                <View style={styles.stat}>
-                  <Text style={styles.statNumber}>{posts.length}</Text>
-                  <Text style={styles.statLabel}>Posts</Text>
+                  {statBarWidth > 0 && (
+                    <Animated.View
+                      style={[
+                        styles.statBarTrack,
+                        {
+                          width: statBarWidth * 2,
+                          transform: [
+                            {
+                              translateX: statSlide.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [0, -statBarWidth],
+                              }),
+                            },
+                          ],
+                        },
+                      ]}
+                    >
+                      <View style={[styles.statsRow, { width: statBarWidth }]}>
+                        <TouchableOpacity
+                          onPress={() =>
+                            router.push({
+                              pathname: "/(profile)/followList",
+                              params: { initialTab: "followers" },
+                            })
+                          }
+                        >
+                          <View style={styles.stat}>
+                            <Text style={styles.statNumber}>
+                              {followerCount}
+                            </Text>
+                            <Text style={styles.statLabel}>Followers</Text>
+                          </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() =>
+                            router.push({
+                              pathname: "/(profile)/followList",
+                              params: { initialTab: "following" },
+                            })
+                          }
+                        >
+                          <View style={styles.stat}>
+                            <Text style={styles.statNumber}>
+                              {followingCount}
+                            </Text>
+                            <Text style={styles.statLabel}>Following</Text>
+                          </View>
+                        </TouchableOpacity>
+                        <View style={styles.stat}>
+                          <Text style={styles.statNumber}>{posts.length}</Text>
+                          <Text style={styles.statLabel}>Posts</Text>
+                        </View>
+                      </View>
+                      <View style={{ width: ARROW_SIZE * 0.33 }} />
+                      <View style={[styles.badgeRow, { width: statBarWidth }]}>
+                        <MaxStreakBadge streak={profileUser?.maxStreak ?? 0} />
+                        <SuperBadge streak={4} />
+                        <TotalLikesBadge likes={4} />
+                      </View>
+                    </Animated.View>
+                  )}
                 </View>
+
+                <TouchableOpacity
+                  onPress={toggleStatBar}
+                  style={styles.statBarArrow}
+                  hitSlop={8}
+                >
+                  <Ionicons
+                    name="chevron-forward"
+                    size={16}
+                    color={colors.textMuted}
+                    style={{
+                      transform: [{ rotate: showBadges ? "180deg" : "0deg" }],
+                    }}
+                  />
+                </TouchableOpacity>
               </View>
 
               {/* Follow button */}
@@ -1077,6 +1153,7 @@ const createStyles = (colors: any) =>
       color: colors.textMuted,
     },
     editBadge: {
+      marginTop: 16,
       position: "absolute",
       bottom: 10,
       left: "50%",
@@ -1085,6 +1162,43 @@ const createStyles = (colors: any) =>
       paddingHorizontal: 12,
       paddingVertical: 6,
       borderRadius: 16,
+    },
+
+    // add to createStyles, and tweak statsRow/badgeRow slightly (marginBottom moves to statBarRow)
+    statBarRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    statBarClip: {
+      flex: 1,
+      overflow: "hidden",
+    },
+    statBarTrack: {
+      flexDirection: "row",
+    },
+    statBarArrow: {
+      width: 26,
+      height: 26,
+      borderRadius: 13,
+
+      alignItems: "center",
+      justifyContent: "center",
+      marginLeft: 8,
+    },
+    statsRow: {
+      flexDirection: "row",
+      justifyContent: "center",
+      gap: 32,
+    },
+    badgeRow: {
+      flexDirection: "row",
+      justifyContent: "center",
+      gap: 12,
+    },
+
+    padding: {
+      padding: 7,
     },
     editEditBadge: {
       position: "absolute",
@@ -1196,11 +1310,11 @@ const createStyles = (colors: any) =>
       fontWeight: "600",
       color: colors.text,
     },
-    statsRow: {
-      flexDirection: "row",
-      gap: 32,
-      marginBottom: 16,
-    },
+    // statsRow: {
+    //   flexDirection: "row",
+    //   gap: 32,
+    //   marginBottom: 16,
+    // },
     stat: {
       alignItems: "center",
     },

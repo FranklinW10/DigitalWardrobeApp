@@ -1,5 +1,7 @@
 import { CommentsSheet } from "@/components/CommentSheet";
 import { LikersSheet } from "@/components/LikerSheet";
+import { StreakAvatar } from "@/components/StreakAvatar";
+
 import {
   ExplorePostCard,
   ModalHaulPostCard,
@@ -14,7 +16,6 @@ import { SearchUser, useSearch } from "@/hooks/useSearch";
 import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Image } from "expo-image";
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -137,15 +138,15 @@ export default function SearchScreen() {
       style={styles.userRow}
       onPress={() => handleSelectUser(item)}
     >
-      {item.profile_image_url ? (
-        <Image source={{ uri: item.profile_image_url }} style={styles.avatar} />
-      ) : (
-        <View style={[styles.avatar, styles.avatarPlaceholder]}>
-          <Text style={styles.avatarText}>
-            {item.name?.[0]?.toUpperCase() || "U"}
-          </Text>
-        </View>
-      )}
+      <StreakAvatar
+        uri={item.profile_image_url}
+        initial={item.username?.[0]?.toUpperCase() || "U"}
+        streak={item.streak ?? 0}
+        size={46}
+        colors={colors}
+        RING_WIDTH={2.5}
+        RING_GAP={2}
+      />
       <View style={styles.userInfo}>
         <Text style={styles.name}>{item.name}</Text>
         <Text style={styles.username}>@{item.username}</Text>

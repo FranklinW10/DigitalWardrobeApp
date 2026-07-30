@@ -12,6 +12,7 @@ export interface Comment {
   profiles: {
     username: string;
     profile_image_url: string | null;
+    streak: number;
   };
   like_count: number;
   is_liked: boolean;
@@ -31,7 +32,7 @@ export const useComments = (postId: string) => {
   const fetchComments = async () => {
     const { data, error } = await supabase
       .from("comments")
-      .select("*, profiles(username, profile_image_url)")
+      .select("*, profiles(username, profile_image_url, streak)")
       .eq("post_id", postId)
       .order("created_at", { ascending: true });
 
@@ -116,7 +117,7 @@ export const useComments = (postId: string) => {
         content,
         parent_comment_id: parentCommentId ?? null,
       })
-      .select("*, profiles(username, profile_image_url)")
+      .select("*, profiles(username, profile_image_url, streak)")
       .single();
 
     if (error || !data) {

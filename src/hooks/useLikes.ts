@@ -8,6 +8,7 @@ export interface Liker {
     username: string;
     name: string;
     profile_image_url?: string;
+    streak?: number;
   };
 }
 
@@ -26,7 +27,7 @@ export const useLikes = (postId: string, currentUserId?: string) => {
     setIsLoadingLikers(true);
     const { data, error } = await supabase
       .from("likes")
-      .select("user_id, profiles(username, name, profile_image_url)")
+      .select("user_id, profiles(username, name, profile_image_url, streak)")
       .eq("post_id", postId);
     console.log("likers data:", data);
     console.log("likers error:", error);
