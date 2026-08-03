@@ -22,7 +22,12 @@ import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { Keyboard, KeyboardAvoidingView, Platform } from "react-native";
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+} from "react-native";
 
 import {
   ActivityIndicator,
@@ -80,6 +85,7 @@ export default function Profile() {
   const filteredPosts = posts.filter((post) =>
     activeTab === "fits" ? post.isoutfit_post : !post.isoutfit_post,
   );
+  const [totalLikes, setTotalLikes] = useState(0);
   const [likerPostId, setLikerPostId] = useState<string | null>(null);
   const tabScrollRef = useRef<ScrollView>(null); // tab pager
   const [showOptions, setShowOptions] = useState(false);
@@ -274,6 +280,13 @@ export default function Profile() {
         .eq("follower_id", user?.id)
         .eq("status", true);
       setFollowingCount(following ?? 0);
+      // Load total likes across all of this user's posts
+      const { count: likesCount, error: likesError } = await supabase
+        .from("likes")
+        .select("*, posts!inner(user_id)", { count: "exact", head: true })
+        .eq("posts.user_id", user?.id);
+      if (likesError) throw likesError;
+      setTotalLikes(likesCount ?? 0);
     } catch (error) {
       console.error("Error loading profile:", error);
     } finally {
@@ -435,46 +448,41 @@ export default function Profile() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {selectedPost && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <TouchableWithoutFeedback onPress={() => setSelectedPost(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {selectedPost.isoutfit_post ? (
+                <ModalPostCard
+                  post={selectedPost}
+                  currentUserId={user?.id}
+                  onNavigateAway={() => setSelectedPost(null)}
+                  onOpenComments={handleOpenComments}
+                  onOpenLikers={handleOpenLikers}
+                />
+              ) : (
+                <ModalHaulPostCard
+                  post={selectedPost}
+                  currentUserId={user?.id}
+                  onNavigateAway={() => setSelectedPost(null)}
+                  onOpenComments={handleOpenComments}
+                  onOpenLikers={handleOpenLikers}
+                />
+              )}
+            </View>
             <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setSelectedPost(null)}
+              style={styles.exploreButton}
+              onPress={() => {
+                if (selectedPost.ispostedontime === false) {
+                  handleOldPostOptions(selectedPost);
+                } else {
+                  handlePostOptions(selectedPost);
+                }
+              }}
             >
-              <Text style={styles.closeText}>✕</Text>
+              <Text style={styles.exploreButtonText}>Post Options</Text>
             </TouchableOpacity>
-
-            {selectedPost.isoutfit_post ? (
-              <ModalPostCard
-                post={selectedPost}
-                currentUserId={user?.id}
-                onNavigateAway={() => setSelectedPost(null)}
-                onOpenComments={handleOpenComments}
-                onOpenLikers={handleOpenLikers}
-              />
-            ) : (
-              <ModalHaulPostCard
-                post={selectedPost}
-                currentUserId={user?.id}
-                onNavigateAway={() => setSelectedPost(null)}
-                onOpenComments={handleOpenComments}
-                onOpenLikers={handleOpenLikers}
-              />
-            )}
           </View>
-          <TouchableOpacity
-            style={styles.exploreButton}
-            onPress={() => {
-              if (selectedPost.ispostedontime === false) {
-                handleOldPostOptions(selectedPost);
-              } else {
-                handlePostOptions(selectedPost);
-              }
-            }}
-          >
-            <Text style={styles.exploreButtonText}>Post Options</Text>
-          </TouchableOpacity>
-        </View>
+        </TouchableWithoutFeedback>
       )}
 
       <CommentsSheet
@@ -557,7 +565,7 @@ export default function Profile() {
               {/* Follower counts */}
               {/* replaces your existing statsRow block */}
               <View style={styles.statBarRow}>
-                <View style={{ width: ARROW_SIZE }} />
+                <View style={{ width: ARROW_SIZE * 0.6 }} />
                 <View
                   style={styles.statBarClip}
                   onLayout={(e) => setStatBarWidth(e.nativeEvent.layout.width)}
@@ -615,11 +623,11 @@ export default function Profile() {
                           <Text style={styles.statLabel}>Posts</Text>
                         </View>
                       </View>
-                      <View style={{ width: ARROW_SIZE * 0.33 }} />
+                      <View style={{ width: ARROW_SIZE * 0.3 }} />
                       <View style={[styles.badgeRow, { width: statBarWidth }]}>
                         <MaxStreakBadge streak={profileUser?.maxStreak ?? 0} />
-                        <SuperBadge streak={4} />
-                        <TotalLikesBadge likes={4} />
+                        <SuperBadge streak={0} />
+                        <TotalLikesBadge likes={totalLikes} />
                       </View>
                     </Animated.View>
                   )}
@@ -1172,7 +1180,6 @@ const createStyles = (colors: any) =>
     },
     statBarClip: {
       flex: 1,
-      overflow: "hidden",
     },
     statBarTrack: {
       flexDirection: "row",

@@ -23,6 +23,7 @@ import {
   StyleSheet,
   Text,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -231,34 +232,29 @@ export default function UserProfileScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {selectedPost && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity
-              style={styles.modalcloseButton}
-              onPress={() => setSelectedPost(null)}
-            >
-              <Text style={styles.modalcloseText}>✕</Text>
-            </TouchableOpacity>
-
-            {selectedPost.isoutfit_post ? (
-              <ModalPostCard
-                post={selectedPost}
-                currentUserId={user?.id}
-                onNavigateAway={() => setSelectedPost(null)}
-                onOpenComments={handleOpenComments}
-                onOpenLikers={handleOpenLikers}
-              />
-            ) : (
-              <ModalHaulPostCard
-                post={selectedPost}
-                currentUserId={user?.id}
-                onNavigateAway={() => setSelectedPost(null)}
-                onOpenComments={handleOpenComments}
-                onOpenLikers={handleOpenLikers}
-              />
-            )}
+        <TouchableWithoutFeedback onPress={() => setSelectedPost(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {selectedPost.isoutfit_post ? (
+                <ModalPostCard
+                  post={selectedPost}
+                  currentUserId={user?.id}
+                  onNavigateAway={() => setSelectedPost(null)}
+                  onOpenComments={handleOpenComments}
+                  onOpenLikers={handleOpenLikers}
+                />
+              ) : (
+                <ModalHaulPostCard
+                  post={selectedPost}
+                  currentUserId={user?.id}
+                  onNavigateAway={() => setSelectedPost(null)}
+                  onOpenComments={handleOpenComments}
+                  onOpenLikers={handleOpenLikers}
+                />
+              )}
+            </View>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       )}
 
       <CommentsSheet

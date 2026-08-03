@@ -54,6 +54,7 @@ export const useLikes = (postId: string, currentUserId?: string) => {
   };
 
   const toggleLike = async () => {
+    console.log("toggleLike called");
     if (!user) return;
 
     try {
@@ -71,15 +72,6 @@ export const useLikes = (postId: string, currentUserId?: string) => {
           .eq("post_id", postId)
           .eq("user_id", user.id);
 
-        if (post.user_id !== user.id) {
-          await supabase
-            .from("notifications")
-            .delete()
-            .eq("recipient_id", post.user_id)
-            .eq("actor_id", user.id)
-            .eq("post_id", postId)
-            .eq("type", "like");
-        }
         setLikeCount((likeCount) => likeCount - 1);
         setIsLiked(false);
       } else {
@@ -95,12 +87,31 @@ export const useLikes = (postId: string, currentUserId?: string) => {
           .eq("id", postId)
           .single();
         if (post && post.user_id !== user.id) {
-          await supabase.from("notifications").insert({
-            recipient_id: post.user_id, // you'll need to pass this in
-            actor_id: currentUserId,
-            type: "like",
-            post_id: postId,
+          console.log({
+            recipient: post.user_id,
+            actor: user.id,
+            postId,
           });
+          const { data: existing } = await supabase
+
+            .from("notifications")
+            .select("id")
+            .eq("recipient_id", post.user_id)
+            .eq("actor_id", user.id)
+            .eq("post_id", postId)
+            .eq("type", "like")
+            .limit(1);
+          console.log("existing notification:", existing);
+
+          if (existing?.length === 0) {
+            console.log("INSERTING notification");
+            await supabase.from("notifications").insert({
+              recipient_id: post.user_id,
+              actor_id: user.id,
+              type: "like",
+              post_id: postId,
+            });
+          }
         }
       }
     } catch (error) {

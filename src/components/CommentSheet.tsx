@@ -7,6 +7,7 @@ import { Liker } from "@/hooks/useLikes";
 import { formatTimeAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { Alert } from "react-native";
 
 import {
   BottomSheetFlatList,
@@ -283,7 +284,23 @@ export const CommentsSheet = ({
               {item.user_id === user?.id && (
                 <TouchableOpacity
                   style={styles.actionRowItem}
-                  onPress={() => deleteComment(item.id)}
+                  onPress={() =>
+                    Alert.alert(
+                      "Delete Comment",
+                      "Are you sure you would like to delete this comment?",
+                      [
+                        {
+                          text: "Cancel",
+                          style: "cancel",
+                        },
+                        {
+                          text: "Delete",
+                          style: "destructive",
+                          onPress: () => deleteComment(item.id),
+                        },
+                      ],
+                    )
+                  }
                   hitSlop={6}
                 >
                   <Text style={styles.actionRowText}>Delete</Text>

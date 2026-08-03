@@ -109,6 +109,7 @@ export default function NotificationsScreen() {
     // commented, not the profile containing the post — so these always route
     // to your own profile with the target post + comments sheet flagged,
     // rather than to the actor's profile like other notification types.
+    console.log("notiPress", item);
     if (
       ["comment", "comment_like", "comment_reply"].includes(item.type) &&
       item.post_id

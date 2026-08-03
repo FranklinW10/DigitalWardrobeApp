@@ -1,12 +1,11 @@
 import { CommentsSheet } from "@/components/CommentSheet";
 import { LikersSheet } from "@/components/LikerSheet";
-import { StreakAvatar } from "@/components/StreakAvatar";
-
 import {
   ExplorePostCard,
   ModalHaulPostCard,
   ModalPostCard,
 } from "@/components/PostCard";
+import { StreakAvatar } from "@/components/StreakAvatar";
 import { useAuth } from "@/context/AuthContext";
 import { useFollows } from "@/context/FollowsContext";
 import { useTheme } from "@/context/ThemeContext";
@@ -27,6 +26,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -211,58 +211,60 @@ export default function SearchScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {selectedPost && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <TouchableWithoutFeedback onPress={() => setSelectedPost(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {selectedPost.isoutfit_post ? (
+                <ModalPostCard
+                  post={selectedPost}
+                  currentUserId={user?.id}
+                  onNavigateAway={() => setSelectedPost(null)}
+                  onOpenComments={handleOpenComments}
+                  onOpenLikers={handleOpenLikers}
+                />
+              ) : (
+                <ModalHaulPostCard
+                  post={selectedPost}
+                  currentUserId={user?.id}
+                  onNavigateAway={() => setSelectedPost(null)}
+                  onOpenComments={handleOpenComments}
+                  onOpenLikers={handleOpenLikers}
+                />
+              )}
+            </View>
             <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setSelectedPost(null)}
+              style={styles.exploreButton}
+              onPress={() => {
+                (setSelectedPost(null),
+                  router.push("/(profile)/exploreScroll"));
+              }}
             >
-              <Text style={styles.closeText}>✕</Text>
+              <Ionicons
+                name="grid-outline"
+                size={16}
+                color={colors.background}
+              />
+              <Text style={styles.exploreButtonText}>
+                Scroll Explore Posts →
+              </Text>
             </TouchableOpacity>
-
-            {selectedPost.isoutfit_post ? (
-              <ModalPostCard
-                post={selectedPost}
-                currentUserId={user?.id}
-                onNavigateAway={() => setSelectedPost(null)}
-                onOpenComments={handleOpenComments}
-                onOpenLikers={handleOpenLikers}
-              />
-            ) : (
-              <ModalHaulPostCard
-                post={selectedPost}
-                currentUserId={user?.id}
-                onNavigateAway={() => setSelectedPost(null)}
-                onOpenComments={handleOpenComments}
-                onOpenLikers={handleOpenLikers}
-              />
-            )}
+            <CommentsSheet
+              postId={commentPostId ?? ""}
+              postOwnerId={commentPostOwnerId ?? ""}
+              visible={commentPostId !== null}
+              onClose={() => {
+                setCommentPostId(null);
+                setCommentPostOwnerId(null);
+              }}
+            />
+            <LikersSheet
+              likers={likers}
+              isLoading={isLoadingLikers}
+              visible={likerPostId !== null}
+              onClose={() => setLikerPostId(null)}
+            />
           </View>
-          <TouchableOpacity
-            style={styles.exploreButton}
-            onPress={() => {
-              (setSelectedPost(null), router.push("/(profile)/exploreScroll"));
-            }}
-          >
-            <Ionicons name="grid-outline" size={16} color={colors.background} />
-            <Text style={styles.exploreButtonText}>Scroll Explore Posts →</Text>
-          </TouchableOpacity>
-          <CommentsSheet
-            postId={commentPostId ?? ""}
-            postOwnerId={commentPostOwnerId ?? ""}
-            visible={commentPostId !== null}
-            onClose={() => {
-              setCommentPostId(null);
-              setCommentPostOwnerId(null);
-            }}
-          />
-          <LikersSheet
-            likers={likers}
-            isLoading={isLoadingLikers}
-            visible={likerPostId !== null}
-            onClose={() => setLikerPostId(null)}
-          />
-        </View>
+        </TouchableWithoutFeedback>
       )}
 
       <View style={styles.searchRow}>
