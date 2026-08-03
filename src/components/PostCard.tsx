@@ -867,6 +867,7 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
               </View>
               <TouchableOpacity
                 style={styles.postOptions}
+                hitSlop={15}
                 onPress={handleOptionsPress}
               >
                 <Ionicons
@@ -1108,6 +1109,7 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
             </View>
             <TouchableOpacity
               style={styles.postOptions}
+              hitSlop={15}
               onPress={handleOptionsPress}
             >
               <Ionicons
@@ -1414,6 +1416,7 @@ export const ModalPostCard = ({
               </View>
               <TouchableOpacity
                 style={styles.postOptions}
+                hitSlop={15}
                 onPress={handleOptionsPress}
               >
                 <Ionicons
@@ -1640,6 +1643,7 @@ export const ModalHaulPostCard = ({
             </View>
             <TouchableOpacity
               style={styles.postOptions}
+              hitSlop={15}
               onPress={handleOptionsPress}
             >
               <Ionicons
@@ -1943,6 +1947,7 @@ const createStyles = (colors: any) =>
     },
     postOptions: {
       marginLeft: "auto",
+
       marginTop: 4,
 
       // good idea to add if not already there, gives it a bigger tap target

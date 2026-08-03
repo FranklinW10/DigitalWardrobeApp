@@ -1,4 +1,5 @@
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { BlocksProvider } from "@/context/BlocksContext";
 import { FollowsProvider } from "@/context/FollowsContext";
 import { NotificationsProvider } from "@/context/NotificationsContext";
 import { ThemeProvider } from "@/context/ThemeContext";
@@ -69,7 +70,9 @@ function AppProviders() {
   return (
     <FollowsProvider>
       <NotificationsProvider userId={user?.id}>
-        <RouteGaurd />
+        <BlocksProvider userId={user?.id}>
+          <RouteGaurd />
+        </BlocksProvider>
       </NotificationsProvider>
     </FollowsProvider>
   );

@@ -9,7 +9,7 @@ import { StreakAvatar } from "@/components/StreakAvatar";
 import { useAuth } from "@/context/AuthContext";
 import { useFollows } from "@/context/FollowsContext";
 import { useTheme } from "@/context/ThemeContext";
-import { Liker } from "@/hooks/useLikes";
+import { useLikes } from "@/hooks/useLikes";
 import { Post, usePosts } from "@/hooks/usePosts";
 import { SearchUser, useSearch } from "@/hooks/useSearch";
 import { supabase } from "@/lib/supabase/client";
@@ -48,14 +48,47 @@ export default function SearchScreen() {
   const [commentPost, setCommentPost] = useState<Post | null>(null);
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [recentSearches, setRecentSearches] = useState<SearchUser[]>([]);
-  const [likerPostId, setLikerPostId] = useState<string | null>(null);
-  const [likers, setLikers] = useState<Liker[]>([]);
-  const [isLoadingLikers, setIsLoadingLikers] = useState(false);
+
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
     null,
+  );
+  const [allBlockedIds, setAllBlockedIds] = useState<string[]>([]);
+  const [likerPostId, setLikerPostId] = useState<string | null>(null);
+  const { fetchLikers, isLoadingLikers, likers } = useLikes(likerPostId || "");
+
+  useEffect(() => {
+    if (likerPostId) {
+      fetchLikers();
+    }
+  }, [likerPostId, fetchLikers]);
+
+  useEffect(() => {
+    const loadBlockedUsers = async () => {
+      if (!user) return;
+
+      const { data: blockedData } = await supabase
+        .from("blocks")
+        .select("blocked_id")
+        .eq("blocker_id", user.id);
+
+      const { data: blockedByData } = await supabase
+        .from("blocks")
+        .select("blocker_id")
+        .eq("blocked_id", user.id);
+
+      const blockedUserIds = blockedData?.map((b) => b.blocked_id) ?? [];
+      const blockedByUserIds = blockedByData?.map((b) => b.blocker_id) ?? [];
+      setAllBlockedIds([...new Set([...blockedUserIds, ...blockedByUserIds])]);
+    };
+
+    loadBlockedUsers();
+  }, [user]);
+
+  const filteredRecentSearches = recentSearches.filter(
+    (u) => !allBlockedIds.includes(u.id),
   );
 
   const RECENT_KEY = "recent_searches";
@@ -72,15 +105,9 @@ export default function SearchScreen() {
     AsyncStorage.setItem(RECENT_KEY, JSON.stringify(recentSearches));
   }, [recentSearches]);
 
-  const handleOpenLikers = async (postId: string) => {
+  const handleOpenLikers = (postId: string) => {
     setLikerPostId(postId);
-    setIsLoadingLikers(true);
-    const { data } = await supabase
-      .from("likes")
-      .select("user_id, profiles(username, name, profile_image_url)")
-      .eq("post_id", postId);
-    setLikers((data as any) ?? []);
-    setIsLoadingLikers(false);
+    // fetchLikers will be called by the useEffect above
   };
 
   // Pass a callback down into your modal post cards
@@ -127,7 +154,10 @@ export default function SearchScreen() {
     // prevent duplicates
     setRecentSearches((prev) => {
       const filtered = prev.filter((u) => u.id !== user.id);
-      return [user, ...filtered].slice(0, 10); // keep last 10
+      const filteredRecentSearches = filtered.filter(
+        (u) => !allBlockedIds.includes(u.id),
+      );
+      return [user, ...filteredRecentSearches].slice(0, 10); // keep last 10
     });
 
     router.push(`/(profile)/${user.id}`);
@@ -304,7 +334,7 @@ export default function SearchScreen() {
         ) : query.length === 0 ? (
           <FlatList
             key="recent"
-            data={recentSearches}
+            data={filteredRecentSearches}
             keyExtractor={(item) => item.id}
             renderItem={renderUser}
             style={{ paddingLeft: 10, paddingRight: 10 }}

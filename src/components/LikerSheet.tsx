@@ -145,7 +145,7 @@ const createStyles = (colors: any) =>
       fontWeight: "700",
       color: colors.text,
     },
-    list: { padding: 16, gap: 16 },
+    list: { padding: 16, gap: 16, paddingBottom: 100 },
     empty: { textAlign: "center", color: colors.textMuted, marginTop: 32 },
     row: { flexDirection: "row", alignItems: "center", gap: 12 },
     avatar: { width: 40, height: 40, borderRadius: 20 },

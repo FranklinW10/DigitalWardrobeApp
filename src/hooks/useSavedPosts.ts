@@ -1,7 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
+import { useBlocks } from "@/context/BlocksContext";
 import { supabase } from "@/lib/supabase/client";
 import { useEffect, useState } from "react";
-
 export interface SavedCollection {
   id: string;
   name: string;
@@ -132,8 +132,13 @@ export const useSavedPosts = () => {
     }
   };
 
+  const { blockedIds, blockedByIds } = useBlocks();
+
   const loadPostsInCollection = async (collectionId: string) => {
     if (!user) return [];
+
+    const allBlockedIds = new Set([...blockedIds, ...blockedByIds]);
+
     try {
       const { data, error } = await supabase
         .from("saved_posts")
@@ -141,8 +146,13 @@ export const useSavedPosts = () => {
         .eq("user_id", user.id)
         .eq("collection_id", collectionId)
         .order("created_at", { ascending: false });
+
       if (error) throw error;
-      return (data ?? []).map((row: any) => row.posts).filter(Boolean);
+
+      return (data ?? [])
+        .map((row: any) => row.posts)
+        .filter(Boolean)
+        .filter((post) => !allBlockedIds.has(post.user_id)); // Filter blocked users
     } catch (error) {
       console.error("Error loading collection posts:", error);
       return [];

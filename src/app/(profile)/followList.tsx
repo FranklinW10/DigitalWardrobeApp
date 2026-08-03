@@ -1,5 +1,6 @@
 import { StreakAvatar } from "@/components/StreakAvatar";
 import { useAuth } from "@/context/AuthContext";
+import { useBlocks } from "@/context/BlocksContext";
 import { useFollows } from "@/context/FollowsContext";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/lib/supabase/client";
@@ -19,6 +20,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function followList() {
   const { user, updateUser, signOut } = useAuth();
+  const { blockedIds, blockedByIds } = useBlocks(); // Add this
+
   const { profile_id, initialTab } = useLocalSearchParams<{
     profile_id?: string;
     initialTab?: "followers" | "following";
@@ -29,6 +32,7 @@ export default function followList() {
   const isOwnList = targetUserId === user?.id;
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const allBlockedIds = new Set([...blockedIds, ...blockedByIds]);
 
   const [search, setSearch] = useState("");
   const [headerUsername, setHeaderUsername] = useState<string | null>(null);
@@ -111,7 +115,10 @@ export default function followList() {
       .eq("status", true);
 
     if (!error) {
-      setUsers(data?.map((row: any) => row.follower) ?? []);
+      const filtered = (data?.map((row: any) => row.follower) ?? []).filter(
+        (u) => !allBlockedIds.has(u.id),
+      );
+      setUsers(filtered);
     }
   };
 
@@ -135,7 +142,10 @@ export default function followList() {
       .eq("status", true);
 
     if (!error) {
-      setUsers(data?.map((row: any) => row.following) ?? []);
+      const filtered = (data?.map((row: any) => row.following) ?? []).filter(
+        (u) => !allBlockedIds.has(u.id),
+      );
+      setUsers(filtered);
     }
   };
 

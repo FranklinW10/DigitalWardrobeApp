@@ -3,8 +3,9 @@ import { LikersSheet } from "@/components/LikerSheet";
 import { ModalHaulPostCard, ModalPostCard } from "@/components/PostCard";
 import { StreakFireBadge } from "@/components/steakBadge";
 import { useAuth } from "@/context/AuthContext";
+import { useBlocks } from "@/context/BlocksContext";
 import { useTheme } from "@/context/ThemeContext";
-import { Liker } from "@/hooks/useLikes";
+import { useLikes } from "@/hooks/useLikes";
 import { Post } from "@/hooks/usePosts";
 import { useSavedPosts } from "@/hooks/useSavedPosts";
 import { useTags } from "@/hooks/useTags";
@@ -290,12 +291,11 @@ export default function WardrobeScreen() {
   const [haulPosts, setHaulPosts] = useState<Post[]>([]);
   const [showInfo, setShowInfo] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [likerPostId, setLikerPostId] = useState<string | null>(null);
+
   const [collectionPreviews, setCollectionPreviews] = useState<
     Record<string, string[]>
   >({});
-  const [likers, setLikers] = useState<Liker[]>([]);
-  const [isLoadingLikers, setIsLoadingLikers] = useState(false);
+
   const [commentPost, setCommentPost] = useState<Post | null>(null);
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
@@ -327,6 +327,14 @@ export default function WardrobeScreen() {
       loadUserTags();
     }
   }, [activeTab]);
+  const [likerPostId, setLikerPostId] = useState<string | null>(null);
+  const { fetchLikers, isLoadingLikers, likers } = useLikes(likerPostId || "");
+
+  useEffect(() => {
+    if (likerPostId) {
+      fetchLikers();
+    }
+  }, [likerPostId, fetchLikers]);
 
   const handleOpenCollection = async (id: string, name: string) => {
     setSelectedCollectionId(id);
@@ -350,8 +358,17 @@ export default function WardrobeScreen() {
       />
     </TouchableOpacity>
   );
+  const { blockedIds, blockedByIds, loading: blocksLoading } = useBlocks();
+
+  useEffect(() => {
+    if (blocksLoading) return; // Wait for blocks to load
+    loadCollectionPreviews();
+  }, [blocksLoading, user]);
+
   const loadCollectionPreviews = async () => {
     if (!user) return;
+
+    const allBlockedIds = Array.from(new Set([...blockedIds, ...blockedByIds]));
 
     const { data, error } = await supabase
       .from("saved_posts")
@@ -359,6 +376,7 @@ export default function WardrobeScreen() {
         `
       collection_id,
       posts(
+        user_id,
         image_url,
         images(
           image_url
@@ -377,6 +395,8 @@ export default function WardrobeScreen() {
     const previews: Record<string, string[]> = {};
 
     data?.forEach((item: any) => {
+      if (allBlockedIds.includes(item.posts?.user_id)) return;
+
       const image = item.posts?.images?.[0]?.image_url ?? item.posts?.image_url;
 
       if (!image) return;
@@ -392,7 +412,6 @@ export default function WardrobeScreen() {
 
     setCollectionPreviews(previews);
   };
-
   const userActivePost = (posts ?? []).find(
     (post) =>
       post.user_id === user?.id &&
@@ -600,15 +619,9 @@ export default function WardrobeScreen() {
     return () => clearTimeout(timeout);
   }, [activeTab]);
 
-  const handleOpenLikers = async (postId: string) => {
+  const handleOpenLikers = (postId: string) => {
     setLikerPostId(postId);
-    setIsLoadingLikers(true);
-    const { data } = await supabase
-      .from("likes")
-      .select("user_id, profiles(username, name, profile_image_url)")
-      .eq("post_id", postId);
-    setLikers((data as any) ?? []);
-    setIsLoadingLikers(false);
+    // fetchLikers will be called by the useEffect above
   };
 
   // Pass a callback down into your modal post cards

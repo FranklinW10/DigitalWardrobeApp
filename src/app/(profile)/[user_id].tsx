@@ -1,8 +1,9 @@
 import { CommentsSheet } from "@/components/CommentSheet";
 import { LikersSheet } from "@/components/LikerSheet";
 import { StreakFireBadge } from "@/components/profileStreak";
+import { ReportModal } from "@/components/reportModal";
 import { StreakAvatar } from "@/components/StreakAvatar";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, User } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Liker } from "@/hooks/useLikes";
 
@@ -11,6 +12,7 @@ import {
   ModalHaulPostCard,
   ModalPostCard,
 } from "@/components/PostCard";
+import { useBlocks } from "@/context/BlocksContext";
 import { useFollows } from "@/context/FollowsContext";
 import { Post } from "@/hooks/usePosts";
 import { supabase } from "@/lib/supabase/client";
@@ -19,6 +21,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -48,7 +51,8 @@ export default function UserProfileScreen() {
   const [isPrivate, setIsPrivate] = useState(false);
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-
+  const { blockUser } = useBlocks();
+  const [showReportModal, setShowReportModal] = useState(false);
   const { user_id } = useLocalSearchParams<{ user_id: string }>();
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -229,6 +233,34 @@ export default function UserProfileScreen() {
       </TouchableOpacity>
     </View>
   );
+
+  const handleProfileOptions = (User: User) => {
+    Alert.alert("User Options", "", [
+      {
+        text: "Report User",
+        onPress: () => setShowReportModal(true),
+      },
+      {
+        text: "Block User",
+        style: "destructive",
+        onPress: () => {
+          Alert.alert(
+            "Block this user?",
+            `You won't see posts from @${profileUser?.username} anymore.`,
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Block",
+                style: "destructive",
+                onPress: () => blockUser(User.id),
+              },
+            ],
+          );
+        },
+      },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {selectedPost && (
@@ -281,9 +313,17 @@ export default function UserProfileScreen() {
           <Text style={styles.closeButtonText}>←</Text>
         </TouchableOpacity>
         <Text style={styles.topHeaderUsername}>@{profileUser?.username}</Text>
-        <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
+        <TouchableOpacity
+          onPress={() => handleProfileOptions(profileUser as User)}
+        >
           <Ionicons name="menu" size={26} color={colors.text} />
         </TouchableOpacity>
+        <ReportModal
+          visible={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          targetType="user"
+          targetId={profileUser.id}
+        />
       </View>
       <FlatList
         key={`${activeTab}-${canViewContent ? 3 : 1}`}

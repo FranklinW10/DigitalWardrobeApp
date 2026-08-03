@@ -1,6 +1,8 @@
 import { useAuth } from "@/context/AuthContext";
+import { useBlocks } from "@/context/BlocksContext";
 import { supabase } from "@/lib/supabase/client";
-import { useEffect, useState } from "react";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export interface Liker {
   user_id: string;
@@ -18,31 +20,57 @@ export const useLikes = (postId: string, currentUserId?: string) => {
   const [isLiked, setIsLiked] = useState(false);
   const [likers, setLikers] = useState<Liker[]>([]);
   const [isLoadingLikers, setIsLoadingLikers] = useState(false);
+  const { blockedIds, blockedByIds, loading: blocksLoading } = useBlocks();
+
+  // Combine both blocked sets
+  const allBlockedIds = useMemo(
+    () => new Set([...blockedIds, ...blockedByIds]),
+    [blockedIds, blockedByIds],
+  );
 
   useEffect(() => {
+    if (!postId || blocksLoading) return;
     fetchLikes();
-  }, [postId]);
+  }, [postId, blocksLoading]);
 
-  const fetchLikers = async () => {
+  const fetchLikers = useCallback(async () => {
+    if (!postId) return; // Don't query if postId is empty
+
     setIsLoadingLikers(true);
     const { data, error } = await supabase
       .from("likes")
       .select("user_id, profiles(username, name, profile_image_url, streak)")
       .eq("post_id", postId);
-    console.log("likers data:", data);
-    console.log("likers error:", error);
-    setLikers((data as any) ?? []);
+
+    if (error) {
+      console.error("Error fetching likers:", error);
+      setLikers([]);
+      setIsLoadingLikers(false);
+      return;
+    }
+
+    const filtered =
+      data?.filter((liker) => !allBlockedIds.has(liker.user_id)) ?? [];
+    setLikers((filtered as any) ?? []);
     setIsLoadingLikers(false);
-  };
+  }, [postId, allBlockedIds]);
 
   const fetchLikes = async () => {
-    const { count } = await supabase
+    const blockedArray = Array.from(allBlockedIds);
+    let query = supabase
       .from("likes")
       .select("*", { count: "exact", head: true })
       .eq("post_id", postId);
+
+    // Filter out likes from blocked users
+    if (blockedArray.length > 0) {
+      query = query.not("user_id", "in", `(${blockedArray.join(",")})`);
+    }
+    const { count } = await query;
     setLikeCount(count ?? 0);
 
     if (currentUserId) {
+      if (!postId) return;
       const { data } = await supabase
         .from("likes")
         .select("id")
@@ -54,7 +82,6 @@ export const useLikes = (postId: string, currentUserId?: string) => {
   };
 
   const toggleLike = async () => {
-    console.log("toggleLike called");
     if (!user) return;
 
     try {
@@ -65,6 +92,7 @@ export const useLikes = (postId: string, currentUserId?: string) => {
         .single();
 
       if (!post) return;
+
       if (isLiked) {
         await supabase
           .from("likes")
@@ -72,28 +100,18 @@ export const useLikes = (postId: string, currentUserId?: string) => {
           .eq("post_id", postId)
           .eq("user_id", user.id);
 
-        setLikeCount((likeCount) => likeCount - 1);
+        setLikeCount((count) => count - 1);
         setIsLiked(false);
       } else {
         await supabase.from("likes").insert({
           user_id: user.id,
           post_id: postId,
         });
-        setLikeCount((likeCount) => likeCount + 1);
+        setLikeCount((count) => count + 1);
         setIsLiked(true);
-        const { data: post } = await supabase
-          .from("posts")
-          .select("user_id")
-          .eq("id", postId)
-          .single();
-        if (post && post.user_id !== user.id) {
-          console.log({
-            recipient: post.user_id,
-            actor: user.id,
-            postId,
-          });
-          const { data: existing } = await supabase
 
+        if (post.user_id !== user.id) {
+          const { data: existing } = await supabase
             .from("notifications")
             .select("id")
             .eq("recipient_id", post.user_id)
@@ -101,10 +119,8 @@ export const useLikes = (postId: string, currentUserId?: string) => {
             .eq("post_id", postId)
             .eq("type", "like")
             .limit(1);
-          console.log("existing notification:", existing);
 
           if (existing?.length === 0) {
-            console.log("INSERTING notification");
             await supabase.from("notifications").insert({
               recipient_id: post.user_id,
               actor_id: user.id,

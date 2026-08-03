@@ -74,6 +74,30 @@ export const usePosts = () => {
     setIsLoading(true);
 
     try {
+      const { data: blockedData } = await supabase
+        .from("blocks")
+        .select("blocked_id")
+        .eq("blocker_id", user.id);
+
+      // Get users who blocked you
+      const { data: blockedByData } = await supabase
+        .from("blocks")
+        .select("blocker_id")
+        .eq("blocked_id", user.id);
+
+      const { data: reportedData } = await supabase
+        .from("reports")
+        .select("target_id")
+        .eq("reporter_id", user.id)
+        .eq("target_type", "post");
+
+      const blockedUserIds = blockedData?.map((b) => b.blocked_id) ?? [];
+      const blockedByUserIds = blockedByData?.map((b) => b.blocker_id) ?? [];
+      const allBlockedIds = [
+        ...new Set([...blockedUserIds, ...blockedByUserIds]),
+      ];
+      const reportedPostIds = reportedData?.map((r) => r.target_id) ?? [];
+
       const { data: postsData, error: postsError } = await supabase
         .from("posts")
         .select(
@@ -85,6 +109,7 @@ export const usePosts = () => {
                     `,
         )
         .eq("is_active", true)
+        .not("user_id", "in", `(${allBlockedIds.join(",")})`)
         .eq("is_public", true)
         .order("created_at", { ascending: false });
       if (postsError) {
@@ -98,7 +123,11 @@ export const usePosts = () => {
         setPosts([]);
         return;
       }
-      const postsWithProfiles = postsData.map((post) => ({
+
+      const filtered =
+        postsData?.filter((p) => !reportedPostIds.includes(p.id)) ?? [];
+
+      const postsWithProfiles = filtered.map((post) => ({
         ...post,
         profiles: post.profiles || null,
       }));
@@ -116,6 +145,30 @@ export const usePosts = () => {
     setIsLoading(true);
 
     try {
+      const { data: blockedData } = await supabase
+        .from("blocks")
+        .select("blocked_id")
+        .eq("blocker_id", user.id);
+
+      // Get users who blocked you
+      const { data: blockedByData } = await supabase
+        .from("blocks")
+        .select("blocker_id")
+        .eq("blocked_id", user.id);
+
+      const { data: reportedData } = await supabase
+        .from("reports")
+        .select("target_id")
+        .eq("reporter_id", user.id)
+        .eq("target_type", "post");
+
+      const blockedUserIds = blockedData?.map((b) => b.blocked_id) ?? [];
+      const blockedByUserIds = blockedByData?.map((b) => b.blocker_id) ?? [];
+      const allBlockedIds = [
+        ...new Set([...blockedUserIds, ...blockedByUserIds]),
+      ];
+      const reportedPostIds = reportedData?.map((r) => r.target_id) ?? [];
+
       const { data: postsData, error: postsError } = await supabase
         .from("posts")
         .select(
@@ -127,6 +180,8 @@ export const usePosts = () => {
       `,
         )
         .eq("is_active", true)
+        .not("user_id", "in", `(${allBlockedIds.join(",")})`)
+
         .eq("is_public", true)
         .order("created_at", { ascending: false });
 
@@ -136,7 +191,10 @@ export const usePosts = () => {
         (post) => !post.profiles?.isPrivate,
       );
 
-      setPosts(filtered);
+      const filteredBlocked =
+        filtered?.filter((p) => !reportedPostIds.includes(p.id)) ?? [];
+
+      setPosts(filteredBlocked);
     } catch (error) {
       console.error("Error in loadPublicPosts:", error);
       throw error;
