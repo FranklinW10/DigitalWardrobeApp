@@ -46,6 +46,32 @@ export default function Haul() {
     }
   };
 
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission needed",
+        "We need camera permissions to take a photo.",
+      );
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setSelectedImages((prev) => [...prev, result.assets[0].uri]);
+    }
+  };
+  const showImagePicker = () => {
+    Alert.alert("Select Profile Image", "Choose an option", [
+      { text: "Camera", onPress: takePhoto },
+      { text: "Photo Library", onPress: pickImage },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
+
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / PREVIEW_SIZE);
     setActiveIndex(index);
@@ -104,7 +130,10 @@ export default function Haul() {
               </View>
             )}
 
-            <TouchableOpacity style={styles.changeButton} onPress={pickImage}>
+            <TouchableOpacity
+              style={styles.changeButton}
+              onPress={showImagePicker}
+            >
               <Text style={styles.changeButtonText}>
                 {selectedImages.length} photo
                 {selectedImages.length > 1 ? "s" : ""} selected · tap to change
@@ -112,7 +141,10 @@ export default function Haul() {
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity style={styles.placeholder} onPress={pickImage}>
+          <TouchableOpacity
+            style={styles.placeholder}
+            onPress={showImagePicker}
+          >
             <Text style={styles.placeholderText}>+</Text>
           </TouchableOpacity>
         )}

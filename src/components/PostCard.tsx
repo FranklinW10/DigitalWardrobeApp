@@ -2,15 +2,21 @@ import { CommentsSheet } from "@/components/CommentSheet";
 import { LikersSheet } from "@/components/LikerSheet";
 import { StreakAvatar } from "@/components/StreakAvatar";
 import { useTheme } from "@/context/ThemeContext";
+import { useBlocks } from "@/hooks/useBlocks"; // or wherever you end up putting the provider
 import { useComments } from "@/hooks/useComments";
 import { useLikes } from "@/hooks/useLikes";
 import { Post, PostTag } from "@/hooks/usePosts";
+import { supabase } from "@/lib/supabase/client";
+import { Alert } from "react-native";
+
 import { formatDate, formatTimeAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+
+import { ReportModal } from "@/components/reportModal";
 import {
   Dimensions,
   GestureResponderEvent,
@@ -25,6 +31,7 @@ import {
 } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
+  interpolate,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
@@ -641,40 +648,92 @@ const PostActions = ({
   colors,
   styles, // <-- Receive styles here
   streak,
-}: any) => (
-  <View style={styles.actions}>
-    <LikeButton
-      likeCount={likeCount}
-      isLiked={isLiked}
-      toggleLike={toggleLike}
-      onLikeCountPress={onLikeCountPress}
-      colors={colors}
-      styles={styles} // <-- Pass down
-    />
-    <TouchableOpacity style={styles.actionButton} onPress={onCommentPress}>
-      <Ionicons name="chatbubble-outline" size={22} color={colors.text} />
-      <Text style={styles.actionCount}>{commentCount}</Text>
-    </TouchableOpacity>
+}: any) => {
+  const [showStreakInfo, setShowStreakInfo] = useState(false);
+  const streakOpacity = useSharedValue(0);
 
-    {streak >= 3 && (
-      <LinearGradient
-        colors={getStreakGradient(streak)}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[
-          styles.streakBadge,
-          { shadowColor: getStreakGradient(streak)[0] },
-        ]}
-      >
-        <Ionicons name="flame-outline" size={20} color="#fff" />
-        <Text style={styles.streakText}>{streak}</Text>
-      </LinearGradient>
-    )}
-    <View style={{ marginLeft: "auto" }}>
-      <SaveButton postId={post.id} color={colors.text} />
+  const streakBubbleAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: streakOpacity.value,
+    transform: [
+      {
+        translateY: interpolate(streakOpacity.value, [0, 1], [10, 0]),
+      },
+    ],
+  }));
+  return (
+    <View style={styles.actions}>
+      <LikeButton
+        likeCount={likeCount}
+        isLiked={isLiked}
+        toggleLike={toggleLike}
+        onLikeCountPress={onLikeCountPress}
+        colors={colors}
+        styles={styles} // <-- Pass down
+      />
+      <TouchableOpacity style={styles.actionButton} onPress={onCommentPress}>
+        <Ionicons name="chatbubble-outline" size={22} color={colors.text} />
+        <Text style={styles.actionCount}>{commentCount}</Text>
+      </TouchableOpacity>
+
+      {streak >= 3 && (
+        <TouchableOpacity
+          onPress={() => {
+            setShowStreakInfo(true);
+
+            streakOpacity.value = withTiming(1, {
+              duration: 250,
+            });
+
+            setTimeout(() => {
+              streakOpacity.value = withTiming(0, {
+                duration: 400,
+              });
+
+              setTimeout(() => {
+                setShowStreakInfo(false);
+              }, 400);
+            }, 3000);
+          }}
+          style={styles.streakContainer}
+        >
+          {showStreakInfo && (
+            <Animated.View style={streakBubbleAnimatedStyle}>
+              <LinearGradient
+                colors={getStreakGradient(streak)}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[
+                  styles.streakBubble,
+                  { shadowColor: getStreakGradient(streak)[0] },
+                ]}
+              >
+                <Text style={styles.streakBubbleText}>
+                  @{post.profiles.username} has Posted their FitCheck {streak}{" "}
+                  days in a row
+                </Text>
+              </LinearGradient>
+            </Animated.View>
+          )}
+          <LinearGradient
+            colors={getStreakGradient(streak)}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[
+              styles.streakBadge,
+              { shadowColor: getStreakGradient(streak)[0] },
+            ]}
+          >
+            <Ionicons name="flame-outline" size={20} color="#fff" />
+            <Text style={styles.streakText}>{streak}</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
+      <View style={{ marginLeft: "auto" }}>
+        <SaveButton postId={post.id} color={colors.text} />
+      </View>
     </View>
-  </View>
-);
+  );
+};
 
 export const PostCard = ({ post, currentUserId }: PostCardProps) => {
   const { comments, commentCount } = useComments(post.id);
@@ -694,6 +753,89 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
 
   // Generate the stylesheet dynamically using the current theme colors
   const styles = createStyles(colors);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const { blockUser } = useBlocks();
+  const handlePostOptions = (post: Post) => {
+    const options = [
+      {
+        text: post.is_public ? "Switch to archive" : "Switch to Public",
+        onPress: async () => {
+          await supabase
+            .from("posts")
+            .update({ is_public: !post.is_public })
+            .eq("id", post.id);
+        },
+      },
+      {
+        text: "Delete Post",
+        style: "destructive" as const,
+        onPress: async () => {
+          await supabase
+            .from("posts")
+            .update({ is_active: false })
+            .eq("id", post.id);
+        },
+      },
+      {
+        text: "Cancel",
+        style: "cancel" as const,
+      },
+    ];
+
+    Alert.alert("Post Options", "", options);
+  };
+  const handleOldPostOptions = (post: Post) => {
+    const options = [
+      {
+        text: "Delete Post",
+        style: "destructive" as const,
+        onPress: async () => {
+          await supabase
+            .from("posts")
+            .update({ is_active: false })
+            .eq("id", post.id);
+        },
+      },
+      {
+        text: "Cancel",
+        style: "cancel" as const,
+      },
+    ];
+
+    Alert.alert("Post Options", "", options);
+  };
+
+  const handleOptionsPress = () => {
+    isOwnPost
+      ? post.ispostedontime === false
+        ? handleOldPostOptions(post)
+        : handlePostOptions(post)
+      : Alert.alert("Post Options", "", [
+          {
+            text: "Report Post",
+            onPress: () => setShowReportModal(true),
+          },
+          {
+            text: "Block User",
+            style: "destructive",
+            onPress: () => {
+              Alert.alert(
+                "Block this user?",
+                `You won't see posts from @${postUser?.username} anymore.`,
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Block",
+                    style: "destructive",
+                    onPress: () => blockUser(post.user_id),
+                  },
+                ],
+              );
+            },
+          },
+          { text: "Cancel", style: "cancel" },
+        ]);
+  };
 
   return (
     <>
@@ -723,6 +865,23 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
                   {formatTimeAgo(post.created_at)}
                 </Text>
               </View>
+              <TouchableOpacity
+                style={styles.postOptions}
+                hitSlop={15}
+                onPress={handleOptionsPress}
+              >
+                <Ionicons
+                  name="ellipsis-vertical"
+                  size={24}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+              <ReportModal
+                visible={showReportModal}
+                onClose={() => setShowReportModal(false)}
+                targetType="post"
+                targetId={post.id}
+              />
             </View>
           </TouchableOpacity>
           {/*Post content*/}
@@ -807,6 +966,9 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
     fetchLikers,
   } = useLikes(post.id, currentUserId);
   const [showLikers, setShowLikers] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const { blockUser } = useBlocks();
+
   // Actual on-screen width of the carousel, measured via onLayout rather
   // than assumed from Dimensions — if this card ever sits inside a
   // container with horizontal padding/margin, SCREEN_WIDTH would be wider
@@ -838,6 +1000,86 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
 
   // Generate the stylesheet dynamically using the current theme colors
   const styles = createStyles(colors);
+  const handlePostOptions = (post: Post) => {
+    const options = [
+      {
+        text: post.is_public ? "Switch to archive" : "Switch to Public",
+        onPress: async () => {
+          await supabase
+            .from("posts")
+            .update({ is_public: !post.is_public })
+            .eq("id", post.id);
+        },
+      },
+      {
+        text: "Delete Post",
+        style: "destructive" as const,
+        onPress: async () => {
+          await supabase
+            .from("posts")
+            .update({ is_active: false })
+            .eq("id", post.id);
+        },
+      },
+      {
+        text: "Cancel",
+        style: "cancel" as const,
+      },
+    ];
+
+    Alert.alert("Post Options", "", options);
+  };
+  const handleOldPostOptions = (post: Post) => {
+    const options = [
+      {
+        text: "Delete Post",
+        style: "destructive" as const,
+        onPress: async () => {
+          await supabase
+            .from("posts")
+            .update({ is_active: false })
+            .eq("id", post.id);
+        },
+      },
+      {
+        text: "Cancel",
+        style: "cancel" as const,
+      },
+    ];
+
+    Alert.alert("Post Options", "", options);
+  };
+  const handleOptionsPress = () => {
+    isOwnPost
+      ? post.ispostedontime === false
+        ? handleOldPostOptions(post)
+        : handlePostOptions(post)
+      : Alert.alert("Post Options", "", [
+          {
+            text: "Report Post",
+            onPress: () => setShowReportModal(true),
+          },
+          {
+            text: "Block User",
+            style: "destructive",
+            onPress: () => {
+              Alert.alert(
+                "Block this user?",
+                `You won't see posts from @${postUser?.username} anymore.`,
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Block",
+                    style: "destructive",
+                    onPress: () => blockUser(post.user_id),
+                  },
+                ],
+              );
+            },
+          },
+          { text: "Cancel", style: "cancel" },
+        ]);
+  };
 
   return (
     <View style={styles.postContainer}>
@@ -865,6 +1107,23 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
                 {formatTimeAgo(post.created_at)}
               </Text>
             </View>
+            <TouchableOpacity
+              style={styles.postOptions}
+              hitSlop={15}
+              onPress={handleOptionsPress}
+            >
+              <Ionicons
+                name="ellipsis-vertical"
+                size={24}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+            <ReportModal
+              visible={showReportModal}
+              onClose={() => setShowReportModal(false)}
+              targetType="post"
+              targetId={post.id}
+            />
           </View>
         </TouchableOpacity>
       </View>
@@ -1043,6 +1302,89 @@ export const ModalPostCard = ({
 
   // Generate the stylesheet dynamically using the current theme colors
   const styles = createStyles(colors);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const { blockUser } = useBlocks();
+  const handlePostOptions = (post: Post) => {
+    const options = [
+      {
+        text: post.is_public ? "Switch to archive" : "Switch to Public",
+        onPress: async () => {
+          await supabase
+            .from("posts")
+            .update({ is_public: !post.is_public })
+            .eq("id", post.id);
+        },
+      },
+      {
+        text: "Delete Post",
+        style: "destructive" as const,
+        onPress: async () => {
+          await supabase
+            .from("posts")
+            .update({ is_active: false })
+            .eq("id", post.id);
+        },
+      },
+      {
+        text: "Cancel",
+        style: "cancel" as const,
+      },
+    ];
+
+    Alert.alert("Post Options", "", options);
+  };
+  const handleOldPostOptions = (post: Post) => {
+    const options = [
+      {
+        text: "Delete Post",
+        style: "destructive" as const,
+        onPress: async () => {
+          await supabase
+            .from("posts")
+            .update({ is_active: false })
+            .eq("id", post.id);
+        },
+      },
+      {
+        text: "Cancel",
+        style: "cancel" as const,
+      },
+    ];
+
+    Alert.alert("Post Options", "", options);
+  };
+
+  const handleOptionsPress = () => {
+    isOwnPost
+      ? post.ispostedontime === false
+        ? handleOldPostOptions(post)
+        : handlePostOptions(post)
+      : Alert.alert("Post Options", "", [
+          {
+            text: "Report Post",
+            onPress: () => setShowReportModal(true),
+          },
+          {
+            text: "Block User",
+            style: "destructive",
+            onPress: () => {
+              Alert.alert(
+                "Block this user?",
+                `You won't see posts from @${postUser?.username} anymore.`,
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Block",
+                    style: "destructive",
+                    onPress: () => blockUser(post.user_id),
+                  },
+                ],
+              );
+            },
+          },
+          { text: "Cancel", style: "cancel" },
+        ]);
+  };
   return (
     <>
       <View style={styles.postContainer}>
@@ -1072,6 +1414,23 @@ export const ModalPostCard = ({
                   {formatTimeAgo(post.created_at)}
                 </Text>
               </View>
+              <TouchableOpacity
+                style={styles.postOptions}
+                hitSlop={15}
+                onPress={handleOptionsPress}
+              >
+                <Ionicons
+                  name="ellipsis-vertical"
+                  size={24}
+                  color={colors.text}
+                />
+              </TouchableOpacity>
+              <ReportModal
+                visible={showReportModal}
+                onClose={() => setShowReportModal(false)}
+                targetType="post"
+                targetId={post.id}
+              />
             </View>
           </TouchableOpacity>
           {/*Post content*/}
@@ -1167,10 +1526,92 @@ export const ModalHaulPostCard = ({
   const images = [...(post.images ?? [])].sort(
     (a, b) => a.order_index - b.order_index,
   );
+  const handlePostOptions = (post: Post) => {
+    const options = [
+      {
+        text: post.is_public ? "Switch to archive" : "Switch to Public",
+        onPress: async () => {
+          await supabase
+            .from("posts")
+            .update({ is_public: !post.is_public })
+            .eq("id", post.id);
+        },
+      },
+      {
+        text: "Delete Post",
+        style: "destructive" as const,
+        onPress: async () => {
+          await supabase
+            .from("posts")
+            .update({ is_active: false })
+            .eq("id", post.id);
+        },
+      },
+      {
+        text: "Cancel",
+        style: "cancel" as const,
+      },
+    ];
+
+    Alert.alert("Post Options", "", options);
+  };
+  const handleOldPostOptions = (post: Post) => {
+    const options = [
+      {
+        text: "Delete Post",
+        style: "destructive" as const,
+        onPress: async () => {
+          await supabase
+            .from("posts")
+            .update({ is_active: false })
+            .eq("id", post.id);
+        },
+      },
+      {
+        text: "Cancel",
+        style: "cancel" as const,
+      },
+    ];
+
+    Alert.alert("Post Options", "", options);
+  };
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const index = Math.round(e.nativeEvent.contentOffset.x / carouselWidth);
     setActiveIndex(index);
+  };
+  const [showReportModal, setShowReportModal] = useState(false);
+  const { blockUser } = useBlocks();
+  const handleOptionsPress = () => {
+    isOwnPost
+      ? post.ispostedontime === false
+        ? handleOldPostOptions(post)
+        : handlePostOptions(post)
+      : Alert.alert("Post Options", "", [
+          {
+            text: "Report Post",
+            onPress: () => setShowReportModal(true),
+          },
+          {
+            text: "Block User",
+            style: "destructive",
+            onPress: () => {
+              Alert.alert(
+                "Block this user?",
+                `You won't see posts from @${postUser?.username} anymore.`,
+                [
+                  { text: "Cancel", style: "cancel" },
+                  {
+                    text: "Block",
+                    style: "destructive",
+                    onPress: () => blockUser(post.user_id),
+                  },
+                ],
+              );
+            },
+          },
+          { text: "Cancel", style: "cancel" },
+        ]);
   };
 
   return (
@@ -1200,6 +1641,23 @@ export const ModalHaulPostCard = ({
                 {formatTimeAgo(post.created_at)}
               </Text>
             </View>
+            <TouchableOpacity
+              style={styles.postOptions}
+              hitSlop={15}
+              onPress={handleOptionsPress}
+            >
+              <Ionicons
+                name="ellipsis-vertical"
+                size={24}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+            <ReportModal
+              visible={showReportModal}
+              onClose={() => setShowReportModal(false)}
+              targetType="post"
+              targetId={post.id}
+            />
           </View>
         </TouchableOpacity>
       </View>
@@ -1344,6 +1802,8 @@ const createStyles = (colors: any) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
+      width: "100%",
+      marginRight: 10,
     },
     avatar: {
       width: 40,
@@ -1466,6 +1926,39 @@ const createStyles = (colors: any) =>
       color: colors.text,
       fontWeight: "600",
     },
+    streakBubble: {
+      position: "absolute",
+      bottom: 15,
+      backgroundColor: "rgba(0,0,0,0.85)",
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      left: -70,
+      borderRadius: 12,
+      width: 190,
+      alignItems: "center",
+      zIndex: 10,
+      // iOS shadow
+      shadowColor: "#000",
+      shadowOpacity: 0.2,
+      shadowRadius: 5,
+      shadowOffset: { width: 0, height: 2 },
+      // Android
+      elevation: 5,
+    },
+    postOptions: {
+      marginLeft: "auto",
+
+      marginTop: 4,
+
+      // good idea to add if not already there, gives it a bigger tap target
+    },
+
+    streakBubbleText: {
+      color: "#fff",
+      fontSize: 12,
+      textAlign: "center",
+    },
+
     dotsContainer: {
       flexDirection: "row",
       justifyContent: "center",

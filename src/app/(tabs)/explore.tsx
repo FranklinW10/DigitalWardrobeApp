@@ -1,16 +1,15 @@
 import { CommentsSheet } from "@/components/CommentSheet";
 import { LikersSheet } from "@/components/LikerSheet";
-import { StreakAvatar } from "@/components/StreakAvatar";
-
 import {
   ExplorePostCard,
   ModalHaulPostCard,
   ModalPostCard,
 } from "@/components/PostCard";
+import { StreakAvatar } from "@/components/StreakAvatar";
 import { useAuth } from "@/context/AuthContext";
 import { useFollows } from "@/context/FollowsContext";
 import { useTheme } from "@/context/ThemeContext";
-import { Liker } from "@/hooks/useLikes";
+import { useLikes } from "@/hooks/useLikes";
 import { Post, usePosts } from "@/hooks/usePosts";
 import { SearchUser, useSearch } from "@/hooks/useSearch";
 import { supabase } from "@/lib/supabase/client";
@@ -27,6 +26,7 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  TouchableWithoutFeedback,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -48,14 +48,47 @@ export default function SearchScreen() {
   const [commentPost, setCommentPost] = useState<Post | null>(null);
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [recentSearches, setRecentSearches] = useState<SearchUser[]>([]);
-  const [likerPostId, setLikerPostId] = useState<string | null>(null);
-  const [likers, setLikers] = useState<Liker[]>([]);
-  const [isLoadingLikers, setIsLoadingLikers] = useState(false);
+
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
     null,
+  );
+  const [allBlockedIds, setAllBlockedIds] = useState<string[]>([]);
+  const [likerPostId, setLikerPostId] = useState<string | null>(null);
+  const { fetchLikers, isLoadingLikers, likers } = useLikes(likerPostId || "");
+
+  useEffect(() => {
+    if (likerPostId) {
+      fetchLikers();
+    }
+  }, [likerPostId, fetchLikers]);
+
+  useEffect(() => {
+    const loadBlockedUsers = async () => {
+      if (!user) return;
+
+      const { data: blockedData } = await supabase
+        .from("blocks")
+        .select("blocked_id")
+        .eq("blocker_id", user.id);
+
+      const { data: blockedByData } = await supabase
+        .from("blocks")
+        .select("blocker_id")
+        .eq("blocked_id", user.id);
+
+      const blockedUserIds = blockedData?.map((b) => b.blocked_id) ?? [];
+      const blockedByUserIds = blockedByData?.map((b) => b.blocker_id) ?? [];
+      setAllBlockedIds([...new Set([...blockedUserIds, ...blockedByUserIds])]);
+    };
+
+    loadBlockedUsers();
+  }, [user]);
+
+  const filteredRecentSearches = recentSearches.filter(
+    (u) => !allBlockedIds.includes(u.id),
   );
 
   const RECENT_KEY = "recent_searches";
@@ -72,15 +105,9 @@ export default function SearchScreen() {
     AsyncStorage.setItem(RECENT_KEY, JSON.stringify(recentSearches));
   }, [recentSearches]);
 
-  const handleOpenLikers = async (postId: string) => {
+  const handleOpenLikers = (postId: string) => {
     setLikerPostId(postId);
-    setIsLoadingLikers(true);
-    const { data } = await supabase
-      .from("likes")
-      .select("user_id, profiles(username, name, profile_image_url)")
-      .eq("post_id", postId);
-    setLikers((data as any) ?? []);
-    setIsLoadingLikers(false);
+    // fetchLikers will be called by the useEffect above
   };
 
   // Pass a callback down into your modal post cards
@@ -127,7 +154,10 @@ export default function SearchScreen() {
     // prevent duplicates
     setRecentSearches((prev) => {
       const filtered = prev.filter((u) => u.id !== user.id);
-      return [user, ...filtered].slice(0, 10); // keep last 10
+      const filteredRecentSearches = filtered.filter(
+        (u) => !allBlockedIds.includes(u.id),
+      );
+      return [user, ...filteredRecentSearches].slice(0, 10); // keep last 10
     });
 
     router.push(`/(profile)/${user.id}`);
@@ -211,58 +241,60 @@ export default function SearchScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {selectedPost && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+        <TouchableWithoutFeedback onPress={() => setSelectedPost(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {selectedPost.isoutfit_post ? (
+                <ModalPostCard
+                  post={selectedPost}
+                  currentUserId={user?.id}
+                  onNavigateAway={() => setSelectedPost(null)}
+                  onOpenComments={handleOpenComments}
+                  onOpenLikers={handleOpenLikers}
+                />
+              ) : (
+                <ModalHaulPostCard
+                  post={selectedPost}
+                  currentUserId={user?.id}
+                  onNavigateAway={() => setSelectedPost(null)}
+                  onOpenComments={handleOpenComments}
+                  onOpenLikers={handleOpenLikers}
+                />
+              )}
+            </View>
             <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setSelectedPost(null)}
+              style={styles.exploreButton}
+              onPress={() => {
+                (setSelectedPost(null),
+                  router.push("/(profile)/exploreScroll"));
+              }}
             >
-              <Text style={styles.closeText}>✕</Text>
+              <Ionicons
+                name="grid-outline"
+                size={16}
+                color={colors.background}
+              />
+              <Text style={styles.exploreButtonText}>
+                Scroll Explore Posts →
+              </Text>
             </TouchableOpacity>
-
-            {selectedPost.isoutfit_post ? (
-              <ModalPostCard
-                post={selectedPost}
-                currentUserId={user?.id}
-                onNavigateAway={() => setSelectedPost(null)}
-                onOpenComments={handleOpenComments}
-                onOpenLikers={handleOpenLikers}
-              />
-            ) : (
-              <ModalHaulPostCard
-                post={selectedPost}
-                currentUserId={user?.id}
-                onNavigateAway={() => setSelectedPost(null)}
-                onOpenComments={handleOpenComments}
-                onOpenLikers={handleOpenLikers}
-              />
-            )}
+            <CommentsSheet
+              postId={commentPostId ?? ""}
+              postOwnerId={commentPostOwnerId ?? ""}
+              visible={commentPostId !== null}
+              onClose={() => {
+                setCommentPostId(null);
+                setCommentPostOwnerId(null);
+              }}
+            />
+            <LikersSheet
+              likers={likers}
+              isLoading={isLoadingLikers}
+              visible={likerPostId !== null}
+              onClose={() => setLikerPostId(null)}
+            />
           </View>
-          <TouchableOpacity
-            style={styles.exploreButton}
-            onPress={() => {
-              (setSelectedPost(null), router.push("/(profile)/exploreScroll"));
-            }}
-          >
-            <Ionicons name="grid-outline" size={16} color={colors.background} />
-            <Text style={styles.exploreButtonText}>Scroll Explore Posts →</Text>
-          </TouchableOpacity>
-          <CommentsSheet
-            postId={commentPostId ?? ""}
-            postOwnerId={commentPostOwnerId ?? ""}
-            visible={commentPostId !== null}
-            onClose={() => {
-              setCommentPostId(null);
-              setCommentPostOwnerId(null);
-            }}
-          />
-          <LikersSheet
-            likers={likers}
-            isLoading={isLoadingLikers}
-            visible={likerPostId !== null}
-            onClose={() => setLikerPostId(null)}
-          />
-        </View>
+        </TouchableWithoutFeedback>
       )}
 
       <View style={styles.searchRow}>
@@ -302,7 +334,7 @@ export default function SearchScreen() {
         ) : query.length === 0 ? (
           <FlatList
             key="recent"
-            data={recentSearches}
+            data={filteredRecentSearches}
             keyExtractor={(item) => item.id}
             renderItem={renderUser}
             style={{ paddingLeft: 10, paddingRight: 10 }}

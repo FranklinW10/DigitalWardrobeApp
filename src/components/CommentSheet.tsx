@@ -1,12 +1,15 @@
 import { LikersSheet } from "@/components/LikerSheet";
+import { ReportModal } from "@/components/reportModal";
 import { StreakAvatar } from "@/components/StreakAvatar";
 import { useAuth } from "@/context/AuthContext";
+import { useBlocks } from "@/context/BlocksContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Comment, useComments } from "@/hooks/useComments";
 import { Liker } from "@/hooks/useLikes";
 import { formatTimeAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { Alert, Dimensions } from "react-native";
 
 import {
   BottomSheetFlatList,
@@ -14,6 +17,7 @@ import {
   BottomSheetModal,
   BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
+
 import { Image } from "expo-image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -24,7 +28,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+const SCREEN_HEIGHT = Dimensions.get("window").height;
 interface CommentsSheetProps {
   postId: string;
   postOwnerId: string;
@@ -62,7 +67,12 @@ export const CommentsSheet = ({
   const textRef = useRef("");
   const inputRef = useRef<any>(null);
   const { colors } = useTheme();
+  const { blockUser } = useBlocks();
+  const [reportTarget, setReportTarget] = useState<string | null>(null);
 
+  // In the CommentsSheet component:
+  const { blockedIds, blockedByIds } = useBlocks();
+  const allBlockedIds = new Set([...blockedIds, ...blockedByIds]);
   useEffect(() => {
     console.log("CommentsSheet mounted");
 
@@ -86,6 +96,40 @@ export const CommentsSheet = ({
       setReplyTarget(null);
     }
   }, [visible]);
+
+  const handleLongPressComment = useCallback(
+    (item: Comment) => {
+      const isOwnComment = item.user_id === user?.id;
+      if (isOwnComment) return; // no report/block on your own comments
+
+      Alert.alert("Comment Options", "", [
+        {
+          text: "Report Comment",
+          onPress: () => setReportTarget(item.id),
+        },
+        {
+          text: "Block User",
+          style: "destructive",
+          onPress: () => {
+            Alert.alert(
+              "Block this user?",
+              `You won't see content from @${item.profiles?.username} anymore.`,
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Block",
+                  style: "destructive",
+                  onPress: () => blockUser(item.user_id),
+                },
+              ],
+            );
+          },
+        },
+        { text: "Cancel", style: "cancel" },
+      ]);
+    },
+    [user, blockUser],
+  );
 
   const handleSubmit = useCallback(async () => {
     const val = textRef.current.trim();
@@ -142,7 +186,6 @@ export const CommentsSheet = ({
       });
     }, 100);
   };
-
   const handleOpenCommentLikers = useCallback(
     async (commentId: string) => {
       setShowLikers(true);
@@ -150,12 +193,19 @@ export const CommentsSheet = ({
       try {
         const likers = await fetchCommentLikers(commentId);
         console.log("comment likers:", likers);
-        setCommentLikers((likers as any) ?? []);
+
+        // Filter out blocked users
+        const filtered =
+          (likers as any[])?.filter(
+            (liker) => !allBlockedIds.has(liker.user_id),
+          ) ?? [];
+
+        setCommentLikers(filtered);
       } finally {
         setIsLoadingLikers(false);
       }
     },
-    [fetchCommentLikers],
+    [fetchCommentLikers, allBlockedIds],
   );
 
   const renderFooter = useCallback(
@@ -251,6 +301,8 @@ export const CommentsSheet = ({
               onPress={() =>
                 navigateToProfile(isOwnComment ? user?.id! : item.user_id)
               }
+              onLongPress={() => handleLongPressComment(item)}
+              delayLongPress={350}
             >
               <View style={styles.commentHeaderRow}>
                 <Text style={styles.commentUsername}>
@@ -283,7 +335,23 @@ export const CommentsSheet = ({
               {item.user_id === user?.id && (
                 <TouchableOpacity
                   style={styles.actionRowItem}
-                  onPress={() => deleteComment(item.id)}
+                  onPress={() =>
+                    Alert.alert(
+                      "Delete Comment",
+                      "Are you sure you would like to delete this comment?",
+                      [
+                        {
+                          text: "Cancel",
+                          style: "cancel",
+                        },
+                        {
+                          text: "Delete",
+                          style: "destructive",
+                          onPress: () => deleteComment(item.id),
+                        },
+                      ],
+                    )
+                  }
                   hitSlop={6}
                 >
                   <Text style={styles.actionRowText}>Delete</Text>
@@ -341,6 +409,7 @@ export const CommentsSheet = ({
       </View>
     );
   };
+  const insets = useSafeAreaInsets();
 
   return (
     <>
@@ -349,6 +418,7 @@ export const CommentsSheet = ({
         index={1}
         snapPoints={snapPoints}
         enablePanDownToClose
+        maxDynamicContentSize={SCREEN_HEIGHT - insets.top - 200} // 👈 hard cap, leaves a gap under the notch
         onDismiss={onClose}
         backgroundStyle={styles.background}
         footerComponent={renderFooter}
@@ -377,6 +447,12 @@ export const CommentsSheet = ({
         isLoading={isLoadingLikers}
         visible={showLikers}
         onClose={() => setShowLikers(false)}
+      />
+      <ReportModal
+        visible={reportTarget !== null}
+        onClose={() => setReportTarget(null)}
+        targetType="comment"
+        targetId={reportTarget ?? ""}
       />
     </>
   );
@@ -431,6 +507,7 @@ const createStyles = (colors: any) =>
     },
     list: {
       padding: 16,
+      paddingBottom: 100,
       gap: 16,
     },
     likeContainer: {

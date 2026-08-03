@@ -1,7 +1,9 @@
 import { useAuth } from "@/context/AuthContext";
-
+import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/lib/supabase/client";
 import { uploadProfileImage } from "@/lib/supabase/storage";
+import { Keyboard, TouchableWithoutFeedback } from "react-native";
+
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
@@ -26,6 +28,8 @@ export default function SignUpScreen() {
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const { user, updateUser } = useAuth();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -136,187 +140,190 @@ export default function SignUpScreen() {
   };
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Compleate Your Profile</Text>
-          <Text style={styles.subtitle}>
-            Add your information to get started
-          </Text>
-        </View>
-        <View style={styles.form}>
-          <TouchableOpacity
-            style={styles.imagecontainer}
-            onPress={showImagePicker}
-          >
-            {profileImage ? (
-              <Image
-                cachePolicy={"memory"}
-                source={{ uri: profileImage }}
-                style={styles.profileImage}
-              />
-            ) : (
-              <View style={styles.placeholderimage}>
-                <Text>+</Text>
-              </View>
-            )}
-            <View style={styles.editBadge}>
-              <Text style={styles.editText}>Edit</Text>
-            </View>
-          </TouchableOpacity>
-          <TextInput
-            placeholder="Full Name"
-            placeholderTextColor={"#999"}
-            value={name}
-            onChangeText={setName}
-            style={styles.input}
-            autoCapitalize="words"
-          />
-          <TextInput
-            placeholder="Username"
-            placeholderTextColor={"#999"}
-            autoCapitalize="none"
-            autoComplete="username"
-            value={username}
-            onChangeText={setUsername}
-            style={styles.input}
-          />
-          <View style={styles.privacyRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.privacyLabel}>Private Account</Text>
-              <Text style={styles.privacyHint}>
-                Only approved followers can see your posts
-              </Text>
-            </View>
-            <Switch value={isPrivate} onValueChange={setIsPrivate} />
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+      <SafeAreaView edges={["top", "bottom"]} style={styles.container}>
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <Text style={styles.title}>Compleate Your Profile</Text>
+            <Text style={styles.subtitle}>
+              Add your information to get started
+            </Text>
           </View>
-          <TouchableOpacity style={styles.button} onPress={handleCompleate}>
-            {isLoading ? (
-              <ActivityIndicator size={24} color="#fff" />
-            ) : (
-              <Text style={styles.buttontext}>Complete Setup</Text>
-            )}
-          </TouchableOpacity>
+          <View style={styles.form}>
+            <TouchableOpacity
+              style={styles.imagecontainer}
+              onPress={showImagePicker}
+            >
+              {profileImage ? (
+                <Image
+                  cachePolicy={"memory"}
+                  source={{ uri: profileImage }}
+                  style={styles.profileImage}
+                />
+              ) : (
+                <View style={styles.placeholderimage}>
+                  <Text style={styles.placeholderText}>+</Text>
+                </View>
+              )}
+              <View style={styles.editBadge}>
+                <Text style={styles.editText}>Edit</Text>
+              </View>
+            </TouchableOpacity>
+            <TextInput
+              placeholder="Full Name"
+              placeholderTextColor={colors.textMuted}
+              value={name}
+              onChangeText={setName}
+              style={styles.input}
+              autoCapitalize="words"
+            />
+            <TextInput
+              placeholder="Username"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              autoComplete="username"
+              value={username}
+              onChangeText={setUsername}
+              style={styles.input}
+            />
+            <View style={styles.privacyRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.privacyLabel}>Private Account</Text>
+                <Text style={styles.privacyHint}>
+                  Only approved followers can see your posts
+                </Text>
+              </View>
+              <Switch
+                value={isPrivate}
+                onValueChange={setIsPrivate}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={colors.background}
+              />
+            </View>
+            <TouchableOpacity style={styles.button} onPress={handleCompleate}>
+              {isLoading ? (
+                <ActivityIndicator size={24} color={colors.background} />
+              ) : (
+                <Text style={styles.buttontext}>Complete Setup</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
-    </SafeAreaView>
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 }
 
-const styles = StyleSheet.create({
-  privacyRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    marginBottom: 10,
-  },
-  privacyLabel: { fontSize: 15, fontWeight: "600" },
-  privacyHint: { fontSize: 12, color: "#999" },
-  container: {
-    flex: 1,
-  },
-  helloworldTitle: {
-    color: "red",
-  },
-  image: {
-    width: 200,
-    height: 200,
-  },
-  header: {
-    marginBottom: 32,
-  },
-  content: {
-    flex: 1,
-    justifyContent: "center",
-    padding: 24,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    marginBottom: 32,
-    color: "#666",
-  },
-  form: {
-    width: "100%",
-    alignItems: "center",
-  },
-  imagecontainer: {
-    marginBottom: 32,
-    position: "relative",
-  },
-  profileImage: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: "#f5f5f5",
-  },
-  placeholderimage: {
-    width: 120,
-    height: 120,
-    backgroundColor: "#f5f5f5",
-    borderRadius: 60,
-    justifyContent: "center",
-    alignItems: "center",
-    position: "relative",
-    borderWidth: 2,
-    borderColor: "#e0e0e0",
-    borderStyle: "dashed",
-  },
-  placeholderText: {
-    fontSize: 48,
-    color: "#999",
-  },
-  editBadge: {
-    position: "absolute",
-    bottom: 0,
-    right: 0,
-    backgroundColor: "#000",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  editText: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  input: {
-    backgroundColor: "#f5f5f5",
-    width: "100%",
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  button: {
-    backgroundColor: "#000",
-    width: "100%",
-
-    borderRadius: 12,
-    padding: 16,
-    alignItems: "center",
-  },
-  linkbutton: {
-    marginTop: 24,
-    alignItems: "center",
-  },
-  linkbuttontext: {
-    color: "#666",
-    fontSize: 14,
-  },
-  linkbuttontextbold: {
-    fontWeight: "600",
-    color: "#000",
-  },
-  buttontext: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    privacyRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingVertical: 12,
+      marginBottom: 10,
+    },
+    privacyLabel: { fontSize: 15, fontWeight: "600", color: colors.text },
+    privacyHint: { fontSize: 12, color: colors.textMuted },
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      marginBottom: 32,
+    },
+    content: {
+      flex: 1,
+      justifyContent: "center",
+      padding: 24,
+    },
+    title: {
+      fontSize: 32,
+      fontWeight: "bold",
+      marginBottom: 8,
+      color: colors.text,
+    },
+    subtitle: {
+      fontSize: 16,
+      marginBottom: 32,
+      color: colors.textMuted,
+    },
+    form: {
+      width: "100%",
+      alignItems: "center",
+    },
+    imagecontainer: {
+      marginBottom: 32,
+      position: "relative",
+    },
+    profileImage: {
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      backgroundColor: colors.surface,
+    },
+    placeholderimage: {
+      width: 120,
+      height: 120,
+      backgroundColor: colors.surface,
+      borderRadius: 60,
+      justifyContent: "center",
+      alignItems: "center",
+      position: "relative",
+      borderWidth: 2,
+      borderColor: colors.border,
+      borderStyle: "dashed",
+    },
+    placeholderText: {
+      fontSize: 48,
+      color: colors.textMuted,
+    },
+    editBadge: {
+      position: "absolute",
+      bottom: 0,
+      right: 0,
+      backgroundColor: colors.primary,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+    },
+    editText: {
+      color: colors.background,
+      fontSize: 12,
+      fontWeight: "600",
+    },
+    input: {
+      backgroundColor: colors.surface,
+      width: "100%",
+      borderRadius: 12,
+      padding: 16,
+      fontSize: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      color: colors.text,
+    },
+    button: {
+      backgroundColor: colors.primary,
+      width: "100%",
+      borderRadius: 12,
+      padding: 16,
+      alignItems: "center",
+    },
+    linkbutton: {
+      marginTop: 24,
+      alignItems: "center",
+    },
+    linkbuttontext: {
+      color: colors.textMuted,
+      fontSize: 14,
+    },
+    linkbuttontextbold: {
+      fontWeight: "600",
+      color: colors.text,
+    },
+    buttontext: {
+      color: colors.background,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+  });

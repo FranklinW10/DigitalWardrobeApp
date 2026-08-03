@@ -14,9 +14,7 @@ export interface MatchedContact {
 // stored in Supabase in E.164-ish format (e.g. +15551234567). If your
 // user base is international, swap this for libphonenumber-js instead.
 const normalizePhone = (raw: string) => {
-  const digits = raw.replace(/[^\d+]/g, "");
-  if (digits.startsWith("+")) return digits;
-  return `+1${digits.replace(/^1/, "")}`;
+  return raw.replace(/\D/g, "").slice(-10);
 };
 
 export const useContactFriends = () => {

@@ -1,9 +1,11 @@
 import { useAuth } from "@/context/AuthContext";
+import { useBlocks } from "@/context/BlocksContext";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useMemo } from "react";
+
 import {
   Alert,
   ScrollView,
@@ -39,6 +41,7 @@ const SettingRow = ({
   </TouchableOpacity>
 );
 export default function Settings() {
+  const { blockedIds } = useBlocks();
   const { signOut } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -141,7 +144,8 @@ export default function Settings() {
           />
           <View style={styles.divider} />
           <SettingRow
-            label="Privacy"
+            label="Blocked Users"
+            onPress={() => router.push("/(profile)/blockedUsers")}
             styles={styles}
             mutedColor={colors.textMuted}
           />

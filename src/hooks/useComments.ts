@@ -23,25 +23,74 @@ export const useComments = (postId: string) => {
   const [commentCount, setCommentCount] = useState(0);
   const [comments, setComments] = useState<Comment[]>([]);
   const { user } = useAuth();
+  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+  const [reportedCommentIds, setReportedCommentIds] = useState<string[]>([]);
+
+  // Load blocked users on mount
+  useEffect(() => {
+    const loadBlockedAndReports = async () => {
+      if (!user) return;
+
+      const { data: blockedData } = await supabase
+        .from("blocks")
+        .select("blocked_id")
+        .eq("blocker_id", user.id);
+
+      const { data: blockedByData } = await supabase
+        .from("blocks")
+        .select("blocker_id")
+        .eq("blocked_id", user.id);
+
+      const { data: reportedData } = await supabase
+        .from("reports")
+        .select("target_id")
+        .eq("reporter_id", user.id)
+        .eq("target_type", "comment");
+
+      const blockedIds = blockedData?.map((b) => b.blocked_id) ?? [];
+      const blockedByIds = blockedByData?.map((b) => b.blocker_id) ?? [];
+
+      setBlockedUserIds([...new Set([...blockedIds, ...blockedByIds])]);
+      setReportedCommentIds(reportedData?.map((r) => r.target_id) ?? []);
+    };
+
+    loadBlockedAndReports();
+  }, [user]);
 
   useEffect(() => {
-    if (!postId) return;
+    if (
+      !postId ||
+      (blockedUserIds.length === 0 && reportedCommentIds.length === 0)
+    )
+      return;
     fetchComments();
-  }, [postId]);
+  }, [postId, blockedUserIds, reportedCommentIds]);
 
   const fetchComments = async () => {
-    const { data, error } = await supabase
+    let query = supabase
       .from("comments")
       .select("*, profiles(username, profile_image_url, streak)")
-      .eq("post_id", postId)
-      .order("created_at", { ascending: true });
+      .eq("post_id", postId);
+
+    // Only add the .not() filter if there are blocked users
+    if (blockedUserIds.length > 0) {
+      query = query.not("user_id", "in", `(${blockedUserIds.join(",")})`);
+    }
+
+    const { data, error } = await query.order("created_at", {
+      ascending: true,
+    });
 
     if (error) {
       console.error("Error fetching comments:", error);
       return;
     }
 
-    const flatComments = data ?? [];
+    const flatComments = (data ?? []).filter(
+      (c) =>
+        !blockedUserIds.includes(c.user_id) &&
+        !reportedCommentIds.includes(c.id),
+    );
     const commentIds = flatComments.map((c) => c.id);
 
     // Pull all likes for this post's comments in one query, then tally

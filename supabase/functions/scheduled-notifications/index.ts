@@ -17,6 +17,7 @@ interface Profile {
   last_evening_reminder_date: string | null;
   last_inactive_3day_sent_at: string | null;
   last_inactive_7day_sent_at: string | null;
+  streak: number | null;
 }
 
 // Local hour (0-23) and local date string ("YYYY-MM-DD") for a user's timezone
@@ -67,7 +68,7 @@ Deno.serve(async () => {
     const { data: profiles, error } = await supabaseAdmin
       .from("profiles")
       .select(
-        "id, push_token, timezone, last_active_at, last_morning_reminder_date, last_evening_reminder_date, last_inactive_3day_sent_at, last_inactive_7day_sent_at",
+        "id, push_token, timezone, last_active_at, last_morning_reminder_date, last_evening_reminder_date, last_inactive_3day_sent_at, last_inactive_7day_sent_at, streak",
       )
       .not("push_token", "is", null);
 
@@ -101,7 +102,7 @@ Deno.serve(async () => {
 
       // --- Morning reminder (10am local) ---
       if (
-        hour === 10 &&
+        hour === 9 &&
         !hasPostedToday &&
         profile.last_morning_reminder_date !== dateStr
       ) {
@@ -109,7 +110,7 @@ Deno.serve(async () => {
           to: profile.push_token,
           sound: "default",
           title: "Fit Check",
-          body: "Don't forget to post your fit for today!",
+          body: "Wake Up! Its time to your fit for today",
           data: { type: "fit_reminder_morning" },
         });
         fitCheckUpdates.push({
@@ -129,7 +130,10 @@ Deno.serve(async () => {
           to: profile.push_token,
           sound: "default",
           title: "Fit Check",
-          body: "Still haven't posted your fit today — last call!",
+          body:
+            (profile.streak ?? 0) >= 3
+              ? `Your ${profile.streak} day streak is in danger! Post your fit before the day ends`
+              : "You still haven't posted your fit today, last chance!",
           data: { type: "fit_reminder_evening" },
         });
         fitCheckUpdates.push({

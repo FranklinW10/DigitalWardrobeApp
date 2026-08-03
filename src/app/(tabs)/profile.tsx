@@ -13,7 +13,7 @@ import { TotalLikesBadge } from "@/components/TotalLikesBadge";
 import { palettes, themeMeta, ThemeName } from "@/constants/theme";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
-import { Liker } from "@/hooks/useLikes";
+import { useLikes } from "@/hooks/useLikes";
 import { Post, usePosts } from "@/hooks/usePosts";
 import { supabase } from "@/lib/supabase/client";
 import { uploadProfileImage } from "@/lib/supabase/storage";
@@ -21,8 +21,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import { Keyboard, KeyboardAvoidingView, Platform } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+} from "react-native";
 
 import {
   ActivityIndicator,
@@ -80,19 +85,24 @@ export default function Profile() {
   const filteredPosts = posts.filter((post) =>
     activeTab === "fits" ? post.isoutfit_post : !post.isoutfit_post,
   );
-  const [likerPostId, setLikerPostId] = useState<string | null>(null);
+  const [totalLikes, setTotalLikes] = useState(0);
+
   const tabScrollRef = useRef<ScrollView>(null); // tab pager
   const [showOptions, setShowOptions] = useState(false);
   const [filter, setFilter] = useState<"all" | "public" | "private">("all");
   const [isPrivate, setIsPrivate] = useState(user?.isPrivate ?? false);
-  const [likers, setLikers] = useState<Liker[]>([]);
-  const [isLoadingLikers, setIsLoadingLikers] = useState(false);
+  const [likerPostId, setLikerPostId] = useState<string | null>(null);
   const [commentPost, setCommentPost] = useState<Post | null>(null);
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const nameInputRef = useRef<TextInput>(null);
   const usernameInputRef = useRef<TextInput>(null);
+
+  // Get likers from hook, not local state
+  const { fetchLikers, isLoadingLikers, likers } = useLikes(likerPostId || "");
+
+  // Use fetchLikers from hook
 
   const [selectedTheme, setSelectedTheme] = useState<ThemeName>("light");
   const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
@@ -134,18 +144,20 @@ export default function Profile() {
       if (filter === "private") return !post.is_public;
       return true;
     });
+  useEffect(() => {
+    if (likerPostId) {
+      fetchLikers();
+    }
+  }, [likerPostId, fetchLikers]);
 
-  const handleOpenLikers = async (postId: string) => {
-    setLikerPostId(postId);
-    setIsLoadingLikers(true);
-    const { data } = await supabase
-      .from("likes")
-      .select("user_id, profiles(username, name, profile_image_url, streak)")
-      .eq("post_id", postId);
-    setLikers((data as any) ?? []);
-    setIsLoadingLikers(false);
-  };
-
+  const handleOpenLikers = useCallback(
+    async (postId: string) => {
+      setLikerPostId(postId);
+      // useLikes hook will call fetchLikers with proper filtering
+      await fetchLikers();
+    },
+    [fetchLikers],
+  );
   // Pass a callback down into your modal post cards
   const handleOpenComments = (postId: string, postOwnerId: string) => {
     console.log("postId:", postId, "postOwnerId:", postOwnerId);
@@ -274,6 +286,13 @@ export default function Profile() {
         .eq("follower_id", user?.id)
         .eq("status", true);
       setFollowingCount(following ?? 0);
+      // Load total likes across all of this user's posts
+      const { count: likesCount, error: likesError } = await supabase
+        .from("likes")
+        .select("*, posts!inner(user_id)", { count: "exact", head: true })
+        .eq("posts.user_id", user?.id);
+      if (likesError) throw likesError;
+      setTotalLikes(likesCount ?? 0);
     } catch (error) {
       console.error("Error loading profile:", error);
     } finally {
@@ -435,46 +454,29 @@ export default function Profile() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       {selectedPost && (
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <TouchableOpacity
-              style={styles.closeButton}
-              onPress={() => setSelectedPost(null)}
-            >
-              <Text style={styles.closeText}>✕</Text>
-            </TouchableOpacity>
-
-            {selectedPost.isoutfit_post ? (
-              <ModalPostCard
-                post={selectedPost}
-                currentUserId={user?.id}
-                onNavigateAway={() => setSelectedPost(null)}
-                onOpenComments={handleOpenComments}
-                onOpenLikers={handleOpenLikers}
-              />
-            ) : (
-              <ModalHaulPostCard
-                post={selectedPost}
-                currentUserId={user?.id}
-                onNavigateAway={() => setSelectedPost(null)}
-                onOpenComments={handleOpenComments}
-                onOpenLikers={handleOpenLikers}
-              />
-            )}
+        <TouchableWithoutFeedback onPress={() => setSelectedPost(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {selectedPost.isoutfit_post ? (
+                <ModalPostCard
+                  post={selectedPost}
+                  currentUserId={user?.id}
+                  onNavigateAway={() => setSelectedPost(null)}
+                  onOpenComments={handleOpenComments}
+                  onOpenLikers={handleOpenLikers}
+                />
+              ) : (
+                <ModalHaulPostCard
+                  post={selectedPost}
+                  currentUserId={user?.id}
+                  onNavigateAway={() => setSelectedPost(null)}
+                  onOpenComments={handleOpenComments}
+                  onOpenLikers={handleOpenLikers}
+                />
+              )}
+            </View>
           </View>
-          <TouchableOpacity
-            style={styles.exploreButton}
-            onPress={() => {
-              if (selectedPost.ispostedontime === false) {
-                handleOldPostOptions(selectedPost);
-              } else {
-                handlePostOptions(selectedPost);
-              }
-            }}
-          >
-            <Text style={styles.exploreButtonText}>Post Options</Text>
-          </TouchableOpacity>
-        </View>
+        </TouchableWithoutFeedback>
       )}
 
       <CommentsSheet
@@ -557,7 +559,7 @@ export default function Profile() {
               {/* Follower counts */}
               {/* replaces your existing statsRow block */}
               <View style={styles.statBarRow}>
-                <View style={{ width: ARROW_SIZE }} />
+                <View style={{ width: ARROW_SIZE * 0.6 }} />
                 <View
                   style={styles.statBarClip}
                   onLayout={(e) => setStatBarWidth(e.nativeEvent.layout.width)}
@@ -615,11 +617,11 @@ export default function Profile() {
                           <Text style={styles.statLabel}>Posts</Text>
                         </View>
                       </View>
-                      <View style={{ width: ARROW_SIZE * 0.33 }} />
+                      <View style={{ width: ARROW_SIZE * 0.3 }} />
                       <View style={[styles.badgeRow, { width: statBarWidth }]}>
                         <MaxStreakBadge streak={profileUser?.maxStreak ?? 0} />
-                        <SuperBadge streak={4} />
-                        <TotalLikesBadge likes={4} />
+                        <SuperBadge streak={0} />
+                        <TotalLikesBadge likes={totalLikes} />
                       </View>
                     </Animated.View>
                   )}
@@ -1172,7 +1174,6 @@ const createStyles = (colors: any) =>
     },
     statBarClip: {
       flex: 1,
-      overflow: "hidden",
     },
     statBarTrack: {
       flexDirection: "row",

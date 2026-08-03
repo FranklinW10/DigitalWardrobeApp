@@ -1,4 +1,5 @@
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { BlocksProvider } from "@/context/BlocksContext";
 import { FollowsProvider } from "@/context/FollowsContext";
 import { NotificationsProvider } from "@/context/NotificationsContext";
 import { ThemeProvider } from "@/context/ThemeContext";
@@ -6,13 +7,14 @@ import { useActivityTracking } from "@/hooks/activityTracking";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Stack, useRouter, useSegments } from "expo-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 function RouteGaurd() {
   const router = useRouter();
   const { user, isLoading } = useAuth();
   const segments = useSegments();
+  const [isRedirecting, setIsRedirecting] = useState(true);
   usePushNotifications();
   useActivityTracking();
   const inAuthGroup = segments[0] === "(auth)";
@@ -22,29 +24,33 @@ function RouteGaurd() {
 
   useEffect(() => {
     if (isLoading) return;
-    if (!user) {
-      if (!inAuthGroup) {
-        router.replace("/(auth)/login");
+    const checkRoute = async () => {
+      if (!user) {
+        if (!inAuthGroup) {
+          router.replace("/(auth)/login");
+        }
+      } else if (!user.onboardingCompleated) {
+        router.replace("/(auth)/onboarding");
+      } else if (!user.theme) {
+        router.replace("/(auth)/themeSelector");
+      } else if (!user.PhoneAsked) {
+        router.replace("/(auth)/phone");
+      } else if (!user.friendsStepCompleted) {
+        router.replace("/(auth)/addFriends");
+      } else {
+        if (!inTabsGroup && !inProfilesGroup && segments[0] !== "(post)") {
+          router.replace("/(tabs)");
+        }
       }
-    } else if (!user.onboardingCompleated) {
-      router.replace("/(auth)/onboarding");
-    } else if (!user.theme) {
-      router.replace("/(auth)/themeSelector");
-    } else if (!user.PhoneAsked) {
-      router.replace("/(auth)/phone");
-    } else if (!user.friendsStepCompleted) {
-      router.replace("/(auth)/addFriends");
-    } else {
-      if (!inTabsGroup && !inProfilesGroup && segments[0] !== "(post)") {
-        router.replace("/(tabs)");
-      }
-    }
+      setIsRedirecting(false);
+    };
+    checkRoute();
   }, [user, segments, router, isLoading]);
   // if (isLoading){
   //   return null
   // };
 
-  if (isLoading)
+  if (isLoading || isRedirecting)
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" />
@@ -64,7 +70,9 @@ function AppProviders() {
   return (
     <FollowsProvider>
       <NotificationsProvider userId={user?.id}>
-        <RouteGaurd />
+        <BlocksProvider userId={user?.id}>
+          <RouteGaurd />
+        </BlocksProvider>
       </NotificationsProvider>
     </FollowsProvider>
   );
