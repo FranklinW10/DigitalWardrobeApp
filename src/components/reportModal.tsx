@@ -2,19 +2,23 @@ import { useTheme } from "@/context/ThemeContext";
 import { ReportTargetType, useReports } from "@/hooks/useReports";
 import { useState } from "react";
 import {
-    Alert,
-    Modal,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const REASONS = [
   "Spam",
   "Harassment or bullying",
+  "Bein to fly",
   "Nudity or sexual content",
+  "That ain't a fit",
   "Hate speech",
+  "Abduction",
+  "Murder",
   "Impersonation",
   "Other",
 ];

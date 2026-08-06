@@ -77,7 +77,7 @@ const TagPin = ({
         tagPinStyles.pinWrap,
         {
           left: left - 70,
-          top: top - 20,
+          top: top - 40,
         },
       ]}
     >
@@ -186,75 +186,96 @@ const TaggableImage = ({
   const scale = useSharedValue(1);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
-  const savedTranslateX = useSharedValue(0);
-  const savedTranslateY = useSharedValue(0);
+  // Captured once at the start of each pinch — the baseline we compose on top of.
+  const startScale = useSharedValue(1);
+  const startTranslateX = useSharedValue(0);
+  const startTranslateY = useSharedValue(0);
+  // Focal point (relative to container center) at gesture start.
+  const startFocalX = useSharedValue(0);
+  const startFocalY = useSharedValue(0);
+  const MIN_SCALE = 1;
+  const MAX_SCALE = 4;
 
-  // Anchor point + baseline translation captured at the start of each pinch,
-  // so we can measure how far the pinch has moved (for two-finger drag)
-  // independently of how much it has scaled (for zoom-into-focal-point).
-  const pinchStartFocalX = useSharedValue(0);
-  const pinchStartFocalY = useSharedValue(0);
-  const pinchStartTranslateX = useSharedValue(0);
-  const pinchStartTranslateY = useSharedValue(0);
+  // Captured at the start of each pan.
+  const panStartTranslateX = useSharedValue(0);
+  const panStartTranslateY = useSharedValue(0);
+  const clampTranslate = (
+    tx: number,
+    ty: number,
+    s: number,
+  ): { x: number; y: number } => {
+    "worklet";
+    const maxTranslateX = (containerSize.width * (s - 1)) / 2;
+    const maxTranslateY = (containerSize.height * (s - 1)) / 2;
+    return {
+      x: Math.max(-maxTranslateX, Math.min(maxTranslateX, tx)),
+      y: Math.max(-maxTranslateY, Math.min(maxTranslateY, ty)),
+    };
+  };
 
   const pinchGesture = Gesture.Pinch()
     .onBegin((e) => {
-      pinchStartFocalX.value = e.focalX;
-      pinchStartFocalY.value = e.focalY;
-      pinchStartTranslateX.value = translateX.value;
-      pinchStartTranslateY.value = translateY.value;
+      startScale.value = scale.value;
+      startTranslateX.value = translateX.value;
+      startTranslateY.value = translateY.value;
+      startFocalX.value = e.focalX - containerSize.width / 2;
+      startFocalY.value = e.focalY - containerSize.height / 2;
     })
     .onUpdate((e) => {
-      scale.value = Math.max(1, Math.min(e.scale, 4));
-      if (scale.value > 1 && !isZoomed) {
+      const newScale = Math.max(
+        MIN_SCALE,
+        Math.min(startScale.value * e.scale, MAX_SCALE),
+      );
+      scale.value = newScale;
+
+      const focalX = e.focalX - containerSize.width / 2;
+      const focalY = e.focalY - containerSize.height / 2;
+
+      // Point in image space that was under the fingers when the pinch began.
+      const anchorX =
+        (startFocalX.value - startTranslateX.value) / startScale.value;
+      const anchorY =
+        (startFocalY.value - startTranslateY.value) / startScale.value;
+
+      // Keep that same image point under the (possibly moved) current focal point.
+      const nextX = focalX - anchorX * newScale;
+      const nextY = focalY - anchorY * newScale;
+
+      const clamped = clampTranslate(nextX, nextY, newScale);
+      translateX.value = clamped.x;
+      translateY.value = clamped.y;
+
+      if (newScale > 1 && !isZoomed) {
         runOnJS(setIsZoomed)(true);
       }
-
-      // Keeps the zoom centered under where the pinch started...
-      const anchorX =
-        (pinchStartFocalX.value - containerSize.width / 2) *
-        (1 - scale.value) *
-        0.5;
-      const anchorY =
-        (pinchStartFocalY.value - containerSize.height / 2) *
-        (1 - scale.value) *
-        0.5;
-
-      // ...and lets the image be dragged by however far the two fingers
-      // have physically moved together since the pinch began.
-      const dragX = e.focalX - pinchStartFocalX.value;
-      const dragY = e.focalY - pinchStartFocalY.value;
-
-      translateX.value = pinchStartTranslateX.value + anchorX + dragX;
-      translateY.value = pinchStartTranslateY.value + anchorY + dragY;
     })
     .onEnd(() => {
       scale.value = withSpring(1);
       translateX.value = withSpring(0);
       translateY.value = withSpring(0);
-      savedTranslateX.value = 0;
-      savedTranslateY.value = 0;
       runOnJS(setIsZoomed)(false);
     });
 
   const panGesture = Gesture.Pan()
     .enabled(isZoomed)
+    .onBegin(() => {
+      panStartTranslateX.value = translateX.value;
+      panStartTranslateY.value = translateY.value;
+    })
     .onUpdate((e) => {
-      const maxTranslateX = (containerSize.width * (scale.value - 1)) / 2;
-      const maxTranslateY = (containerSize.height * (scale.value - 1)) / 2;
-
-      translateX.value = Math.max(
-        -maxTranslateX,
-        Math.min(maxTranslateX, savedTranslateX.value + e.translationX),
+      const clamped = clampTranslate(
+        panStartTranslateX.value + e.translationX,
+        panStartTranslateY.value + e.translationY,
+        scale.value,
       );
-      translateY.value = Math.max(
-        -maxTranslateY,
-        Math.min(maxTranslateY, savedTranslateY.value + e.translationY),
-      );
+      translateX.value = clamped.x;
+      translateY.value = clamped.y;
     })
     .onEnd(() => {
-      savedTranslateX.value = translateX.value;
-      savedTranslateY.value = translateY.value;
+      translateX.value = withSpring(0);
+      translateY.value = withSpring(0);
+      scale.value = withSpring(1);
+      runOnJS(setIsZoomed)(false);
     });
 
   const composedGesture = Gesture.Simultaneous(pinchGesture, panGesture);

@@ -1,4 +1,6 @@
 import { supabase } from "@/lib/supabase/client";
+import * as AppleAuthentication from "expo-apple-authentication";
+
 import {
   createContext,
   ReactNode,
@@ -26,6 +28,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signInWithPhoneOtp: (phone: string) => Promise<void>;
+  handleAppleSignIn: () => Promise<void>;
   verifyPhoneOtp: (phone: string, token: string) => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
   isLoading: boolean;
@@ -118,6 +121,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const handleAppleSignIn = async () => {
+    try {
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+
+      if (!credential.identityToken) {
+        throw new Error("No identity token returned");
+      }
+
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: "apple",
+        token: credential.identityToken,
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        const profile = await fetchUserProfile(data.user.id);
+        setUser(profile);
+
+        // Apple only sends fullName on the very first sign-in ever for
+        // this user — capture it now if the profile doesn't have a name yet,
+        // since it won't be sent again on future logins.
+        if (profile && !profile.name && credential.fullName?.givenName) {
+          const displayName = [
+            credential.fullName.givenName,
+            credential.fullName.familyName,
+          ]
+            .filter(Boolean)
+            .join(" ");
+          await supabase
+            .from("profiles")
+            .update({ name: displayName })
+            .eq("id", data.user.id);
+          const updatedProfile = await fetchUserProfile(data.user.id);
+          setUser(updatedProfile);
+        }
+      }
+    } catch (error) {
+      const err = error as { code?: string; message?: string };
+      if (err.code === "ERR_CANCELED") {
+        console.log("User canceled Apple Sign In");
+      } else {
+        console.error("Apple Sign In error:", error);
+        throw error;
+      }
+    }
+  };
   const signInWithPhoneOtp = async (phone: string) => {
     const { error } = await supabase.auth.signInWithOtp({ phone });
     if (error) throw error;
@@ -195,6 +250,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         updateUser,
         isLoading,
         signOut,
+        handleAppleSignIn,
       }}
     >
       {children}

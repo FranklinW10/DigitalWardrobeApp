@@ -57,15 +57,43 @@ export const useComments = (postId: string) => {
     loadBlockedAndReports();
   }, [user]);
 
-  useEffect(() => {
-    if (
-      !postId ||
-      (blockedUserIds.length === 0 && reportedCommentIds.length === 0)
-    )
-      return;
-    fetchComments();
-  }, [postId, blockedUserIds, reportedCommentIds]);
+  const [blockedAndReportsLoaded, setBlockedAndReportsLoaded] = useState(false);
 
+  useEffect(() => {
+    const loadBlockedAndReports = async () => {
+      if (!user) return;
+
+      const { data: blockedData } = await supabase
+        .from("blocks")
+        .select("blocked_id")
+        .eq("blocker_id", user.id);
+
+      const { data: blockedByData } = await supabase
+        .from("blocks")
+        .select("blocker_id")
+        .eq("blocked_id", user.id);
+
+      const { data: reportedData } = await supabase
+        .from("reports")
+        .select("target_id")
+        .eq("reporter_id", user.id)
+        .eq("target_type", "comment");
+
+      const blockedIds = blockedData?.map((b) => b.blocked_id) ?? [];
+      const blockedByIds = blockedByData?.map((b) => b.blocker_id) ?? [];
+
+      setBlockedUserIds([...new Set([...blockedIds, ...blockedByIds])]);
+      setReportedCommentIds(reportedData?.map((r) => r.target_id) ?? []);
+      setBlockedAndReportsLoaded(true); // 👈 fires regardless of whether either list is empty
+    };
+
+    loadBlockedAndReports();
+  }, [user]);
+
+  useEffect(() => {
+    if (!postId || !blockedAndReportsLoaded) return;
+    fetchComments();
+  }, [postId, blockedAndReportsLoaded, blockedUserIds, reportedCommentIds]);
   const fetchComments = async () => {
     let query = supabase
       .from("comments")

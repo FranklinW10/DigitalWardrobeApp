@@ -502,5 +502,6 @@ export const usePosts = () => {
     refreshOwnPosts,
     createoldPost,
     refreshExplorePosts,
+    isLoading,
   };
 };

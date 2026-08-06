@@ -1,3 +1,4 @@
+import { useFollows } from "@/context/FollowsContext";
 import { supabase } from "@/lib/supabase/client";
 import {
   createContext,
@@ -28,6 +29,7 @@ export function BlocksProvider({
   const [blockedIds, setBlockedIds] = useState<Set<string>>(new Set());
   const [blockedByIds, setBlockedByIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const { loadFollowing, loadFollowers } = useFollows();
 
   const loadBlocks = useCallback(async () => {
     if (!userId) {
@@ -63,7 +65,9 @@ export function BlocksProvider({
       .insert({ blocker_id: userId, blocked_id: targetId });
     if (!error) {
       setBlockedIds((prev) => new Set(prev).add(targetId));
+      await Promise.all([loadFollowing(), loadFollowers()]);
     }
+
     return { error };
   };
 
