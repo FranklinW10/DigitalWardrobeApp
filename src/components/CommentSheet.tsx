@@ -271,6 +271,7 @@ export const CommentsSheet = ({
   }, [onClose]);
 
   if (!visible) return null;
+  const insets = useSafeAreaInsets();
 
   const renderCommentRow = (item: Comment, isReply: boolean) => {
     const isExpanded = expandedReplies.has(item.id);
@@ -409,7 +410,6 @@ export const CommentsSheet = ({
       </View>
     );
   };
-  const insets = useSafeAreaInsets();
 
   return (
     <>
@@ -418,9 +418,11 @@ export const CommentsSheet = ({
         index={1}
         snapPoints={snapPoints}
         enablePanDownToClose
-        maxDynamicContentSize={SCREEN_HEIGHT - insets.top - 200} // 👈 hard cap, leaves a gap under the notch
+        stackBehavior="push"
         onDismiss={onClose}
         backgroundStyle={styles.background}
+        maxDynamicContentSize={SCREEN_HEIGHT - insets.top}
+        enableOverDrag={false}
         footerComponent={renderFooter}
         handleStyle={styles.handle}
         handleIndicatorStyle={styles.handleIndicator}

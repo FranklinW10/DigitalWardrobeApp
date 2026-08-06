@@ -1,7 +1,4 @@
 // supabase/functions/send-push/index.ts
-// Triggered by a Database Webhook on INSERT into public.notifications.
-// Looks up the recipient's push token and sends via Expo's push API.
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
@@ -20,7 +17,33 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    // Look up recipient's push token and the actor's username for the message
+    // Look up recipient's notification preferences
+    const { data: prefs } = await supabaseAdmin
+      .from("notification_preferences")
+      .select("*")
+      .eq("user_id", notification.recipient_id)
+      .single();
+
+    // Map notification types to preference keys
+    const prefMap: Record<string, string> = {
+      like: "likes",
+      comment: "comments",
+      comment_reply: "replies",
+      comment_like: "comments",
+      follow: "follows",
+      follow_request: "follow_requests",
+    };
+
+    const prefKey = prefMap[notification.type];
+
+    // Check if user has this notification type enabled
+    if (prefs && prefKey && !prefs[prefKey]) {
+      return new Response("Notification type disabled by user", {
+        status: 200,
+      });
+    }
+
+    // Look up recipient's push token
     const { data: recipient, error: recipientError } = await supabaseAdmin
       .from("profiles")
       .select("push_token")
@@ -28,7 +51,6 @@ Deno.serve(async (req) => {
       .single();
 
     if (recipientError || !recipient?.push_token) {
-      // No token saved (denied permission, not logged in on a device, etc) — skip silently
       return new Response("No push token for recipient", { status: 200 });
     }
 

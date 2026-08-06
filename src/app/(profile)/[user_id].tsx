@@ -322,7 +322,7 @@ export default function UserProfileScreen() {
           visible={showReportModal}
           onClose={() => setShowReportModal(false)}
           targetType="user"
-          targetId={profileUser.id}
+          targetId={profileUser?.id ?? ""}
         />
       </View>
       <FlatList

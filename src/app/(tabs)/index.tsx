@@ -9,6 +9,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   FlatList,
   RefreshControl,
@@ -30,7 +31,7 @@ export default function Index() {
   const [description, setDescription] = useState<string>("");
   const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
-  const { posts, refreshPosts } = usePosts();
+  const { posts, refreshPosts, isLoading } = usePosts();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -41,8 +42,10 @@ export default function Index() {
   const insets = useSafeAreaInsets();
   const miniBarAnim = useRef(new Animated.Value(0)).current;
   const upScrollAccumulator = useRef(0);
-  const SCROLL_UP_THRESHOLD = 750;
 
+  const downScrollAccumulator = useRef(0);
+  const SCROLL_UP_THRESHOLD = 750;
+  const SCROLL_DOWN_THRESHOLD = 200;
   const headerVisible = useRef(new Animated.Value(1)).current;
   const [activeTab, setActiveTab] = useState<"fits" | "hauls">("fits");
   const { colors } = useTheme();
@@ -133,6 +136,11 @@ export default function Index() {
   const renderHaulPost = ({ item }: { item: Post }) => (
     <HaulPostCard post={item} currentUserId={user?.id} />
   );
+  const renderLoadingState = () => (
+    <View style={styles.emptyContent}>
+      <ActivityIndicator size="large" color={colors.primary} />
+    </View>
+  );
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -145,18 +153,23 @@ export default function Index() {
         if (delta > 0 && currentY > 50) {
           // scrolling down — hide immediately, reset the up-accumulator
           upScrollAccumulator.current = 0;
-          Animated.timing(headerVisible, {
-            toValue: 0,
-            duration: 0,
-            useNativeDriver: false,
-          }).start();
-          Animated.timing(miniBarAnim, {
-            toValue: 1,
-            duration: 0,
-            useNativeDriver: true,
-          }).start();
+          upScrollAccumulator.current = 0;
+          downScrollAccumulator.current += delta;
+          if (downScrollAccumulator.current > SCROLL_DOWN_THRESHOLD) {
+            Animated.timing(headerVisible, {
+              toValue: 0,
+              duration: 0,
+              useNativeDriver: false,
+            }).start();
+            Animated.timing(miniBarAnim, {
+              toValue: 1,
+              duration: 0,
+              useNativeDriver: true,
+            }).start();
+          }
         } else if (delta < 0) {
           // scrolling up — accumulate distance before showing
+          downScrollAccumulator.current = 0;
           upScrollAccumulator.current += -delta;
           console.log(
             "up accum:",
@@ -338,7 +351,9 @@ export default function Index() {
                 colors={[colors.primary]}
               />
             }
-            ListEmptyComponent={renderEmptyState("fits")}
+            ListEmptyComponent={
+              isLoading ? renderLoadingState() : renderEmptyState("fits")
+            }
             contentContainerStyle={
               sections.length === 0 ? styles.emptyContent : styles.content
             }
@@ -362,7 +377,9 @@ export default function Index() {
             contentContainerStyle={
               followingPosts.length === 0 ? styles.emptyContent : styles.content
             }
-            ListEmptyComponent={renderEmptyState("hauls")}
+            ListEmptyComponent={
+              isLoading ? renderLoadingState() : renderEmptyState("hauls")
+            }
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}

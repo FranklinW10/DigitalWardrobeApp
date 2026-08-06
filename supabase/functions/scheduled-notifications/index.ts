@@ -1,12 +1,8 @@
 // supabase/functions/scheduled-notifications/index.ts
-// Runs every 15 minutes via pg_cron. For each user with a push token,
-// checks THEIR local time (not server time) to decide whether it's their
-// 10am/8pm reminder window, and separately checks inactivity thresholds.
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
-const EXPO_BATCH_SIZE = 100; // Expo's push API accepts up to 100 messages per request
+const EXPO_BATCH_SIZE = 100;
 
 interface Profile {
   id: string;
@@ -20,7 +16,10 @@ interface Profile {
   streak: number | null;
 }
 
-// Local hour (0-23) and local date string ("YYYY-MM-DD") for a user's timezone
+interface NotificationPrefs {
+  reminders: boolean;
+}
+
 function getLocalTimeParts(timezone: string) {
   const now = new Date();
   const hour = Number(
@@ -32,7 +31,7 @@ function getLocalTimeParts(timezone: string) {
   );
   const dateStr = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
-  }).format(now); // en-CA gives YYYY-MM-DD directly
+  }).format(now);
   return { hour, dateStr };
 }
 
@@ -77,14 +76,21 @@ Deno.serve(async () => {
       return new Response("No profiles with push tokens", { status: 200 });
     }
 
+    // Fetch all notification preferences in one query
+    const { data: allPrefs } = await supabaseAdmin
+      .from("notification_preferences")
+      .select("user_id, reminders");
+
+    const prefsMap = new Map(
+      (allPrefs ?? []).map((p) => [p.user_id, p.reminders ?? true]),
+    );
+
     const now = new Date();
     const messages: any[] = [];
     const fitCheckUpdates: { id: string; field: string; value: string }[] = [];
     const inactivityUpdates: { id: string; field: string; value: string }[] =
       [];
 
-    // Get today's active outfit posts in one query, per user, rather than
-    // querying per-profile in a loop.
     const { data: activePosts } = await supabaseAdmin
       .from("posts")
       .select("user_id")
@@ -99,18 +105,20 @@ Deno.serve(async () => {
     for (const profile of profiles as Profile[]) {
       const { hour, dateStr } = getLocalTimeParts(profile.timezone);
       const hasPostedToday = postedTodayUserIds.has(profile.id);
+      const hasRemindersEnabled = prefsMap.get(profile.id) !== false;
 
       // --- Morning reminder (10am local) ---
       if (
         hour === 9 &&
         !hasPostedToday &&
+        hasRemindersEnabled &&
         profile.last_morning_reminder_date !== dateStr
       ) {
         messages.push({
           to: profile.push_token,
           sound: "default",
           title: "Fit Check",
-          body: "Wake Up! Its time to your fit for today",
+          body: "Wake Up! Its time to post your fit for today",
           data: { type: "fit_reminder_morning" },
         });
         fitCheckUpdates.push({
@@ -124,6 +132,7 @@ Deno.serve(async () => {
       if (
         hour === 20 &&
         !hasPostedToday &&
+        hasRemindersEnabled &&
         profile.last_evening_reminder_date !== dateStr
       ) {
         messages.push({
@@ -143,8 +152,8 @@ Deno.serve(async () => {
         });
       }
 
-      // --- Inactivity: 3 days ---
-      if (profile.last_active_at) {
+      // --- Inactivity notifications (also check reminders preference) ---
+      if (profile.last_active_at && hasRemindersEnabled) {
         const daysSinceActive =
           (now.getTime() - new Date(profile.last_active_at).getTime()) /
           (1000 * 60 * 60 * 24);
@@ -159,7 +168,7 @@ Deno.serve(async () => {
             to: profile.push_token,
             sound: "default",
             title: "Fit Check",
-            body: "We miss you! See what your friends have been wearing.",
+            body: "We miss you! Come see what your friends have been wearing.",
             data: { type: "inactive_3day" },
           });
           inactivityUpdates.push({
@@ -180,7 +189,7 @@ Deno.serve(async () => {
             to: profile.push_token,
             sound: "default",
             title: "Fit Check",
-            body: "It's been a week — come check out what's new!",
+            body: "It's been a week, come check out what's new!",
             data: { type: "inactive_7day" },
           });
           inactivityUpdates.push({
@@ -196,7 +205,6 @@ Deno.serve(async () => {
       await sendPushBatch(messages);
     }
 
-    // Persist dedup markers so these don't resend on the next cron tick
     await Promise.all([
       ...fitCheckUpdates.map((u) =>
         supabaseAdmin

@@ -10,6 +10,7 @@
     "ios": {
       "icon": "./assets/images/IMG_20260713_141034 copy 2.png",
       "bundleIdentifier": "com.franklinwohnoutka.fitcheck",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSContactsUsageDescription": "Fit Check uses your contacts to help you find friends who are already using the app."
@@ -48,7 +49,8 @@
           "defaultChannel": "default"
         }
       ],
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true,

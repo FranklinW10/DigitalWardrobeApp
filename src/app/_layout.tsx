@@ -2,7 +2,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { BlocksProvider } from "@/context/BlocksContext";
 import { FollowsProvider } from "@/context/FollowsContext";
 import { NotificationsProvider } from "@/context/NotificationsContext";
-import { ThemeProvider } from "@/context/ThemeContext";
+import { ThemeProvider, useTheme } from "@/context/ThemeContext";
 import { useActivityTracking } from "@/hooks/activityTracking";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -15,6 +15,7 @@ function RouteGaurd() {
   const { user, isLoading } = useAuth();
   const segments = useSegments();
   const [isRedirecting, setIsRedirecting] = useState(true);
+  const { colors } = useTheme();
   usePushNotifications();
   useActivityTracking();
   const inAuthGroup = segments[0] === "(auth)";
@@ -52,8 +53,15 @@ function RouteGaurd() {
 
   if (isLoading || isRedirecting)
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" />
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: colors.background,
+        }}
+      >
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   return (

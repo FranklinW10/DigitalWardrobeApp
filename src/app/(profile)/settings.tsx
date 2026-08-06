@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase/client";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useMemo } from "react";
+import { Linking } from "react-native";
 
 import {
   Alert,
@@ -45,6 +46,12 @@ export default function Settings() {
   const { signOut } = useAuth();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const PRIVACY_POLICY_URL = "https://franklinw10.github.io/FitCheck-Legal/";
+  const TERMS_OF_SERVICE_URL =
+    "https://franklinw10.github.io/FitCheck-Legal/terms-of-service.html";
+  const SUPPORT_URL =
+    "https://franklinw10.github.io/FitCheck-Legal/help-support.html";
 
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -133,12 +140,14 @@ export default function Settings() {
         <View style={styles.section}>
           <SettingRow
             label="Edit Profile"
+            onPress={() => router.push("/(profile)/EditProfile")}
             styles={styles}
             mutedColor={colors.textMuted}
           />
           <View style={styles.divider} />
           <SettingRow
             label="Notifications"
+            onPress={() => router.push("/(profile)/notificationsPreferences")}
             styles={styles}
             mutedColor={colors.textMuted}
           />
@@ -155,18 +164,21 @@ export default function Settings() {
         <View style={styles.section}>
           <SettingRow
             label="Help & Support"
+            onPress={() => Linking.openURL(SUPPORT_URL)}
             styles={styles}
             mutedColor={colors.textMuted}
           />
           <View style={styles.divider} />
           <SettingRow
             label="Terms of Service"
+            onPress={() => Linking.openURL(TERMS_OF_SERVICE_URL)}
             styles={styles}
             mutedColor={colors.textMuted}
           />
           <View style={styles.divider} />
           <SettingRow
             label="Privacy Policy"
+            onPress={() => Linking.openURL(PRIVACY_POLICY_URL)}
             styles={styles}
             mutedColor={colors.textMuted}
           />

@@ -2,6 +2,7 @@ import { StreakAvatar } from "@/components/StreakAvatar";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { Liker } from "@/hooks/useLikes";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetFlatList, BottomSheetModal } from "@gorhom/bottom-sheet";
@@ -10,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import {
   ActivityIndicator,
+  Dimensions,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -22,6 +24,7 @@ interface LikersSheetProps {
   visible: boolean;
   onClose: () => void;
 }
+const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 export const LikersSheet = ({
   likers,
@@ -34,6 +37,7 @@ export const LikersSheet = ({
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     console.log("visible:", visible);
@@ -66,6 +70,7 @@ export const LikersSheet = ({
       index={1}
       snapPoints={snapPoints}
       enablePanDownToClose
+      maxDynamicContentSize={SCREEN_HEIGHT - insets.top}
       stackBehavior="push"
       onChange={(index) => console.log("sheet index", index)}
       onDismiss={() => {
