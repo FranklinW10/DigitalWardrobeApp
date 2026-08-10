@@ -132,6 +132,30 @@ export default function UserProfileScreen() {
       onPress={() => setSelectedPost(item)}
     />
   );
+  const flattenPostTags = (post: any) => {
+    return (post.post_image_tags ?? [])
+      .map((row: any) => {
+        if (!row.tags_new) return null;
+        return {
+          id: row.tags_new.id,
+          image_id: row.image_id,
+          location_x: row.location_x,
+          created_at: row.tags_new.created_at,
+
+          location_y: row.location_y,
+          brand: row.tags_new.brand,
+          tag_image: row.tags_new.tag_image,
+          price: row.tags_new.price,
+          store: row.tags_new.store,
+          color: row.tags_new.color,
+          favorite: row.tags_new.favorite,
+          in_archive: row.tags_new.in_archive,
+          name: row.tags_new.name,
+          count: 0,
+        };
+      })
+      .filter(Boolean);
+  };
 
   const loadProfile = async () => {
     setIsLoading(true);
@@ -178,13 +202,20 @@ export default function UserProfileScreen() {
       if (canView) {
         const { data: postsData, error: postsError } = await supabase
           .from("posts")
-          .select("*, profiles(*), images(*), tags(*)")
+          .select(
+            "*, profiles(*), images(*),post_image_tags(image_id,location_x,location_y,tags_new(*))",
+          )
           .eq("user_id", user_id)
           .eq("is_active", true)
           .eq("is_public", true)
           .order("created_at", { ascending: false });
         if (postsError) throw postsError;
-        setPosts(postsData ?? []);
+        setPosts(
+          (postsData ?? []).map((post) => ({
+            ...post,
+            tags: flattenPostTags(post),
+          })),
+        );
       } else {
         // Important: clear out any posts left over from a previously
         // viewed (public/followed) profile — otherwise navigating from
@@ -199,7 +230,18 @@ export default function UserProfileScreen() {
   };
 
   if (isLoading) {
-    return <ActivityIndicator style={{ flex: 1 }} />;
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.background,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <ActivityIndicator size="small" color={colors.text} />
+      </View>
+    );
   }
 
   // Followers/following list (and post grid) should only be visible if the

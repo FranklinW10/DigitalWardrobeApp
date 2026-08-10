@@ -113,7 +113,7 @@ export default function SuggestedFriendsScreen() {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} />
+        <ActivityIndicator style={{ marginTop: 40 }} color={colors.text} />
       ) : (
         <ScrollView>
           {matches.length > 0 && (

@@ -98,6 +98,7 @@ export default function Profile() {
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const nameInputRef = useRef<TextInput>(null);
   const usernameInputRef = useRef<TextInput>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Get likers from hook, not local state
   const { fetchLikers, isLoadingLikers, likers } = useLikes(likerPostId || "");
@@ -129,6 +130,10 @@ export default function Profile() {
     setRefreshing(true);
     try {
       await refreshPosts();
+      setRefreshKey((prev) => prev + 1);
+      if (user?.id) {
+        refreshProfile();
+      }
     } catch (error) {
       console.error("Error refreshing posts:", error);
     } finally {
@@ -264,12 +269,19 @@ export default function Profile() {
       // Load posts
       const { data: postsData, error: postsError } = await supabase
         .from("posts")
-        .select("*, profiles(*), images(*), tags(*)")
+        .select(
+          "*, profiles(*), images(*),post_image_tags(image_id,location_x,location_y,tags_new(*))",
+        )
         .eq("user_id", user?.id)
         .eq("is_active", true)
         .order("post_date", { ascending: false });
       if (postsError) throw postsError;
-      setPosts(postsData ?? []);
+      setPosts(
+        (postsData ?? []).map((post) => ({
+          ...post,
+          tags: flattenPostTags(post),
+        })),
+      );
 
       // Load follower count
       const { count: followers } = await supabase
@@ -287,21 +299,140 @@ export default function Profile() {
         .eq("status", true);
       setFollowingCount(following ?? 0);
       // Load total likes across all of this user's posts
-      const { count: likesCount, error: likesError } = await supabase
-        .from("likes")
-        .select("*, posts!inner(user_id)", { count: "exact", head: true })
-        .eq("posts.user_id", user?.id);
-      if (likesError) throw likesError;
-      setTotalLikes(likesCount ?? 0);
+      const { data: userPosts, error: userPostsError } = await supabase
+        .from("posts")
+        .select("id")
+        .eq("user_id", user?.id);
+      if (userPostsError) throw userPostsError;
+
+      const postIds = (userPosts ?? []).map((p) => p.id);
+
+      let likesCount = 0;
+      if (postIds.length > 0) {
+        const { count, error: likesError } = await supabase
+          .from("likes")
+          .select("*", { count: "exact", head: true })
+          .in("post_id", postIds);
+        if (likesError) throw likesError;
+        likesCount = count ?? 0;
+      }
+      setTotalLikes(likesCount);
     } catch (error) {
       console.error("Error loading profile:", error);
     } finally {
       setIsLoading(false);
     }
   };
+  const flattenPostTags = (post: any) => {
+    return (post.post_image_tags ?? [])
+      .map((row: any) => {
+        if (!row.tags_new) return null;
+        return {
+          id: row.tags_new.id,
+          image_id: row.image_id,
+          location_x: row.location_x,
+          created_at: row.tags_new.created_at,
+
+          location_y: row.location_y,
+          brand: row.tags_new.brand,
+          tag_image: row.tags_new.tag_image,
+          price: row.tags_new.price,
+          store: row.tags_new.store,
+          color: row.tags_new.color,
+          favorite: row.tags_new.favorite,
+          in_archive: row.tags_new.in_archive,
+          name: row.tags_new.name,
+          count: 0,
+        };
+      })
+      .filter(Boolean);
+  };
+
+  const refreshProfile = async () => {
+    try {
+      // Load profile
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("id, name, username, profile_image_url, streak, max_streak")
+        .eq("id", user?.id)
+        .single();
+      if (profileError) throw profileError;
+      setProfileUser({
+        ...profile,
+        maxStreak: profile.max_streak,
+      });
+      console.log(profile);
+
+      // Load posts
+      const { data: postsData, error: postsError } = await supabase
+        .from("posts")
+        .select(
+          "*, profiles(*), images(*),post_image_tags(image_id,location_x,location_y,tags_new(*))",
+        )
+        .eq("user_id", user?.id)
+        .eq("is_active", true)
+        .order("post_date", { ascending: false });
+      if (postsError) throw postsError;
+
+      setPosts(
+        (postsData ?? []).map((post) => ({
+          ...post,
+          tags: flattenPostTags(post),
+        })),
+      );
+
+      // Load follower count
+      const { count: followers } = await supabase
+        .from("follows")
+        .select("*", { count: "exact", head: true })
+        .eq("following_id", user?.id)
+        .eq("status", true);
+      setFollowerCount(followers ?? 0);
+
+      // Load following count
+      const { count: following } = await supabase
+        .from("follows")
+        .select("*", { count: "exact", head: true })
+        .eq("follower_id", user?.id)
+        .eq("status", true);
+      setFollowingCount(following ?? 0);
+      // Load total likes across all of this user's posts
+      const { data: userPosts, error: userPostsError } = await supabase
+        .from("posts")
+        .select("id")
+        .eq("user_id", user?.id);
+      if (userPostsError) throw userPostsError;
+
+      const postIds = (userPosts ?? []).map((p) => p.id);
+
+      let likesCount = 0;
+      if (postIds.length > 0) {
+        const { count, error: likesError } = await supabase
+          .from("likes")
+          .select("*", { count: "exact", head: true })
+          .in("post_id", postIds);
+        if (likesError) throw likesError;
+        likesCount = count ?? 0;
+      }
+      setTotalLikes(likesCount);
+    } catch (error) {
+      console.error("Error loading profile:", error);
+    }
+  };
 
   if (isLoading) {
-    return <ActivityIndicator style={{ flex: 1 }} />;
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: colors.background,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <ActivityIndicator size="small" color={colors.text} />
+      </View>
+    );
   }
 
   const tabSwitcher = (

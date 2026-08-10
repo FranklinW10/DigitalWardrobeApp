@@ -17,11 +17,13 @@ import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
 import {
+  Alert,
   Animated,
   Dimensions,
   FlatList,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -282,6 +284,8 @@ export default function WardrobeScreen() {
   const lastScrollY = useRef(0);
   const tabsHidden = useRef(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [selectedTagPost, setSelectedTagPost] = useState<Post | null>(null);
+
   const [selectedWardrobePost, setSelectedWardrobePost] = useState<Post | null>(
     null,
   );
@@ -291,6 +295,7 @@ export default function WardrobeScreen() {
   const [haulPosts, setHaulPosts] = useState<Post[]>([]);
   const [showInfo, setShowInfo] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const [collectionPreviews, setCollectionPreviews] = useState<
     Record<string, string[]>
@@ -301,7 +306,8 @@ export default function WardrobeScreen() {
   const [commentPostOwnerId, setCommentPostOwnerId] = useState<string | null>(
     null,
   );
-  const { tags, loadUserTags } = useTags();
+  const { tags, loadUserTags, loadPostsWithTag, toggleFavoriteTag, deleteTag } =
+    useTags();
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const {
@@ -316,8 +322,11 @@ export default function WardrobeScreen() {
   const [selectedCollectionName, setSelectedCollectionName] =
     useState<string>("");
   const [collectionPosts, setCollectionPosts] = useState<Post[]>([]);
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [isLoadingCollectionPosts, setIsLoadingCollectionPosts] =
     useState(false);
+  const [tagPosts, setTagPosts] = useState<Post[]>([]);
+  const [isLoadingTagPosts, setIsLoadingTagPosts] = useState(false);
   useEffect(() => {
     if (activeTab === "Saved") {
       loadCollections();
@@ -336,6 +345,18 @@ export default function WardrobeScreen() {
     }
   }, [likerPostId, fetchLikers]);
 
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadUserTags();
+    setRefreshing(false);
+  };
+
+  const handleCreateTag = () => {
+    router.push({
+      pathname: "/(profile)/newTag",
+    });
+  };
+
   const handleOpenCollection = async (id: string, name: string) => {
     setSelectedCollectionId(id);
     setSelectedCollectionName(name);
@@ -348,6 +369,28 @@ export default function WardrobeScreen() {
     }
   };
 
+  const handleOpenTag = async (id: string, name: string | null) => {
+    setSelectedTagId(id);
+    setSelectedCollectionName(name || "");
+    setIsLoadingTagPosts(true);
+    try {
+      const posts = await loadPostsWithTag(id);
+      setTagPosts(posts);
+    } finally {
+      setIsLoadingTagPosts(false);
+    }
+  };
+
+  const renderTagPost = ({ item }: { item: Post }) => (
+    <TouchableOpacity onPress={() => setSelectedTagPost(item)}>
+      <Image
+        source={{ uri: item.images?.[0]?.image_url ?? item.image_url }}
+        style={styles.savedGridImage}
+        contentFit="cover"
+        cachePolicy="memory-disk"
+      />
+    </TouchableOpacity>
+  );
   const renderSavedPost = ({ item }: { item: Post }) => (
     <TouchableOpacity onPress={() => setSelectedPost(item)}>
       <Image
@@ -652,7 +695,7 @@ export default function WardrobeScreen() {
         </TouchableOpacity>
       </View>
 
-      {!selectedCollectionId && (
+      {!selectedCollectionId && !selectedTagId && (
         <Animated.View
           style={[
             styles.floatingTabsWrapper,
@@ -799,6 +842,7 @@ export default function WardrobeScreen() {
             <View style={styles.whitespace} />
           </ScrollView>
         </View>
+
         {/* Page 2 — Tags */}
         <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
           <ScrollView
@@ -809,24 +853,207 @@ export default function WardrobeScreen() {
             onContentSizeChange={(w, h) => {
               haulsScrollRef.current?.scrollTo({ y: h, animated: false });
             }}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={colors.primary}
+              />
+            }
           >
-            <Text style={styles.photoMonthHeader}>Tags</Text>
-            {tags.map((tag, i) => (
-              <Pressable key={i} style={styles.tagRow}>
-                <View style={styles.countBadge}>
-                  <Text style={styles.countText}>{tag.count}</Text>
+            {selectedTagId ? (
+              <>
+                <View style={styles.savedCollectionHeader}>
+                  <TouchableOpacity onPress={() => setSelectedTagId(null)}>
+                    <Text style={styles.backText}>
+                      ← {selectedCollectionName}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-                <Text style={styles.tagText}>
-                  Brand: {tag.brand} Store: {tag.store} Price: {tag.price}
-                </Text>
-                <MaterialIcons
-                  name="chevron-right"
-                  size={24}
-                  color={colors.border}
-                />
-              </Pressable>
-            ))}
+
+                {isLoadingTagPosts ? (
+                  <View style={styles.emptyContent}>
+                    <Text style={styles.emptyText}>Loading...</Text>
+                  </View>
+                ) : tagPosts.length === 0 ? (
+                  <View style={styles.emptyContent}>
+                    <Text style={styles.emptyText}>
+                      No posts saved here yet
+                    </Text>
+                  </View>
+                ) : (
+                  <FlatList
+                    key="saved"
+                    data={tagPosts}
+                    renderItem={renderTagPost}
+                    numColumns={3}
+                    keyExtractor={(item) => item.id}
+                    columnWrapperStyle={{ gap: 2 }}
+                    scrollEnabled={false}
+                    ListEmptyComponent={
+                      <View style={styles.emptyContent}>
+                        <Text style={styles.emptyText}>
+                          No posts saved here yet
+                        </Text>
+                      </View>
+                    }
+                  />
+                )}
+              </>
+            ) : (
+              <>
+                <Text style={styles.photoMonthHeader}>Tags</Text>
+                {tags.map((tag, i) => {
+                  const tagImage = tag.tag_image || tag.image_url || null;
+
+                  return (
+                    <Pressable
+                      key={i}
+                      style={({ pressed }) => [
+                        styles.tagRow,
+                        pressed && { opacity: 0.6 },
+                      ]}
+                      onPress={() => handleOpenTag(tag.id, tag.name || null)}
+                    >
+                      <View style={styles.TagcountBadge}>
+                        {tagImage ? (
+                          <View style={styles.tagImageClip}>
+                            <Image
+                              source={{ uri: tagImage }}
+                              style={styles.tagImage}
+                            />
+                          </View>
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.tagImagePlaceholder}
+                            onPress={() =>
+                              router.push({
+                                pathname: "/(profile)/tagDetails",
+                                params: { tagId: tag.id },
+                              })
+                            }
+                          >
+                            <Ionicons
+                              name="add"
+                              size={22}
+                              color={colors.textMuted}
+                            />
+                          </TouchableOpacity>
+                        )}
+
+                        <View style={styles.imageCount}>
+                          <Text style={styles.overlayCountText}>
+                            {tag.count}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.tagTextContainer}>
+                        {tag.name ? (
+                          <Text style={styles.tagTitle} numberOfLines={1}>
+                            {tag.name}
+                          </Text>
+                        ) : null}
+
+                        <View style={{ gap: 5 }}>
+                          {tag.brand ? (
+                            <Text style={styles.tagDetails} numberOfLines={1}>
+                              {tag.brand}
+                            </Text>
+                          ) : null}
+                          {tag.store ? (
+                            <Text style={styles.tagDetails} numberOfLines={1}>
+                              {tag.store}
+                            </Text>
+                          ) : null}
+                          {tag.price ? (
+                            <Text style={styles.tagDetails} numberOfLines={1}>
+                              ${tag.price}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+
+                      <View style={styles.tagActionColumn}>
+                        <TouchableOpacity
+                          style={styles.tagActionButton}
+                          hitSlop={6}
+                          onPress={() => toggleFavoriteTag(tag.id)}
+                        >
+                          <Ionicons
+                            name={tag.favorite ? "star" : "star-outline"}
+                            size={16}
+                            color={
+                              tag.favorite ? colors.accent : colors.textMuted
+                            }
+                          />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.tagActionButton}
+                          hitSlop={6}
+                          onPress={() =>
+                            Alert.alert(
+                              "Delete this tag?",
+                              "This will remove it from your archive. This will not remove it from your posts.",
+                              [
+                                { text: "Cancel", style: "cancel" },
+                                {
+                                  text: "Delete",
+                                  style: "destructive",
+                                  onPress: () => deleteTag(tag.id),
+                                },
+                              ],
+                            )
+                          }
+                        >
+                          <Ionicons
+                            name="trash-outline"
+                            size={16}
+                            color={colors.textMuted}
+                          />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.tagActionButton}
+                          hitSlop={6}
+                          onPress={() =>
+                            router.push({
+                              pathname: "/(profile)/tagDetails",
+                              params: { tagId: tag.id },
+                            })
+                          }
+                        >
+                          <Ionicons
+                            name="pencil-outline"
+                            size={16}
+                            color={colors.textMuted}
+                          />
+                        </TouchableOpacity>
+                      </View>
+
+                      <MaterialIcons
+                        name="chevron-right"
+                        size={24}
+                        color={colors.border}
+                      />
+                    </Pressable>
+                  );
+                })}
+              </>
+            )}
           </ScrollView>
+          {/* Floating create button */}
+          {!selectedTagId && (
+            <TouchableOpacity
+              style={styles.fab}
+              onPress={handleCreateTag}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add" size={20} color={colors.text} />
+              <Text style={styles.fabText}>Create new tag</Text>
+            </TouchableOpacity>
+          )}
         </View>
         {/* Page 3 — Hauls */}
 
@@ -1064,6 +1291,68 @@ export default function WardrobeScreen() {
         </TouchableWithoutFeedback>
       )}
 
+      {selectedTagPost && (
+        <TouchableWithoutFeedback onPress={() => setSelectedTagPost(null)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              {selectedTagPost.isoutfit_post ? (
+                <ModalPostCard
+                  post={selectedTagPost}
+                  currentUserId={user?.id}
+                  onNavigateAway={() => setSelectedPost(null)}
+                  onOpenComments={handleOpenComments}
+                  onOpenLikers={handleOpenLikers}
+                />
+              ) : (
+                <ModalHaulPostCard
+                  post={selectedTagPost}
+                  currentUserId={user?.id}
+                  onNavigateAway={() => setSelectedPost(null)}
+                  onOpenComments={handleOpenComments}
+                  onOpenLikers={handleOpenLikers}
+                />
+              )}
+            </View>
+            <TouchableOpacity
+              style={styles.exploreButton}
+              onPress={() =>
+                router.push({
+                  pathname: "/(profile)/tagScroll",
+                  params: {
+                    tag_id: selectedTagId,
+                    tag_name: selectedCollectionName,
+                  },
+                })
+              }
+            >
+              <Ionicons
+                name="grid-outline"
+                size={16}
+                color={colors.background}
+              />
+              <Text style={styles.exploreButtonText}>
+                Scroll {selectedCollectionName} Posts →
+              </Text>
+            </TouchableOpacity>
+            <CommentsSheet
+              postId={commentPostId ?? ""}
+              postOwnerId={commentPostOwnerId ?? ""}
+              visible={commentPostId !== null}
+              onClose={() => {
+                setCommentPostId(null);
+                setCommentPostOwnerId(null);
+              }}
+            />
+            <LikersSheet
+              likers={likers}
+              isLoading={isLoadingLikers}
+              visible={likerPostId !== null}
+              onClose={() => setLikerPostId(null)}
+            />
+          </View>
+        </TouchableWithoutFeedback>
+      )}
+
       {selectedWardrobePost && (
         <TouchableWithoutFeedback onPress={() => setSelectedWardrobePost(null)}>
           <View style={styles.modalOverlay}>
@@ -1226,6 +1515,83 @@ export default function WardrobeScreen() {
 // ---- Dynamic Styles ----
 const createStyles = (colors: any) =>
   StyleSheet.create({
+    tagText: {
+      fontSize: 13,
+      color: colors.text,
+      fontFamily: "System",
+    },
+    tagTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: colors.text,
+
+      marginBottom: 4,
+    },
+    tagDetails: {
+      fontSize: 12,
+      color: colors.textMuted,
+      fontFamily: "System",
+    },
+    tagTextContainer: {
+      flex: 1,
+      gap: 2,
+      minHeight: 30,
+      justifyContent: "center",
+    },
+    TagcountBadge: {
+      position: "relative",
+      width: 80,
+      height: 80,
+      marginRight: 12,
+    },
+    tagImagePlaceholder: {
+      width: 80,
+      height: 80,
+      borderRadius: 18,
+      borderWidth: 2,
+      borderColor: colors.border,
+      borderStyle: "dashed",
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: colors.background,
+    },
+    tagImageClip: {
+      width: 80,
+      height: 80,
+      borderRadius: 18,
+      overflow: "hidden",
+      backgroundColor: colors.accent,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    tagImage: {
+      width: "100%",
+      height: "100%",
+    },
+    imageCount: {
+      position: "absolute",
+      bottom: -2,
+      right: -2,
+      backgroundColor: "rgba(0,0,0,0.75)",
+      borderRadius: 11,
+      minWidth: 22,
+      height: 22,
+      paddingHorizontal: 5,
+      justifyContent: "center",
+      alignItems: "center",
+      borderWidth: 1.5,
+      borderColor: colors.background,
+    },
+    countText: {
+      fontSize: 18,
+      fontWeight: "600",
+      color: colors.background,
+    },
+    overlayCountText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: "#fff",
+    },
     tagRow: {
       flexDirection: "row",
       alignItems: "center",
@@ -1245,36 +1611,49 @@ const createStyles = (colors: any) =>
       justifyContent: "center",
       alignItems: "center",
     },
-    countText: {
+
+    fab: {
+      position: "absolute",
+      bottom: 100,
+      alignSelf: "center",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingHorizontal: 24,
+      paddingVertical: 14,
+      borderRadius: 28,
+      backgroundColor: colors.surface,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+    fab2: {
+      position: "absolute",
+      bottom: 100,
+      alignSelf: "center",
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingHorizontal: 24,
+      paddingVertical: 14,
+      borderRadius: 28,
+      backgroundColor: colors.surface,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+    fabText: {
       fontSize: 16,
       fontWeight: "600",
       color: colors.text,
     },
-    tagText: {
-      flex: 1,
-      fontSize: 14,
-      color: colors.text,
-      fontFamily: "System",
-      lineHeight: 20,
-    },
-    fab: {
-      position: "absolute",
-      bottom: 23,
-      left: "50%",
-      marginLeft: -33,
-      width: 60,
-      height: 60,
-      borderRadius: 40,
-      backgroundColor: colors.primary,
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    fabText: {
-      color: colors.background,
-      fontSize: 50,
-      fontWeight: "300",
-      lineHeight: 54,
-    },
+
     modalContainer1: {
       flex: 1,
       backgroundColor: "rgba(0,0,0,0.55)",
@@ -1492,6 +1871,24 @@ const createStyles = (colors: any) =>
       fontSize: 14,
       fontWeight: "600",
     },
+    exploreButton2: {
+      position: "absolute",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginTop: 16,
+      backgroundColor: colors.primary,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: "rgba(255,255,255,0.4)",
+    },
+    exploreButtonText2: {
+      color: colors.background,
+      fontSize: 14,
+      fontWeight: "600",
+    },
     photoMonthHeader: {
       marginTop: 50,
       fontSize: 24,
@@ -1537,6 +1934,7 @@ const createStyles = (colors: any) =>
       shadowRadius: 6,
       elevation: 4,
     },
+
     floatingTabPill: {
       paddingHorizontal: 16,
       paddingVertical: 6,
@@ -1573,6 +1971,7 @@ const createStyles = (colors: any) =>
     navBtn: {
       padding: 8,
     },
+
     navArrow: {
       fontSize: 28,
       color: colors.secondary,
@@ -1646,6 +2045,15 @@ const createStyles = (colors: any) =>
       width: 160,
       height: 32,
       backgroundColor: "transparent",
+    },
+    tagActionColumn: {
+      gap: 10,
+      marginTop: -4,
+      marginBottom: -4,
+      marginRight: 4,
+    },
+    tagActionButton: {
+      padding: 2,
     },
     selectedPost: {
       margin: 16,

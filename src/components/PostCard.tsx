@@ -468,7 +468,7 @@ const MAX_SEARCH_ITERATIONS = 12;
 const SETTLE_RECHECK_DELAY = 400; // ms — long enough to clear virtualization/layout
 // timing glitches, short enough nobody notices a caption "fixing itself"
 
-const ExpandableCaption = ({
+const ExpandableCaption1 = ({
   text,
   textStyle,
   moreStyle,
@@ -600,7 +600,7 @@ const ExpandableCaption = ({
   );
 };
 
-const styles = StyleSheet.create({
+const styles1 = StyleSheet.create({
   measureHidden: {
     position: "absolute",
     opacity: 0,
@@ -611,12 +611,150 @@ const styles = StyleSheet.create({
 
 // Static styles for ExpandableCaption — not theme-dependent, so this
 // doesn't need to live inside createStyles(colors).
+const captionStyles1 = StyleSheet.create({
+  moreOverlay: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    paddingLeft: 24,
+  },
+});
+const ExpandableCaption = ({
+  text,
+  textStyle,
+  moreStyle,
+}: {
+  text: string;
+  textStyle: any;
+  moreStyle: any;
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const [truncateAt, setTruncateAt] = useState<number | null>(null);
+  const [settled, setSettled] = useState(false);
+  const bounds = useRef({ low: 0, high: text.length });
+  const iterations = useRef(0);
+
+  useEffect(() => {
+    // Reset on text change
+    setTruncateAt(null);
+    setSettled(false);
+    bounds.current = { low: 0, high: text.length };
+    iterations.current = 0;
+
+    // Fallback: force settle if measurement doesn't happen
+    const timeout = setTimeout(() => {
+      setSettled(true);
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [text]);
+
+  if (expanded) {
+    return (
+      <Text style={textStyle}>
+        {text}
+        <Text onPress={() => setExpanded(false)} style={moreStyle}>
+          {"  less"}
+        </Text>
+      </Text>
+    );
+  }
+
+  if (!settled) {
+    return (
+      <View>
+        <View style={captionStyles.skeletonLine} />
+        {/* Measure hidden, don't show until done */}
+        <Text
+          style={[textStyle, styles.measureHidden]}
+          onTextLayout={(e) => {
+            // First measurement: does it need truncating?
+            if (truncateAt === null) {
+              const overflows = e.nativeEvent.lines.length > 2;
+              if (!overflows) {
+                setSettled(true);
+                return;
+              }
+              // Start binary search
+              const mid = Math.floor(text.length / 2);
+              bounds.current = { low: 0, high: text.length };
+              setTruncateAt(mid);
+              return;
+            }
+
+            // Binary search: adjust and continue
+            const { low, high } = bounds.current;
+            const fits = e.nativeEvent.lines.length <= 1;
+
+            if (
+              high - low <= 1 ||
+              iterations.current >= MAX_SEARCH_ITERATIONS
+            ) {
+              setSettled(true);
+              return;
+            }
+
+            iterations.current += 1;
+            const newBounds = fits
+              ? { low: truncateAt, high }
+              : { low, high: truncateAt };
+            bounds.current = newBounds;
+            const mid = Math.floor((newBounds.low + newBounds.high) / 2);
+            setTruncateAt(mid);
+          }}
+        >
+          {truncateAt !== null
+            ? text.slice(0, truncateAt).trimEnd() + "… more"
+            : text}
+        </Text>
+      </View>
+    );
+  }
+
+  // Settled: show final result
+  if (truncateAt === null) {
+    return <Text style={textStyle}>{text}</Text>;
+  }
+
+  const candidate = text.slice(0, truncateAt).trimEnd();
+  return (
+    <Text style={textStyle}>
+      {candidate}
+      {"… "}
+      <Text onPress={() => setExpanded(true)} style={moreStyle}>
+        more
+      </Text>
+    </Text>
+  );
+};
+
+const styles = StyleSheet.create({
+  measureHidden: {
+    position: "absolute",
+    opacity: 0,
+    left: 0,
+    right: 0,
+  },
+});
+
 const captionStyles = StyleSheet.create({
   moreOverlay: {
     position: "absolute",
     right: 0,
     bottom: 0,
     paddingLeft: 24,
+  },
+
+  skeletonLine: {
+    height: 14,
+    borderRadius: 4,
+    backgroundColor: "rgba(128,128,128,0.2)",
+    marginBottom: 6,
+    width: "90%",
+  },
+  skeletonLineShort: {
+    width: "55%",
+    marginBottom: 0,
   },
 });
 
@@ -625,6 +763,7 @@ const LikeButton = ({
   isLiked,
   toggleLike,
   onLikeCountPress,
+  isLoadingLikeCount,
   colors,
   styles, // <-- Receive styles here
 }: {
@@ -632,6 +771,7 @@ const LikeButton = ({
   isLiked: boolean;
   toggleLike: () => void;
   onLikeCountPress: () => void;
+  isLoadingLikeCount?: boolean;
   colors: any;
   styles: any; // <-- Add type
 }) => (
@@ -644,7 +784,13 @@ const LikeButton = ({
       />
     </TouchableOpacity>
     <TouchableOpacity onPress={onLikeCountPress}>
-      <Text style={styles.actionCount}>{likeCount}</Text>
+      {isLoadingLikeCount ? (
+        <View style={styles.likeCountSkeleton} />
+      ) : (
+        <TouchableOpacity onPress={onLikeCountPress}>
+          <Text style={styles.actionCount}>{likeCount}</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   </View>
 );
@@ -666,6 +812,8 @@ const PostActions = ({
   toggleLike,
   onCommentPress,
   onLikeCountPress,
+  isLoadingLikeCount,
+  isLoadingCommentCount,
   colors,
   styles, // <-- Receive styles here
   streak,
@@ -688,12 +836,19 @@ const PostActions = ({
         isLiked={isLiked}
         toggleLike={toggleLike}
         onLikeCountPress={onLikeCountPress}
+        isLoadingLikeCount={isLoadingLikeCount}
         colors={colors}
         styles={styles} // <-- Pass down
       />
       <TouchableOpacity style={styles.actionButton} onPress={onCommentPress}>
         <Ionicons name="chatbubble-outline" size={22} color={colors.text} />
-        <Text style={styles.actionCount}>{commentCount}</Text>
+        {isLoadingCommentCount ? (
+          <View style={styles.likeCountSkeleton} />
+        ) : (
+          <TouchableOpacity onPress={onCommentPress}>
+            <Text style={styles.actionCount}>{commentCount}</Text>
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
 
       {streak >= 3 && (
@@ -757,7 +912,9 @@ const PostActions = ({
 };
 
 export const PostCard = ({ post, currentUserId }: PostCardProps) => {
-  const { comments, commentCount } = useComments(post.id);
+  const { comments, commentCount, isLoadingCommentCount } = useComments(
+    post.id,
+  );
   const postUser = post.profiles;
   const isOwnPost = post.user_id === currentUserId;
   const [showComments, setShowComments] = useState(false);
@@ -769,6 +926,7 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
     likers,
     isLoadingLikers,
     fetchLikers,
+    isLoadingLikeCount,
   } = useLikes(post.id, currentUserId);
   const { colors } = useTheme();
 
@@ -928,6 +1086,8 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
             fetchLikers();
             setShowLikers(true);
           }}
+          isLoadingLikeCount={isLoadingLikeCount}
+          isLoadingCommentCount={isLoadingCommentCount}
           colors={colors}
           styles={styles}
           streak={post.streak ?? 0}
@@ -935,7 +1095,7 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
       </View>
       <View style={styles.postFooter}>
         {post.description && (
-          <ExpandableCaption
+          <ExpandableCaption1
             text={post.description}
             textStyle={styles.postDescription}
             moreStyle={styles.moreText}
@@ -977,7 +1137,9 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
   const isOwnPost = post.user_id === currentUserId;
   const [activeIndex, setActiveIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
-  const { comments, commentCount } = useComments(post.id);
+  const { comments, commentCount, isLoadingCommentCount } = useComments(
+    post.id,
+  );
   const {
     likeCount,
     isLiked,
@@ -985,6 +1147,7 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
     likers,
     isLoadingLikers,
     fetchLikers,
+    isLoadingLikeCount,
   } = useLikes(post.id, currentUserId);
   const [showLikers, setShowLikers] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -1191,6 +1354,8 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
         likeCount={likeCount}
         isLiked={isLiked}
         toggleLike={toggleLike}
+        isLoadingLikeCount={isLoadingLikeCount}
+        isLoadingCommentCount={isLoadingCommentCount}
         onCommentPress={() => setShowComments(true)}
         onLikeCountPress={() => {
           fetchLikers();
@@ -1201,7 +1366,7 @@ export const HaulPostCard = ({ post, currentUserId }: HaulPostCardProps) => {
       />
       <View style={styles.postFooter}>
         {post.description && (
-          <ExpandableCaption
+          <ExpandableCaption1
             text={post.description}
             textStyle={styles.postDescription}
             moreStyle={styles.moreText}
@@ -1313,11 +1478,14 @@ export const ModalPostCard = ({
     likers,
     isLoadingLikers,
     fetchLikers,
+    isLoadingLikeCount,
   } = useLikes(post.id, currentUserId);
   const postUser = post.profiles;
   const isOwnPost = post.user_id === currentUserId;
   const [showComments, setShowComments] = useState(false);
-  const { comments, commentCount } = useComments(post.id);
+  const { comments, commentCount, isLoadingCommentCount } = useComments(
+    post.id,
+  );
   const [showLikers, setShowLikers] = useState(false);
   const { colors } = useTheme();
 
@@ -1470,6 +1638,8 @@ export const ModalPostCard = ({
           currentUserId={currentUserId}
           commentCount={commentCount}
           likeCount={likeCount}
+          isLoadingLikeCount={isLoadingLikeCount}
+          isLoadingCommentCount={isLoadingCommentCount}
           isLiked={isLiked}
           toggleLike={toggleLike}
           onCommentPress={() => onOpenComments(post.id, post.user_id)}
@@ -1517,12 +1687,15 @@ export const ModalHaulPostCard = ({
     likers,
     isLoadingLikers,
     fetchLikers,
+    isLoadingLikeCount,
   } = useLikes(post.id, currentUserId);
   const postUser = post.profiles;
   const isOwnPost = post.user_id === currentUserId;
   const [activeIndex, setActiveIndex] = useState(0);
   const [showComments, setShowComments] = useState(false);
-  const { comments, commentCount } = useComments(post.id);
+  const { comments, commentCount, isLoadingCommentCount } = useComments(
+    post.id,
+  );
   const [showLikers, setShowLikers] = useState(false);
   const { colors } = useTheme();
 
@@ -1730,6 +1903,8 @@ export const ModalHaulPostCard = ({
         toggleLike={toggleLike}
         onCommentPress={() => onOpenComments(post.id, post.user_id)}
         onLikeCountPress={() => onOpenLikers(post.id)}
+        isLoadingLikeCount={isLoadingLikeCount}
+        isLoadingCommentCount={isLoadingCommentCount}
         colors={colors}
         styles={styles}
       />
@@ -2035,6 +2210,12 @@ const createStyles = (colors: any) =>
       justifyContent: "flex-end",
       paddingBottom: 6,
       paddingLeft: 6,
+    },
+    likeCountSkeleton: {
+      width: 8,
+      height: 14,
+      borderRadius: 4,
+      backgroundColor: colors.surface,
     },
     explorePostBadgeText: {
       color: "#fff",

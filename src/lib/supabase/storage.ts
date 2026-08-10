@@ -30,6 +30,30 @@ export const uploadProfileImage = async (userId: string, imageUri: string) => {
     throw error;
   }
 };
+export const uploadTagImage = async (tagId: string, uri: string) => {
+  const response = await fetch(uri);
+  const blob = await response.blob();
+  const fileExt = uri.split(".").pop() || "jpg";
+  const filePath = `tags/${tagId}/${Date.now()}.${fileExt}`;
+
+  const arrayBuffer = await new Response(blob).arrayBuffer();
+
+  const { error: uploadError } = await supabase.storage
+    .from("tag-images")
+    .upload(filePath, arrayBuffer, {
+      contentType: blob.type || `image/${fileExt}`,
+      upsert: true,
+    });
+
+  if (uploadError) {
+    console.error("Error uploading tag image:", uploadError);
+    throw uploadError;
+  }
+
+  const { data } = supabase.storage.from("tag-images").getPublicUrl(filePath);
+
+  return data.publicUrl;
+};
 
 export const uploadPostImage = async (
   userId: string,

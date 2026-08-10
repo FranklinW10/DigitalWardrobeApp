@@ -7,6 +7,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   FlatList,
   RefreshControl,
@@ -19,7 +20,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 export default function ExploreFeedScreen() {
   const { following, loadFollowing } = useFollows();
   const router = useRouter();
-  const { posts, refreshExplorePosts } = usePosts();
+  const { posts, refreshExplorePosts, isLoading } = usePosts();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -42,6 +43,12 @@ export default function ExploreFeedScreen() {
       setRefreshing(false);
     }
   };
+
+  const renderLoadingState = () => (
+    <View style={styles.emptyContent}>
+      <ActivityIndicator size="large" color={colors.primary} />
+    </View>
+  );
 
   const handleScroll = Animated.event(
     [{ nativeEvent: { contentOffset: { y: scrollY } } }],
@@ -73,6 +80,7 @@ export default function ExploreFeedScreen() {
   });
 
   const renderPost = ({ item }: { item: Post }) => {
+    console.log(item.id, item.description);
     if (item.isoutfit_post) {
       return <PostCard post={item} currentUserId={user?.id} />;
     }
@@ -101,6 +109,7 @@ export default function ExploreFeedScreen() {
           keyExtractor={(item) => item.id}
           renderItem={renderPost}
           onScroll={handleScroll}
+          removeClippedSubviews={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -109,7 +118,13 @@ export default function ExploreFeedScreen() {
               colors={[colors.primary]}
             />
           }
-          ListEmptyComponent={<Text style={styles.empty}>No posts yet</Text>}
+          ListEmptyComponent={
+            isLoading ? (
+              renderLoadingState()
+            ) : (
+              <Text style={styles.empty}>No posts yet</Text>
+            )
+          }
           contentContainerStyle={
             posts.length === 0 ? styles.emptyContent : styles.content
           }

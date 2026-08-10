@@ -144,7 +144,7 @@ export default function SignUpScreen() {
       <SafeAreaView edges={["top", "bottom"]} style={styles.container}>
         <View style={styles.content}>
           <View style={styles.header}>
-            <Text style={styles.title}>Compleate Your Profile</Text>
+            <Text style={styles.title}>Complete Your Profile</Text>
             <Text style={styles.subtitle}>
               Add your information to get started
             </Text>

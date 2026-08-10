@@ -24,6 +24,8 @@ export const useComments = (postId: string) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const { user } = useAuth();
   const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
+  const [isLoadingCommentCount, setIsLoadingCommentCount] = useState(true);
+
   const [reportedCommentIds, setReportedCommentIds] = useState<string[]>([]);
 
   // Load blocked users on mount
@@ -94,90 +96,96 @@ export const useComments = (postId: string) => {
     if (!postId || !blockedAndReportsLoaded) return;
     fetchComments();
   }, [postId, blockedAndReportsLoaded, blockedUserIds, reportedCommentIds]);
+
   const fetchComments = async () => {
-    let query = supabase
-      .from("comments")
-      .select("*, profiles(username, profile_image_url, streak)")
-      .eq("post_id", postId);
+    setIsLoadingCommentCount(true);
+    try {
+      let query = supabase
+        .from("comments")
+        .select("*, profiles(username, profile_image_url, streak)")
+        .eq("post_id", postId);
 
-    // Only add the .not() filter if there are blocked users
-    if (blockedUserIds.length > 0) {
-      query = query.not("user_id", "in", `(${blockedUserIds.join(",")})`);
-    }
+      // Only add the .not() filter if there are blocked users
+      if (blockedUserIds.length > 0) {
+        query = query.not("user_id", "in", `(${blockedUserIds.join(",")})`);
+      }
 
-    const { data, error } = await query.order("created_at", {
-      ascending: true,
-    });
+      const { data, error } = await query.order("created_at", {
+        ascending: true,
+      });
 
-    if (error) {
-      console.error("Error fetching comments:", error);
-      return;
-    }
+      if (error) {
+        console.error("Error fetching comments:", error);
+        return;
+      }
 
-    const flatComments = (data ?? []).filter(
-      (c) =>
-        !blockedUserIds.includes(c.user_id) &&
-        !reportedCommentIds.includes(c.id),
-    );
-    const commentIds = flatComments.map((c) => c.id);
+      const flatComments = (data ?? []).filter(
+        (c) =>
+          !blockedUserIds.includes(c.user_id) &&
+          !reportedCommentIds.includes(c.id),
+      );
+      const commentIds = flatComments.map((c) => c.id);
 
-    // Pull all likes for this post's comments in one query, then tally
-    // counts + whether the current user liked each one client-side —
-    // avoids a separate round trip per comment.
-    const likesByComment = new Map<
-      string,
-      { count: number; likedByMe: boolean }
-    >();
+      // Pull all likes for this post's comments in one query, then tally
+      // counts + whether the current user liked each one client-side —
+      // avoids a separate round trip per comment.
+      const likesByComment = new Map<
+        string,
+        { count: number; likedByMe: boolean }
+      >();
 
-    if (commentIds.length > 0) {
-      const { data: likesData, error: likesError } = await supabase
-        .from("comment_likes")
-        .select("comment_id, user_id")
-        .in("comment_id", commentIds);
+      if (commentIds.length > 0) {
+        const { data: likesData, error: likesError } = await supabase
+          .from("comment_likes")
+          .select("comment_id, user_id")
+          .in("comment_id", commentIds);
 
-      if (likesError) {
-        console.error("Error fetching comment likes:", likesError);
-      } else {
-        for (const like of likesData ?? []) {
-          const entry = likesByComment.get(like.comment_id) ?? {
-            count: 0,
-            likedByMe: false,
-          };
-          entry.count += 1;
-          if (like.user_id === user?.id) entry.likedByMe = true;
-          likesByComment.set(like.comment_id, entry);
+        if (likesError) {
+          console.error("Error fetching comment likes:", likesError);
+        } else {
+          for (const like of likesData ?? []) {
+            const entry = likesByComment.get(like.comment_id) ?? {
+              count: 0,
+              likedByMe: false,
+            };
+            entry.count += 1;
+            if (like.user_id === user?.id) entry.likedByMe = true;
+            likesByComment.set(like.comment_id, entry);
+          }
         }
       }
-    }
 
-    const withLikes: Comment[] = flatComments.map((c) => ({
-      ...c,
-      like_count: likesByComment.get(c.id)?.count ?? 0,
-      is_liked: likesByComment.get(c.id)?.likedByMe ?? false,
-      replies: [],
-    }));
+      const withLikes: Comment[] = flatComments.map((c) => ({
+        ...c,
+        like_count: likesByComment.get(c.id)?.count ?? 0,
+        is_liked: likesByComment.get(c.id)?.likedByMe ?? false,
+        replies: [],
+      }));
 
-    // Build a tree: top-level comments hold their replies nested inside.
-    // Orphaned replies (parent missing/deleted) fall back to top-level
-    // rather than silently disappearing.
-    const byId = new Map(withLikes.map((c) => [c.id, c]));
-    const topLevel: Comment[] = [];
+      // Build a tree: top-level comments hold their replies nested inside.
+      // Orphaned replies (parent missing/deleted) fall back to top-level
+      // rather than silently disappearing.
+      const byId = new Map(withLikes.map((c) => [c.id, c]));
+      const topLevel: Comment[] = [];
 
-    for (const c of withLikes) {
-      if (c.parent_comment_id) {
-        const parent = byId.get(c.parent_comment_id);
-        if (parent) {
-          parent.replies.push(c);
+      for (const c of withLikes) {
+        if (c.parent_comment_id) {
+          const parent = byId.get(c.parent_comment_id);
+          if (parent) {
+            parent.replies.push(c);
+          } else {
+            topLevel.push(c);
+          }
         } else {
           topLevel.push(c);
         }
-      } else {
-        topLevel.push(c);
       }
-    }
 
-    setComments(topLevel);
-    setCommentCount(flatComments.length); // includes replies in the total
+      setComments(topLevel);
+      setCommentCount(flatComments.length); // includes replies in the total
+    } finally {
+      setIsLoadingCommentCount(false);
+    }
   };
 
   const addComment = async (
@@ -333,5 +341,6 @@ export const useComments = (postId: string) => {
     toggleCommentLike,
     fetchCommentLikers,
     commentCount,
+    isLoadingCommentCount,
   };
 };

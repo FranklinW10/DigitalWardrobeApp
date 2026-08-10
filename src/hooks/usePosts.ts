@@ -21,6 +21,7 @@ export interface PostTag {
   post_id: string;
   image_id: string | null;
   location_x: number;
+  name: string;
   location_y: number;
   brand: string;
   store: string;
@@ -54,12 +55,40 @@ export interface PostTagInput {
   price: number | null;
   is_clothing_tag: boolean;
   color: string;
+  saved: boolean;
+  saved_tag_id?: string | null;
+  name: string;
   imageIndex: number;
+  id: string;
 }
 export const usePosts = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const { user } = useAuth();
+  // Add near the top of this file (or import PostTag from useTags.ts if it's already exported there)
+  const flattenPostTags = (post: any) => {
+    return (post.post_image_tags ?? [])
+      .map((row: any) => {
+        if (!row.tags_new) return null;
+        return {
+          id: row.tags_new.id,
+          image_id: row.image_id,
+          location_x: row.location_x,
+          location_y: row.location_y,
+          created_at: row.tags_new.created_at,
+          brand: row.tags_new.brand,
+          tag_image: row.tags_new.tag_image,
+          price: row.tags_new.price,
+          store: row.tags_new.store,
+          color: row.tags_new.color,
+          favorite: row.tags_new.favorite,
+          in_archive: row.tags_new.in_archive,
+          name: row.tags_new.name,
+          count: 0,
+        };
+      })
+      .filter(Boolean);
+  };
 
   const getLocalDateString = () => {
     const now = new Date();
@@ -105,7 +134,12 @@ export const usePosts = () => {
                     *,
                     profiles(id,name,username,profile_image_url, streak),
                     images(id,post_id,image_url,order_index),
-                    tags(*)
+                    post_image_tags(
+  image_id,
+  location_x,
+  location_y,
+  tags_new(*)
+)
                     `,
         )
         .eq("is_active", true)
@@ -130,6 +164,7 @@ export const usePosts = () => {
       const postsWithProfiles = filtered.map((post) => ({
         ...post,
         profiles: post.profiles || null,
+        tags: flattenPostTags(post),
       }));
       setPosts(postsWithProfiles);
     } catch (error) {
@@ -176,7 +211,12 @@ export const usePosts = () => {
         *,
         profiles(id, name, username, profile_image_url, isPrivate, streak),
         images(id, post_id, image_url, order_index),
-        tags(*)
+        post_image_tags(
+  image_id,
+  location_x,
+  location_y,
+  tags_new(*)
+)
       `,
         )
         .eq("is_active", true)
@@ -194,7 +234,12 @@ export const usePosts = () => {
       const filteredBlocked =
         filtered?.filter((p) => !reportedPostIds.includes(p.id)) ?? [];
 
-      setPosts(filteredBlocked);
+      const postsWithTags = filteredBlocked.map((post) => ({
+        ...post,
+        tags: flattenPostTags(post),
+      }));
+
+      setPosts(postsWithTags);
     } catch (error) {
       console.error("Error in loadPublicPosts:", error);
       throw error;
@@ -215,7 +260,12 @@ export const usePosts = () => {
                   *,
                   profiles(id,name,username,profile_image_url, streak),
                   images(id,post_id,image_url,order_index),
-                  tags(*)
+                  post_image_tags(
+  image_id,
+  location_x,
+  location_y,
+  tags_new(*)
+)
                   `,
         )
         .eq("user_id", user.id)
@@ -236,6 +286,7 @@ export const usePosts = () => {
       const postsWithProfiles = postsData.map((post) => ({
         ...post,
         profiles: post.profiles || null,
+        tags: flattenPostTags(post),
       }));
       setPosts(postsWithProfiles);
     } catch (error) {
@@ -358,33 +409,58 @@ export const usePosts = () => {
       }
 
       if (tags && tags.length > 0) {
-        const tagRows = tags.map((t) => {
-          // Match each tag to the image it was placed on via imageIndex.
-          // Falls back to null (no image link) for single-image posts or
-          // if something's out of range — tag still saves, just unlinked.
-          const matchedImage = uploadedImages.find(
-            (img) => img.order_index === t.imageIndex,
-          );
+        const tagIds: string[] = [];
 
-          return {
+        for (const t of tags) {
+          if (t.saved && t.saved_tag_id) {
+            // Picked from the archive — reuse the existing tags_new row.
+            tagIds.push(t.saved_tag_id);
+          } else {
+            // New tag, insert it
+            const { data: newTag, error: newTagError } = await supabase
+              .from("tags_new")
+              .insert({
+                name: t.name,
+                brand: t.brand,
+                store: t.store,
+                price: t.price,
+                color: t.color,
+                favorite: false,
+                in_archive: true,
+              })
+              .select()
+              .single();
+
+            if (newTagError) {
+              console.error("Error inserting new tag:", newTagError);
+            }
+
+            if (newTag) {
+              tagIds.push(newTag.id);
+            }
+          }
+        }
+
+        // Step 2: Insert linking rows — filter out any tag whose id resolution
+        // failed above, so a bad insert doesn't produce a null tag_id row.
+        const linkRows = tags
+          .map((t, i) => ({
             post_id: post.id,
-            image_id: matchedImage?.id ?? null,
+            image_id:
+              uploadedImages.find((img) => img.order_index === t.imageIndex)
+                ?.id ?? null,
+            tag_id: tagIds[i],
             location_x: t.location_x,
             location_y: t.location_y,
-            store: t.store,
-            brand: t.brand,
-            price: t.price,
-            is_clothing_tag: t.is_clothing_tag,
-            color: t.color,
-          };
-        });
+          }))
+          .filter((row) => row.tag_id != null);
 
-        const { error: tagsError } = await supabase
-          .from("tags")
-          .insert(tagRows);
+        const { error: linkError } = await supabase
+          .from("post_image_tags")
+          .insert(linkRows);
 
-        if (tagsError) {
-          console.error("Error saving post tags:", tagsError);
+        if (linkError) {
+          console.error("Error linking tags to post:", linkError);
         }
       }
 
