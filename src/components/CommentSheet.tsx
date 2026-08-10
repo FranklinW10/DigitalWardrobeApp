@@ -9,7 +9,7 @@ import { Liker } from "@/hooks/useLikes";
 import { formatTimeAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { Alert, Dimensions } from "react-native";
+import { ActivityIndicator, Alert, Dimensions } from "react-native";
 
 import {
   BottomSheetFlatList,
@@ -133,7 +133,8 @@ export const CommentsSheet = ({
 
   const handleSubmit = useCallback(async () => {
     const val = textRef.current.trim();
-    if (!val || !user) return;
+    if (!val || !user || isSubmitting) return;
+    setIsSubmitting(true);
     try {
       await addComment(
         val,
@@ -145,9 +146,9 @@ export const CommentsSheet = ({
       inputRef.current?.clear();
       setReplyTarget(null);
     } finally {
-      // nothing
+      setIsSubmitting(false);
     }
-  }, [user, addComment, postOwnerId, replyTarget]);
+  }, [user, addComment, postOwnerId, replyTarget, isSubmitting]);
 
   const startReply = useCallback(
     (topLevelCommentId: string, userId: string, username: string) => {
@@ -244,6 +245,7 @@ export const CommentsSheet = ({
             <BottomSheetTextInput
               ref={inputRef}
               style={styles.input}
+              editable={!isSubmitting}
               placeholder={
                 replyTarget
                   ? `Reply to @${replyTarget.username}...`
@@ -255,8 +257,16 @@ export const CommentsSheet = ({
               }}
               multiline
             />
-            <TouchableOpacity onPress={handleSubmit}>
-              <Ionicons name="send" size={24} color={colors.text} />
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={isSubmitting}
+              hitSlop={8}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color={colors.text} />
+              ) : (
+                <Ionicons name="send" size={24} color={colors.text} />
+              )}
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>

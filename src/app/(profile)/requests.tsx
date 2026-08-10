@@ -83,7 +83,7 @@ export default function RequestsScreen() {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} />
+        <ActivityIndicator style={{ marginTop: 40 }} color={colors.text} />
       ) : requests.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Ionicons name="people-outline" size={40} color={colors.textMuted} />

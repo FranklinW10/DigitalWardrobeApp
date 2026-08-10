@@ -1,3 +1,4 @@
+import { TagPickerModal } from "@/components/tagPickerModal";
 import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -27,11 +28,14 @@ type PostTag = {
   id: string;
   locationX: number; // percentage 0-100, relative to image
   locationY: number; // percentage 0-100, relative to image
+  name: string;
   brand: string;
   store: string;
   price: string;
   is_clothing_tag: boolean;
   color: string;
+  saved: boolean;
+  savedTagId?: string;
 };
 
 type Draft = PostTag & { isNew: boolean };
@@ -231,11 +235,20 @@ export default function TagItems() {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   const [tags, setTags] = useState<PostTag[]>([]);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
+  const sheetY = useRef(new Animated.Value(40)).current;
+  const sheetOpacity = useRef(new Animated.Value(0)).current;
   const idCounter = useRef(0);
+  const [showTagPicker, setShowTagPicker] = useState(false);
+  const INPUT_ACCESSORY_ID = "editTagInputDone";
+  const [pendingLocation, setPendingLocation] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
   useEffect(() => {
     if (!draft) setColorPickerOpen(false);
   }, [draft]);
@@ -245,23 +258,75 @@ export default function TagItems() {
     setImgSize({ width, height });
   };
 
-  const handleImagePress = (e: any) => {
-    if (draft || !imgSize.width || !imgSize.height) return;
-    const { locationX, locationY } = e.nativeEvent;
-    const x = Math.max(2, Math.min(98, (locationX / imgSize.width) * 100));
-    const y = Math.max(2, Math.min(98, (locationY / imgSize.height) * 100));
+  useEffect(() => {
+    if (showModal) {
+      sheetY.setValue(40);
+      sheetOpacity.setValue(0);
+      Animated.parallel([
+        Animated.spring(sheetY, {
+          toValue: 0,
+          useNativeDriver: true,
+          damping: 18,
+          stiffness: 220,
+          mass: 0.9,
+        }),
+        Animated.timing(sheetOpacity, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [showModal]);
+  const createNewTag = (x: number, y: number) => {
     idCounter.current += 1;
+
     setDraft({
       id: `tag_${Date.now()}_${idCounter.current}`,
       locationX: x,
       locationY: y,
+      name: "",
       brand: "",
       store: "",
       price: "",
       is_clothing_tag: true,
+      saved: false,
       color: PIN_COLORS[tags.length % PIN_COLORS.length],
       isNew: true,
     });
+  };
+
+  const useSavedTag = (x: number, y: number) => {
+    setShowTagPicker(true);
+  };
+
+  const closeModal = (onDone?: () => void) => {
+    Animated.parallel([
+      Animated.timing(sheetY, {
+        toValue: 40,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(sheetOpacity, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setShowModal(false);
+      onDone?.();
+    });
+  };
+
+  const handleImagePress = (e: any) => {
+    if (draft || !imgSize.width || !imgSize.height) return;
+    const { locationX, locationY } = e.nativeEvent;
+
+    const x = Math.max(2, Math.min(98, (locationX / imgSize.width) * 100));
+    const y = Math.max(2, Math.min(98, (locationY / imgSize.height) * 100));
+
+    setPendingLocation({ x, y });
+    setShowModal(true);
   };
 
   const selectTag = (id: string) => {
@@ -280,7 +345,10 @@ export default function TagItems() {
     if (!draft) return;
     console.log("Saving:", draft);
     const hasContent =
-      draft.store.trim() || draft.price.trim() || draft.brand.trim();
+      draft.name.trim() ||
+      draft.store.trim() ||
+      draft.price.trim() ||
+      draft.brand.trim();
     if (!hasContent) return;
     const { isNew, ...tag } = draft;
     setTags((prev) => {
@@ -302,11 +370,14 @@ export default function TagItems() {
     const payload = tags.map((t) => ({
       location_x: Number(t.locationX.toFixed(2)),
       location_y: Number(t.locationY.toFixed(2)),
+      name: t.name,
       store: t.store,
       brand: t.brand,
       price: t.price ? Number(t.price) : null,
       is_clothing_tag: t.is_clothing_tag,
       color: t.color,
+      saved: t.saved,
+      saved_tag_id: t.savedTagId ?? null,
     }));
     router.push({
       pathname: "/preview",
@@ -430,7 +501,6 @@ export default function TagItems() {
             </TouchableOpacity>
           </View>
         </View>
-
         {/* Tag editor sheet */}
         <Modal
           visible={!!draft}
@@ -446,9 +516,23 @@ export default function TagItems() {
               >
                 <View style={styles.sheet}>
                   <View style={styles.sheetHeader}>
-                    <Text style={styles.sheetTitle}>
-                      {draft?.isNew ? "New tag" : "Edit Tag"}
-                    </Text>
+                    <TextInput
+                      value={draft?.name ?? ""}
+                      placeholder="Tag name"
+                      placeholderTextColor={`${colors.textMuted}40`}
+                      onChangeText={(v) =>
+                        draft && setDraft({ ...draft, name: v })
+                      }
+                      style={
+                        draft?.name ? styles.titleText : styles.titlePlaceholder
+                      }
+                      textAlign="center"
+                      returnKeyType="done"
+                      onSubmitEditing={() => Keyboard.dismiss()}
+                      inputAccessoryViewID={
+                        Platform.OS === "ios" ? INPUT_ACCESSORY_ID : undefined
+                      }
+                    />
 
                     <View style={styles.sheetHeaderActions}>
                       <TouchableOpacity
@@ -555,6 +639,127 @@ export default function TagItems() {
             </View>
           </TouchableWithoutFeedback>
         </Modal>
+        <Modal
+          visible={showModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => closeModal()}
+        >
+          <Pressable
+            style={styles.modalContainer2}
+            onPress={() => closeModal()}
+          >
+            <Animated.View
+              style={[
+                styles.sheet2,
+                {
+                  opacity: sheetOpacity,
+                  transform: [{ translateY: sheetY }],
+                },
+              ]}
+            >
+              <Pressable onPress={(e) => e.stopPropagation()}>
+                <View style={styles.handle} />
+
+                <Text style={styles.eyebrow}>Add a tag</Text>
+                <Text style={styles.sheetTitle2}>
+                  How would you like to tag this?
+                </Text>
+
+                <View style={styles.cardRow}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.card}
+                    onPress={() =>
+                      closeModal(() => {
+                        if (pendingLocation) {
+                          createNewTag(pendingLocation.x, pendingLocation.y);
+                        }
+                      })
+                    }
+                  >
+                    <View
+                      style={[
+                        styles.iconBadge,
+                        { backgroundColor: colors.primary + "1F" },
+                      ]}
+                    >
+                      <Ionicons
+                        name="add-circle-outline"
+                        size={26}
+                        color={colors.primary}
+                      />
+                    </View>
+                    <Text style={styles.cardTitle}>New Tag</Text>
+                    <Text style={styles.cardSubtitle}>Create from scratch</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={styles.card}
+                    onPress={() =>
+                      closeModal(() => {
+                        if (pendingLocation) {
+                          useSavedTag(pendingLocation.x, pendingLocation.y);
+                        }
+                      })
+                    }
+                  >
+                    <View
+                      style={[
+                        styles.iconBadge,
+                        { backgroundColor: colors.primary + "1F" },
+                      ]}
+                    >
+                      <Ionicons
+                        name="pricetags-outline"
+                        size={26}
+                        color={colors.primary}
+                      />
+                    </View>
+                    <Text style={styles.cardTitle}>Saved Tag</Text>
+                    <Text style={styles.cardSubtitle}>
+                      Use one from your archive
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => closeModal()}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </Pressable>
+            </Animated.View>
+          </Pressable>
+        </Modal>
+
+        <TagPickerModal
+          visible={showTagPicker}
+          onClose={() => setShowTagPicker(false)}
+          onSelectTag={(tag) => {
+            if (!pendingLocation) return;
+            idCounter.current += 1;
+
+            const newTag: PostTag = {
+              id: `tag_${Date.now()}_${idCounter.current}`,
+              locationX: pendingLocation.x,
+              locationY: pendingLocation.y,
+              name: tag.name ?? "",
+              brand: tag.brand ?? "",
+              store: tag.store ?? "",
+              price: tag.price ?? "",
+              is_clothing_tag: true,
+              saved: true,
+              savedTagId: tag.id,
+              color: PIN_COLORS[tags.length % PIN_COLORS.length],
+            };
+
+            setTags((prev) => [...prev, newTag]);
+            setPendingLocation(null);
+          }}
+        />
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );
@@ -563,6 +768,113 @@ export default function TagItems() {
 // ---- Dynamic Styles ----
 const createStyles = (colors: any) =>
   StyleSheet.create({
+    titleText: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: colors.text,
+      textAlign: "center",
+    },
+    titlePlaceholder: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: `${colors.text}40`,
+      textAlign: "center",
+    },
+    fab: {
+      position: "absolute",
+      bottom: 23,
+      left: "50%",
+      marginLeft: -33,
+      width: 60,
+      height: 60,
+      borderRadius: 40,
+      backgroundColor: colors.primary,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    fabText: {
+      color: colors.background,
+      fontSize: 50,
+      fontWeight: "300",
+      lineHeight: 54,
+    },
+    modalContainer2: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.55)",
+      justifyContent: "flex-end",
+    },
+    sheet2: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: 28,
+      borderTopRightRadius: 28,
+      paddingTop: 12,
+      paddingHorizontal: 20,
+      paddingBottom: 36,
+    },
+    handle: {
+      alignSelf: "center",
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: colors.border,
+      marginBottom: 18,
+    },
+    eyebrow: {
+      fontSize: 12,
+      fontWeight: "700",
+      letterSpacing: 1.2,
+      textTransform: "uppercase",
+      color: colors.textMuted ?? colors.secondary,
+      textAlign: "center",
+      marginBottom: 4,
+    },
+    sheetTitle2: {
+      fontSize: 20,
+      fontWeight: "700",
+      color: colors.text,
+      textAlign: "center",
+      marginBottom: 20,
+    },
+    cardRow: {
+      flexDirection: "row",
+      gap: 12,
+      marginBottom: 16,
+    },
+    card: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: 20,
+      paddingVertical: 22,
+      paddingHorizontal: 12,
+      alignItems: "center",
+      gap: 4,
+    },
+    iconBadge: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 10,
+    },
+    cardTitle: {
+      fontSize: 16,
+      fontWeight: "700",
+      color: colors.text,
+    },
+    cardSubtitle: {
+      fontSize: 12,
+      color: colors.textMuted ?? colors.secondary,
+    },
+    cancelButton: {
+      paddingVertical: 14,
+      alignItems: "center",
+    },
+    cancelButtonText: {
+      color: colors.textMuted ?? colors.secondary,
+      fontSize: 15,
+      fontWeight: "600",
+    },
     sheetHeaderActions: {
       flexDirection: "row",
       alignItems: "center",
@@ -575,7 +887,7 @@ const createStyles = (colors: any) =>
       borderWidth: 1.5,
       marginTop: 2,
       borderColor: colors.border,
-      marginRight: 247,
+      marginRight: 240,
     },
     colorPickerRow: {
       flexDirection: "row",

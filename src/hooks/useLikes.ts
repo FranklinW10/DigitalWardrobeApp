@@ -20,6 +20,7 @@ export const useLikes = (postId: string, currentUserId?: string) => {
   const [isLiked, setIsLiked] = useState(false);
   const [likers, setLikers] = useState<Liker[]>([]);
   const [isLoadingLikers, setIsLoadingLikers] = useState(false);
+  const [isLoadingLikeCount, setIsLoadingLikeCount] = useState(true);
   const { blockedIds, blockedByIds, loading: blocksLoading } = useBlocks();
 
   // Combine both blocked sets
@@ -56,28 +57,32 @@ export const useLikes = (postId: string, currentUserId?: string) => {
   }, [postId, allBlockedIds]);
 
   const fetchLikes = async () => {
-    const blockedArray = Array.from(allBlockedIds);
-    let query = supabase
-      .from("likes")
-      .select("*", { count: "exact", head: true })
-      .eq("post_id", postId);
-
-    // Filter out likes from blocked users
-    if (blockedArray.length > 0) {
-      query = query.not("user_id", "in", `(${blockedArray.join(",")})`);
-    }
-    const { count } = await query;
-    setLikeCount(count ?? 0);
-
-    if (currentUserId) {
-      if (!postId) return;
-      const { data } = await supabase
+    setIsLoadingLikeCount(true);
+    try {
+      const blockedArray = Array.from(allBlockedIds);
+      let query = supabase
         .from("likes")
-        .select("id")
-        .eq("post_id", postId)
-        .eq("user_id", currentUserId)
-        .single();
-      setIsLiked(!!data);
+        .select("*", { count: "exact", head: true })
+        .eq("post_id", postId);
+
+      if (blockedArray.length > 0) {
+        query = query.not("user_id", "in", `(${blockedArray.join(",")})`);
+      }
+      const { count } = await query;
+      setLikeCount(count ?? 0);
+
+      if (currentUserId) {
+        if (!postId) return;
+        const { data } = await supabase
+          .from("likes")
+          .select("id")
+          .eq("post_id", postId)
+          .eq("user_id", currentUserId)
+          .single();
+        setIsLiked(!!data);
+      }
+    } finally {
+      setIsLoadingLikeCount(false);
     }
   };
 
@@ -142,5 +147,6 @@ export const useLikes = (postId: string, currentUserId?: string) => {
     likers,
     fetchLikers,
     isLoadingLikers,
+    isLoadingLikeCount,
   };
 };

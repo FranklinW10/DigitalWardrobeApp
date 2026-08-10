@@ -41,6 +41,12 @@ export default function CollectionScrollScreen() {
     setPosts(data);
   };
 
+  const renderLoadingState = () => (
+    <View style={styles.emptyContent}>
+      <ActivityIndicator size="large" color={colors.primary} />
+    </View>
+  );
+
   useEffect(() => {
     const init = async () => {
       setIsLoading(true);
@@ -91,6 +97,7 @@ export default function CollectionScrollScreen() {
   });
 
   const renderPost = ({ item }: { item: Post }) => {
+    console.log(item.id, item.description);
     if (item.isoutfit_post) {
       return <PostCard post={item} currentUserId={user?.id} />;
     }
@@ -115,7 +122,7 @@ export default function CollectionScrollScreen() {
         </Animated.View>
 
         {isLoading ? (
-          <ActivityIndicator style={{ marginTop: 40 }} />
+          <ActivityIndicator style={{ marginTop: 40 }} color={colors.text} />
         ) : (
           <FlatList
             data={posts}
@@ -131,7 +138,11 @@ export default function CollectionScrollScreen() {
               />
             }
             ListEmptyComponent={
-              <Text style={styles.empty}>No posts saved here yet</Text>
+              isLoading ? (
+                renderLoadingState()
+              ) : (
+                <Text style={styles.empty}>No posts saved here yet</Text>
+              )
             }
             contentContainerStyle={
               posts.length === 0 ? styles.emptyContent : styles.content
