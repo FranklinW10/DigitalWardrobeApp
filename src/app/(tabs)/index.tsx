@@ -6,6 +6,7 @@ import { useTheme } from "@/context/ThemeContext";
 import { Post, usePosts } from "@/hooks/usePosts";
 import { daysAgo } from "@/lib/date-helper";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -98,7 +99,7 @@ export default function Index() {
   });
 
   const groupedPosts = followingPosts
-    .filter((post) => daysAgo(post.created_at) !== "expired")
+
     .filter((post) => post.isoutfit_post)
     .reduce((groups: Record<string, Post[]>, post) => {
       const key = daysAgo(post.created_at);
@@ -304,8 +305,11 @@ export default function Index() {
             },
           ]}
         >
-          <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
-            <Ionicons name="menu-outline" size={24} color={colors.text} />
+          <TouchableOpacity
+            onPress={() => router.push("/(profile)/suggestedFriends")}
+            style={styles.Noticontainer}
+          >
+            <Ionicons name="person-add-outline" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Fit Check</Text>
           <TouchableOpacity
@@ -339,7 +343,19 @@ export default function Index() {
             renderItem={renderPost}
             stickySectionHeadersEnabled={false}
             renderSectionHeader={({ section: { title } }) => (
-              <Text style={styles.sectionHeader}>{title}</Text>
+              <LinearGradient
+                colors={[
+                  colors.background,
+                  colors.border2,
+                  colors.surface2,
+                  colors.background,
+                ]}
+                start={{ x: -0.05, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.sectionHeaderContainer}
+              >
+                <Text style={styles.sectionHeader}>{title}</Text>
+              </LinearGradient>
             )}
             onScroll={handleScroll}
             scrollEventThrottle={16}
@@ -366,7 +382,19 @@ export default function Index() {
             style={{ width: "100%" }}
             ListHeaderComponent={
               followingHaulPosts.length > 0 ? (
-                <Text style={styles.sectionHeader}>Recent Hauls</Text>
+                <LinearGradient
+                  colors={[
+                    colors.background,
+                    colors.border2,
+                    colors.surface2,
+                    colors.background,
+                  ]}
+                  start={{ x: -0.05, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.sectionHeaderContainer}
+                >
+                  <Text style={styles.sectionHeader}>Recent Hauls</Text>
+                </LinearGradient>
               ) : null
             }
             renderItem={renderHaulPost}
@@ -573,12 +601,27 @@ const createStyles = (colors: any) =>
       justifyContent: "center",
       backgroundColor: colors.background,
     },
+    sectionHeaderContainer: {
+      alignSelf: "flex-start",
+      marginHorizontal: 10,
+      paddingRight: 50,
+      marginVertical: 7,
+      paddingHorizontal: 4,
+      paddingVertical: 4,
+      shadowColor: colors.accent,
+      borderRadius: 3,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+
     sectionHeader: {
       fontSize: 22,
       fontWeight: "700",
       letterSpacing: 0.2,
       paddingHorizontal: 16,
-      paddingTop: 12,
+      paddingTop: 6,
       paddingBottom: 6,
       color: colors.text,
     },
@@ -605,10 +648,13 @@ const createStyles = (colors: any) =>
       borderBottomColor: colors.border,
     },
     headerTitle: {
-      fontSize: 22,
-      fontWeight: "800",
-      letterSpacing: -0.3,
+      fontSize: 28,
+      fontWeight: "900",
+      letterSpacing: -1.2,
       color: colors.text,
+      textTransform: "uppercase",
+      // Add a subtle gradient effect
+      fontStyle: "italic", // Only if your theme supports it
     },
     whitespace: {
       padding: 50,

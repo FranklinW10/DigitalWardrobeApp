@@ -13,6 +13,8 @@ export interface Palette {
   border: string;
   text: string;
   textMuted: string;
+  border2: string;
+  surface2: string;
   danger: string;
   success: string;
 }
@@ -23,6 +25,9 @@ export const palettes: Record<ThemeName, Palette> = {
     // Clean black/white, magazine-style (formerly "editorial")
     background: "#FFFFFF",
     surface: "#F5F5F5",
+    surface2: "#F5F5F5",
+    border2: "#F0F0F0",
+
     primary: "#111111",
     secondary: "#6B6B6B",
     accent: "#111111",
@@ -39,6 +44,8 @@ export const palettes: Record<ThemeName, Palette> = {
     secondary: "#7A5240", // warm brown instead of muddy rose-brown — ties to terracotta surface
     accent: "#DB5C6E", // slightly warmer, less pastel pink — more coral-rose than baby pink
     border: "#E2BCA9", // clearly distinct from surface now, adds real definition
+    border2: "#e2bca97b",
+    surface2: "#f0d4c764",
     text: "#1C3626",
     textMuted: "#8C6B5C",
     danger: "#A8341F",
@@ -56,6 +63,8 @@ export const palettes: Record<ThemeName, Palette> = {
     textMuted: "#6E8299",
     danger: "#D9534F",
     success: "#2FA36B",
+    surface2: "#E8F1FC",
+    border2: "#D6E6F7",
   },
 
   // ---- Dark themes ----
@@ -71,6 +80,8 @@ export const palettes: Record<ThemeName, Palette> = {
     textMuted: "#9A9A9A",
     danger: "#FF6B6B",
     success: "#4ADE80",
+    surface2: "#1C1C1C",
+    border2: "#2B2B2B",
   },
 
   orchid: {
@@ -85,6 +96,8 @@ export const palettes: Record<ThemeName, Palette> = {
     textMuted: "#B98CA6",
     danger: "#FF6B6B",
     success: "#4ADE80",
+    surface2: "#2A1620",
+    border2: "#3D2130",
   },
   ember: {
     // Warm dark, orange-glow accent
@@ -98,6 +111,8 @@ export const palettes: Record<ThemeName, Palette> = {
     textMuted: "#C2A292",
     danger: "#FF6B6B",
     success: "#7BC67E",
+    surface2: "#241814",
+    border2: "#3A2620",
   },
 };
 
@@ -118,6 +133,14 @@ export const spacing = {
   lg: 24,
   xl: 32,
   xxl: 48,
+};
+
+export const withAlpha = (hex: string, alpha: number) => {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
 export const radii = {

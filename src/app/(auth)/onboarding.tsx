@@ -24,6 +24,9 @@ export default function SignUpScreen() {
   const [isPrivate, setIsPrivate] = useState(false);
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
+  const [link, setLink] = useState("");
+  const [linkLabel, setlinkLabel] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
   const { user, updateUser } = useAuth();
@@ -127,6 +130,9 @@ export default function SignUpScreen() {
         profileImage: profileImageUrl,
         isPrivate,
         onboardingCompleated: true,
+        bio,
+        link,
+        linkLabel,
       });
       router.replace("/(tabs)");
     } catch (error) {
@@ -186,6 +192,19 @@ export default function SignUpScreen() {
               onChangeText={setUsername}
               style={styles.input}
             />
+            <TextInput
+              placeholder="Bio (optional)"
+              placeholderTextColor={colors.textMuted}
+              value={bio}
+              onChangeText={setBio}
+              style={[
+                styles.input,
+                { minHeight: 70, textAlignVertical: "top" },
+              ]}
+              multiline
+              maxLength={150}
+            />
+            <Text style={styles.bioCharCount}>{bio.length}/150</Text>
             <View style={styles.privacyRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.privacyLabel}>Private Account</Text>
@@ -325,5 +344,12 @@ const createStyles = (colors: any) =>
       color: colors.background,
       fontSize: 16,
       fontWeight: "600",
+    },
+    bioCharCount: {
+      fontSize: 11,
+      color: colors.textMuted,
+      alignSelf: "flex-end",
+      marginTop: -2,
+      marginBottom: 4,
     },
   });

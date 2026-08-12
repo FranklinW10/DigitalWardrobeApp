@@ -9,19 +9,19 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -41,6 +41,9 @@ export default function EditProfile() {
   );
   const [isUpdating, setIsUpdating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bio, setBio] = useState("");
+  const [link, setLink] = useState("");
+  const [linkLabel, setlinkLabel] = useState("");
 
   const nameInputRef = useRef<TextInput>(null);
   const usernameInputRef = useRef<TextInput>(null);
@@ -53,6 +56,9 @@ export default function EditProfile() {
       setPhone(user.phone ?? "");
       setIsPrivate(user.isPrivate ?? false);
       setSelectedTheme((user as any).theme ?? "light");
+      setBio(user?.bio ?? "");
+      setLink(user?.link ?? "");
+      setlinkLabel(user?.linkLabel ?? "");
     }
   }, [user]);
 
@@ -136,6 +142,9 @@ export default function EditProfile() {
         isPrivate,
         phone: digits.length > 0 ? digits : undefined,
         theme: selectedTheme,
+        bio: bio.trim() || undefined,
+        link: link.trim() || undefined,
+        linkLabel: linkLabel.trim() || undefined, // NEW
       });
 
       router.back();
@@ -236,6 +245,43 @@ export default function EditProfile() {
             />
             {phoneError && <Text style={styles.errorText}>{phoneError}</Text>}
 
+            <Text style={styles.inputHeader}>Bio</Text>
+
+            <TextInput
+              placeholder="Tell people about yourself..."
+              placeholderTextColor={colors.textMuted}
+              value={bio}
+              onChangeText={setBio}
+              style={[
+                styles.input,
+                { minHeight: 70, textAlignVertical: "top" },
+              ]}
+              multiline
+              maxLength={150}
+            />
+            <Text style={styles.bioCharCount}>{bio.length}/150</Text>
+
+            <Text style={styles.inputHeader}>Link</Text>
+            <TextInput
+              placeholder="https://..."
+              placeholderTextColor={colors.textMuted}
+              value={link}
+              onChangeText={setLink}
+              style={styles.input}
+              autoCapitalize="none"
+              keyboardType="url"
+            />
+            <Text style={styles.inputHeader}>Link Display Text (optional)</Text>
+            <TextInput
+              placeholder="e.g. My Website"
+              placeholderTextColor={colors.textMuted}
+              value={linkLabel}
+              onChangeText={setlinkLabel}
+              style={styles.input}
+              autoCapitalize="words"
+              maxLength={30}
+            />
+
             <View style={styles.privacyRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.inputHeader}>Private Account</Text>
@@ -332,6 +378,13 @@ const createStyles = (colors: any) =>
     container: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    bioCharCount: {
+      fontSize: 11,
+      color: colors.textMuted,
+      alignSelf: "flex-end",
+      marginTop: -2,
+      marginBottom: -4,
     },
     topHeader: {
       flexDirection: "row",

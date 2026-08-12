@@ -23,6 +23,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Linking,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -44,6 +45,9 @@ interface ProfileUser {
   username: string;
   profile_image_url?: string;
   streak?: number;
+  bio?: string;
+  link?: string;
+  linkLabel?: string;
 }
 
 export default function UserProfileScreen() {
@@ -163,7 +167,9 @@ export default function UserProfileScreen() {
       // Load profile
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id, name, username, profile_image_url, isPrivate, streak")
+        .select(
+          "id, name, username, profile_image_url, isPrivate, streak,  bio, link,linkLabel",
+        )
         .eq("id", user_id)
         .single();
       if (profileError) throw profileError;
@@ -275,6 +281,11 @@ export default function UserProfileScreen() {
       </TouchableOpacity>
     </View>
   );
+  const stripProtocol = (url: string) =>
+    url.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
+
+  const truncateText = (text: string, maxLength = 28) =>
+    text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
 
   const handleProfileOptions = (User: User) => {
     Alert.alert("User Options", "", [
@@ -397,6 +408,33 @@ export default function UserProfileScreen() {
             {/* Name + username */}
             <Text style={styles.name}>{profileUser?.name}</Text>
             <Text style={styles.username}>@{profileUser?.username}</Text>
+
+            {profileUser?.bio ? (
+              <Text style={styles.bio}>{profileUser.bio}</Text>
+            ) : null}
+
+            {profileUser?.link ? (
+              <TouchableOpacity
+                style={styles.linkRow}
+                onPress={() => Linking.openURL(profileUser.link!)}
+              >
+                <Ionicons
+                  name="link-outline"
+                  size={14}
+                  color={colors.primary}
+                />
+                <Text
+                  style={styles.linkText}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {truncateText(
+                    profileUser.linkLabel?.trim() ||
+                      stripProtocol(profileUser.link),
+                  )}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
 
             {/* Follower counts */}
 
@@ -606,6 +644,33 @@ const createStyles = (colors: any) =>
     },
     followingButtonText: {
       color: colors.background,
+    },
+    bio: {
+      fontSize: 14,
+      color: colors.text,
+      textAlign: "center",
+      paddingHorizontal: 32,
+      marginBottom: 6,
+      lineHeight: 19,
+    },
+    bioCharCount: {
+      fontSize: 11,
+      color: colors.textMuted,
+      alignSelf: "flex-end",
+      marginTop: -2,
+      marginBottom: -4,
+    },
+    linkRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      marginBottom: 12,
+    },
+    linkText: {
+      fontSize: 14,
+      color: colors.primary,
+      fontWeight: "600",
+      textDecorationLine: "underline",
     },
     modalOverlay: {
       ...StyleSheet.absoluteFill,

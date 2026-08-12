@@ -25,7 +25,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Keyboard,
   KeyboardAvoidingView,
+  Linking,
   Platform,
+  Share,
   TouchableWithoutFeedback,
 } from "react-native";
 
@@ -57,6 +59,9 @@ interface ProfileUser {
   phone?: string;
   streak?: number;
   maxStreak?: number;
+  bio?: string;
+  link?: string;
+  linkLabel?: string;
 }
 
 export default function Profile() {
@@ -99,6 +104,9 @@ export default function Profile() {
   const nameInputRef = useRef<TextInput>(null);
   const usernameInputRef = useRef<TextInput>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [bio, setBio] = useState("");
+  const [link, setLink] = useState("");
+  const [linkLabel, setlinkLabel] = useState("");
 
   // Get likers from hook, not local state
   const { fetchLikers, isLoadingLikers, likers } = useLikes(likerPostId || "");
@@ -186,6 +194,9 @@ export default function Profile() {
       setPhone(user.phone);
       setIsPrivate(user.isPrivate ?? false);
       setSelectedTheme((user as any).theme ?? "light");
+      setBio(profileUser?.bio ?? "");
+      setLink(profileUser?.link ?? "");
+      setlinkLabel(profileUser?.linkLabel ?? "");
     }
   }, [showModal, user]);
 
@@ -256,7 +267,9 @@ export default function Profile() {
       // Load profile
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id, name, username, profile_image_url, streak, max_streak")
+        .select(
+          "id, name, username, profile_image_url, streak, max_streak, bio, link,linkLabel",
+        )
         .eq("id", user?.id)
         .single();
       if (profileError) throw profileError;
@@ -353,7 +366,9 @@ export default function Profile() {
       // Load profile
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
-        .select("id, name, username, profile_image_url, streak, max_streak")
+        .select(
+          "id, name, username, profile_image_url, streak, max_streak, bio, link,linkLabel",
+        )
         .eq("id", user?.id)
         .single();
       if (profileError) throw profileError;
@@ -515,10 +530,22 @@ export default function Profile() {
         isPrivate,
         phone: digits.length > 0 ? digits : undefined,
         theme: selectedTheme,
+        bio: bio.trim() || undefined,
+        link: link.trim() || undefined,
+        linkLabel: linkLabel.trim() || undefined, // NEW
       });
       setProfileUser((prev) =>
         prev
-          ? { ...prev, name, username, isPrivate, phone: digits || prev.phone }
+          ? {
+              ...prev,
+              name,
+              username,
+              isPrivate,
+              phone: digits || prev.phone,
+              bio: bio.trim(),
+              link: link.trim(),
+              linkLabel: linkLabel.trim(), // NEW
+            }
           : prev,
       );
       setShowModal(false); // ← close modal on success
@@ -581,6 +608,25 @@ export default function Profile() {
 
     Alert.alert("Post Options", "", options);
   };
+  const stripProtocol = (url: string) =>
+    url.replace(/^https?:\/\//i, "").replace(/^www\./i, "");
+
+  const truncateText = (text: string, maxLength = 28) =>
+    text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
+
+  const shareApp = async () => {
+    try {
+      await Share.share({
+        message:
+          "Check out Fit Check — the app I use to track my outfits and share my style! https://apps.apple.com/app/idYOUR_APP_ID",
+        // iOS-only: separates the URL for cleaner previews in Messages/iMessage
+        url: "https://apps.apple.com/app/idYOUR_APP_ID",
+        title: "Fit Check",
+      });
+    } catch (error) {
+      console.error("Error sharing:", error);
+    }
+  };
   console.log("user.isPrivate:", user?.isPrivate);
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -626,10 +672,8 @@ export default function Profile() {
         onClose={() => setLikerPostId(null)}
       />
       <View style={styles.topHeader}>
-        <TouchableOpacity
-          onPress={() => router.push("/(profile)/suggestedFriends")}
-        >
-          <Ionicons name="person-add-outline" size={20} color={colors.text} />
+        <TouchableOpacity onPress={shareApp}>
+          <Ionicons name="paper-plane-outline" size={20} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.topHeaderUsername}>@{user?.username}</Text>
         <TouchableOpacity onPress={() => router.push("/(profile)/settings")}>
@@ -687,6 +731,32 @@ export default function Profile() {
               <Text style={styles.name}>{profileUser?.name}</Text>
               <Text style={styles.username}>@{profileUser?.username}</Text>
 
+              {profileUser?.bio ? (
+                <Text style={styles.bio}>{profileUser.bio}</Text>
+              ) : null}
+
+              {profileUser?.link ? (
+                <TouchableOpacity
+                  style={styles.linkRow}
+                  onPress={() => Linking.openURL(profileUser.link!)}
+                >
+                  <Ionicons
+                    name="link-outline"
+                    size={14}
+                    color={colors.primary}
+                  />
+                  <Text
+                    style={styles.linkText}
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                  >
+                    {truncateText(
+                      profileUser.linkLabel?.trim() ||
+                        stripProtocol(profileUser.link),
+                    )}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
               {/* Follower counts */}
               {/* replaces your existing statsRow block */}
               <View style={styles.statBarRow}>
@@ -937,6 +1007,44 @@ export default function Profile() {
                 {phoneError && (
                   <Text style={styles.errorText}>{phoneError}</Text>
                 )}
+                <Text style={styles.inputHeader}>Bio</Text>
+
+                <TextInput
+                  placeholder="Tell people about yourself..."
+                  placeholderTextColor={colors.textMuted}
+                  value={bio}
+                  onChangeText={setBio}
+                  style={[
+                    styles.input,
+                    { minHeight: 70, textAlignVertical: "top" },
+                  ]}
+                  multiline
+                  maxLength={150}
+                />
+                <Text style={styles.bioCharCount}>{bio.length}/150</Text>
+
+                <Text style={styles.inputHeader}>Link</Text>
+                <TextInput
+                  placeholder="https://..."
+                  placeholderTextColor={colors.textMuted}
+                  value={link}
+                  onChangeText={setLink}
+                  style={styles.input}
+                  autoCapitalize="none"
+                  keyboardType="url"
+                />
+                <Text style={styles.inputHeader}>
+                  Link Display Text (optional)
+                </Text>
+                <TextInput
+                  placeholder="e.g. My Website"
+                  placeholderTextColor={colors.textMuted}
+                  value={linkLabel}
+                  onChangeText={setlinkLabel}
+                  style={styles.input}
+                  autoCapitalize="words"
+                  maxLength={30}
+                />
 
                 <View style={styles.privacyRow}>
                   <View style={{ flex: 1 }}>
@@ -1110,7 +1218,7 @@ const createStyles = (colors: any) =>
     },
     optionsContainer: {
       position: "absolute",
-      top: 375,
+      top: 425,
       right: 8,
       alignItems: "flex-end",
       zIndex: 10,
@@ -1145,6 +1253,14 @@ const createStyles = (colors: any) =>
       marginBottom: 16,
       color: colors.textMuted,
     },
+    bio: {
+      fontSize: 14,
+      color: colors.text,
+      textAlign: "center",
+      paddingHorizontal: 32,
+      marginBottom: 6,
+      lineHeight: 19,
+    },
 
     input: {
       backgroundColor: colors.surface,
@@ -1169,6 +1285,25 @@ const createStyles = (colors: any) =>
       fontSize: 11,
       color: colors.secondary,
       marginTop: 1,
+    },
+    bioCharCount: {
+      fontSize: 11,
+      color: colors.textMuted,
+      alignSelf: "flex-end",
+      marginTop: -2,
+      marginBottom: -4,
+    },
+    linkRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      marginBottom: 12,
+    },
+    linkText: {
+      fontSize: 14,
+      color: colors.primary,
+      fontWeight: "600",
+      textDecorationLine: "underline",
     },
 
     themeDot: {
