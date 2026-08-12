@@ -56,28 +56,23 @@ export function formatDate(dateInput: string | Date): string {
     year: sameYear ? undefined : "numeric",
   });
 }
-export const daysAgo = (timestamp: string): string => {
-  const now = new Date();
-
-  // Get today's date at midnight Central time
-  const centralFormatter = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Chicago",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-
-  const toMidnightCentral = (date: Date): Date => {
-    const parts = centralFormatter.formatToParts(date);
-    const y = parts.find((p) => p.type === "year")!.value;
-    const m = parts.find((p) => p.type === "month")!.value;
-    const d = parts.find((p) => p.type === "day")!.value;
-    // Midnight Central = start of that day in Chicago
-    return new Date(`${y}-${m}-${d}T00:00:00-05:00`); // CST; CDT is -06:00
+export const daysAgo = (postDate: string): string => {
+  // post_date is stored as a plain YYYY-MM-DD calendar date (no time
+  // component), so parse it the same way formatDate does — split and
+  // construct locally — rather than treating it as a timestamp that
+  // needs timezone conversion.
+  const parseDateOnly = (dateStr: string): Date => {
+    const [y, m, d] = dateStr.split("T")[0].split("-").map(Number);
+    return new Date(y, m - 1, d);
   };
 
-  const todayMidnight = toMidnightCentral(now);
-  const postMidnight = toMidnightCentral(new Date(timestamp));
+  const today = new Date();
+  const todayMidnight = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate(),
+  );
+  const postMidnight = parseDateOnly(postDate);
 
   const days = Math.round(
     (todayMidnight.getTime() - postMidnight.getTime()) / (1000 * 60 * 60 * 24),
@@ -85,65 +80,12 @@ export const daysAgo = (timestamp: string): string => {
 
   if (days === 0) return "Today";
   if (days === 1) return "Yesterday";
-  if (days === 2) {
-    const date = new Date(timestamp);
-    const formatted = date.toLocaleDateString("en-US", {
-      timeZone: "America/Chicago",
+  if (days >= 2 && days <= 7) {
+    return postMidnight.toLocaleDateString("en-US", {
       weekday: "long",
       month: "long",
       day: "numeric",
     });
-    return `${formatted}`;
   }
-  if (days === 3) {
-    const date = new Date(timestamp);
-    const formatted = date.toLocaleDateString("en-US", {
-      timeZone: "America/Chicago",
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    });
-    return `${formatted}`;
-  }
-  if (days === 4) {
-    const date = new Date(timestamp);
-    const formatted = date.toLocaleDateString("en-US", {
-      timeZone: "America/Chicago",
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    });
-    return `${formatted}`;
-  }
-  if (days === 5) {
-    const date = new Date(timestamp);
-    const formatted = date.toLocaleDateString("en-US", {
-      timeZone: "America/Chicago",
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    });
-    return `${formatted}`;
-  }
-  if (days === 6) {
-    const date = new Date(timestamp);
-    const formatted = date.toLocaleDateString("en-US", {
-      timeZone: "America/Chicago",
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    });
-    return `${formatted}`;
-  }
-  if (days === 7) {
-    const date = new Date(timestamp);
-    const formatted = date.toLocaleDateString("en-US", {
-      timeZone: "America/Chicago",
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-    });
-    return `${formatted}`;
-  }
-  return `expired`;
+  return "Over a week ago";
 };

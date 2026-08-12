@@ -21,6 +21,9 @@ export interface User {
   PhoneAsked?: boolean;
   theme?: string; // Add this line to include the theme preference
   streak?: number;
+  bio?: string;
+  link?: string;
+  linkLabel?: string;
 }
 
 interface AuthContextType {
@@ -101,6 +104,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         PhoneAsked: data.PhoneAsked,
         theme: data.Theme, // Add this line to include the theme preference
         streak: data.streak,
+        bio: data.bio,
+        link: data.link,
+        linkLabel: data.link,
       };
     } catch (error) {
       console.error("Error in fethchUserProfile:", error);
@@ -223,6 +229,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (userData.friendsStepCompleted !== undefined)
         updateData.friends_step_completed = userData.friendsStepCompleted;
       if (userData.theme !== undefined) updateData.Theme = userData.theme;
+      if (userData.bio !== undefined) updateData.bio = userData.bio;
+      if (userData.link !== undefined) updateData.link = userData.link;
+      if (userData.linkLabel !== undefined)
+        updateData.linkLabel = userData.linkLabel;
       const { error, data } = await supabase
         .from("profiles")
         .update(updateData)

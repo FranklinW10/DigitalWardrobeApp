@@ -902,7 +902,7 @@ export default function WardrobeScreen() {
               </>
             ) : (
               <>
-                <Text style={styles.photoMonthHeader}>Tags</Text>
+                <Text style={styles.photoMonthHeader}>Tags Archive</Text>
                 {tags.map((tag, i) => {
                   const tagImage = tag.tag_image || tag.image_url || null;
 
@@ -1407,6 +1407,9 @@ export default function WardrobeScreen() {
               day.{"\n\n"}
               Tap an empty day to add a fit for that date. Tap a day with a
               photo to view that outfit.{"\n\n"}
+              The Tags tab allows you to look at all the tags you've used, edit
+              them, and see what outfits you've worn them with. Click the new
+              tag button to add a new tag to your archive.{"\n\n"}
               The Hauls tab keeps all your haul posts in one place as a photo
               gallery.
             </Text>
@@ -1896,6 +1899,7 @@ const createStyles = (colors: any) =>
       color: colors.text,
       paddingHorizontal: 12,
       paddingVertical: 10,
+      marginLeft: 6,
     },
     heroImage: {
       width: SCREEN_WIDTH,

@@ -28,11 +28,13 @@ export function ReportModal({
   onClose,
   targetType,
   targetId,
+  postId,
 }: {
   visible: boolean;
   onClose: () => void;
   targetType: ReportTargetType;
   targetId: string;
+  postId?: string;
 }) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
@@ -41,8 +43,23 @@ export function ReportModal({
 
   const handleReport = async (reason: string) => {
     setSubmitting(true);
-    const { error } = await submitReport(targetType, targetId, reason);
+
+    // Build context based on target type
+    const context = {
+      postId: targetType === "post" ? targetId : undefined,
+      commentId: targetType === "comment" ? targetId : undefined,
+      reportedUserId: targetType === "user" ? targetId : undefined,
+    };
+
+    const { error } = await submitReport(
+      targetType,
+      targetId,
+      reason,
+      undefined,
+      context,
+    );
     setSubmitting(false);
+
     if (error) {
       Alert.alert("Error", "Couldn't submit report. Please try again.");
       return;

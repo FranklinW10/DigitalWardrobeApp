@@ -465,6 +465,7 @@ export const CommentsSheet = ({
         onClose={() => setReportTarget(null)}
         targetType="comment"
         targetId={reportTarget ?? ""}
+        postId={postId}
       />
     </>
   );
