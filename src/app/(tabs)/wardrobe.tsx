@@ -903,29 +903,127 @@ export default function WardrobeScreen() {
             ) : (
               <>
                 <Text style={styles.photoMonthHeader}>Tags Archive</Text>
-                {tags.map((tag, i) => {
-                  const tagImage = tag.tag_image || tag.image_url || null;
+                {tags.length === 0 ? (
+                  <View style={styles.emptyContent}>
+                    <Text style={styles.emptyText}>
+                      Create a tag to start your collection
+                    </Text>
+                  </View>
+                ) : (
+                  tags.map((tag, i) => {
+                    const tagImage = tag.tag_image || tag.image_url || null;
 
-                  return (
-                    <Pressable
-                      key={i}
-                      style={({ pressed }) => [
-                        styles.tagRow,
-                        pressed && { opacity: 0.6 },
-                      ]}
-                      onPress={() => handleOpenTag(tag.id, tag.name || null)}
-                    >
-                      <View style={styles.TagcountBadge}>
-                        {tagImage ? (
-                          <View style={styles.tagImageClip}>
-                            <Image
-                              source={{ uri: tagImage }}
-                              style={styles.tagImage}
-                            />
+                    return (
+                      <Pressable
+                        key={i}
+                        style={({ pressed }) => [
+                          styles.tagRow,
+                          pressed && { opacity: 0.6 },
+                        ]}
+                        onPress={() => handleOpenTag(tag.id, tag.name || null)}
+                      >
+                        <View style={styles.TagcountBadge}>
+                          {tagImage ? (
+                            <View style={styles.tagImageClip}>
+                              <Image
+                                source={{ uri: tagImage }}
+                                style={styles.tagImage}
+                              />
+                            </View>
+                          ) : (
+                            <TouchableOpacity
+                              style={styles.tagImagePlaceholder}
+                              onPress={() =>
+                                router.push({
+                                  pathname: "/(profile)/tagDetails",
+                                  params: { tagId: tag.id },
+                                })
+                              }
+                            >
+                              <Ionicons
+                                name="add"
+                                size={22}
+                                color={colors.textMuted}
+                              />
+                            </TouchableOpacity>
+                          )}
+
+                          <View style={styles.imageCount}>
+                            <Text style={styles.overlayCountText}>
+                              {tag.count}
+                            </Text>
                           </View>
-                        ) : (
+                        </View>
+
+                        <View style={styles.tagTextContainer}>
+                          {tag.name ? (
+                            <Text style={styles.tagTitle} numberOfLines={1}>
+                              {tag.name}
+                            </Text>
+                          ) : null}
+
+                          <View style={{ gap: 5 }}>
+                            {tag.brand ? (
+                              <Text style={styles.tagDetails} numberOfLines={1}>
+                                {tag.brand}
+                              </Text>
+                            ) : null}
+                            {tag.store ? (
+                              <Text style={styles.tagDetails} numberOfLines={1}>
+                                {tag.store}
+                              </Text>
+                            ) : null}
+                            {tag.price ? (
+                              <Text style={styles.tagDetails} numberOfLines={1}>
+                                ${tag.price}
+                              </Text>
+                            ) : null}
+                          </View>
+                        </View>
+
+                        <View style={styles.tagActionColumn}>
                           <TouchableOpacity
-                            style={styles.tagImagePlaceholder}
+                            style={styles.tagActionButton}
+                            hitSlop={6}
+                            onPress={() => toggleFavoriteTag(tag.id)}
+                          >
+                            <Ionicons
+                              name={tag.favorite ? "star" : "star-outline"}
+                              size={16}
+                              color={
+                                tag.favorite ? colors.accent : colors.textMuted
+                              }
+                            />
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.tagActionButton}
+                            hitSlop={6}
+                            onPress={() =>
+                              Alert.alert(
+                                "Delete this tag?",
+                                "This will remove it from your archive. This will not remove it from your posts.",
+                                [
+                                  { text: "Cancel", style: "cancel" },
+                                  {
+                                    text: "Delete",
+                                    style: "destructive",
+                                    onPress: () => deleteTag(tag.id),
+                                  },
+                                ],
+                              )
+                            }
+                          >
+                            <Ionicons
+                              name="trash-outline"
+                              size={16}
+                              color={colors.textMuted}
+                            />
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.tagActionButton}
+                            hitSlop={6}
                             onPress={() =>
                               router.push({
                                 pathname: "/(profile)/tagDetails",
@@ -934,112 +1032,22 @@ export default function WardrobeScreen() {
                             }
                           >
                             <Ionicons
-                              name="add"
-                              size={22}
+                              name="pencil-outline"
+                              size={16}
                               color={colors.textMuted}
                             />
                           </TouchableOpacity>
-                        )}
-
-                        <View style={styles.imageCount}>
-                          <Text style={styles.overlayCountText}>
-                            {tag.count}
-                          </Text>
                         </View>
-                      </View>
 
-                      <View style={styles.tagTextContainer}>
-                        {tag.name ? (
-                          <Text style={styles.tagTitle} numberOfLines={1}>
-                            {tag.name}
-                          </Text>
-                        ) : null}
-
-                        <View style={{ gap: 5 }}>
-                          {tag.brand ? (
-                            <Text style={styles.tagDetails} numberOfLines={1}>
-                              {tag.brand}
-                            </Text>
-                          ) : null}
-                          {tag.store ? (
-                            <Text style={styles.tagDetails} numberOfLines={1}>
-                              {tag.store}
-                            </Text>
-                          ) : null}
-                          {tag.price ? (
-                            <Text style={styles.tagDetails} numberOfLines={1}>
-                              ${tag.price}
-                            </Text>
-                          ) : null}
-                        </View>
-                      </View>
-
-                      <View style={styles.tagActionColumn}>
-                        <TouchableOpacity
-                          style={styles.tagActionButton}
-                          hitSlop={6}
-                          onPress={() => toggleFavoriteTag(tag.id)}
-                        >
-                          <Ionicons
-                            name={tag.favorite ? "star" : "star-outline"}
-                            size={16}
-                            color={
-                              tag.favorite ? colors.accent : colors.textMuted
-                            }
-                          />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={styles.tagActionButton}
-                          hitSlop={6}
-                          onPress={() =>
-                            Alert.alert(
-                              "Delete this tag?",
-                              "This will remove it from your archive. This will not remove it from your posts.",
-                              [
-                                { text: "Cancel", style: "cancel" },
-                                {
-                                  text: "Delete",
-                                  style: "destructive",
-                                  onPress: () => deleteTag(tag.id),
-                                },
-                              ],
-                            )
-                          }
-                        >
-                          <Ionicons
-                            name="trash-outline"
-                            size={16}
-                            color={colors.textMuted}
-                          />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={styles.tagActionButton}
-                          hitSlop={6}
-                          onPress={() =>
-                            router.push({
-                              pathname: "/(profile)/tagDetails",
-                              params: { tagId: tag.id },
-                            })
-                          }
-                        >
-                          <Ionicons
-                            name="pencil-outline"
-                            size={16}
-                            color={colors.textMuted}
-                          />
-                        </TouchableOpacity>
-                      </View>
-
-                      <MaterialIcons
-                        name="chevron-right"
-                        size={24}
-                        color={colors.border}
-                      />
-                    </Pressable>
-                  );
-                })}
+                        <MaterialIcons
+                          name="chevron-right"
+                          size={24}
+                          color={colors.border}
+                        />
+                      </Pressable>
+                    );
+                  })
+                )}
               </>
             )}
           </ScrollView>
@@ -1108,14 +1116,17 @@ export default function WardrobeScreen() {
             ))}
 
             {haulImages.length === 0 && (
-              <View style={styles.emptyContent}>
-                <Text style={styles.emptyText}>No haul posts yet</Text>
+              <View style={styles.HaulemptyContent}>
+                <View style={styles.HaulemptyTitle}>
+                  <Text style={styles.photoMonthHeader}>Hauls Archive</Text>
+                </View>
+                <Text style={styles.emptyHaulText}>No haul posts yet</Text>
               </View>
             )}
           </ScrollView>
         </View>
 
-        {/* Page 3 — Saved */}
+        {/* Page 4 — Saved */}
         <View style={{ width: SCREEN_WIDTH, flex: 1 }}>
           <ScrollView
             ref={savedScrollRef}
@@ -1589,6 +1600,9 @@ const createStyles = (colors: any) =>
       fontSize: 18,
       fontWeight: "600",
       color: colors.background,
+    },
+    HaulemptyTitle: {
+      alignSelf: "flex-start",
     },
     overlayCountText: {
       fontSize: 12,
@@ -2201,6 +2215,11 @@ const createStyles = (colors: any) =>
       alignItems: "center",
       paddingTop: 60,
     },
+    HaulemptyContent: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
     emptyText: { color: colors.textMuted, fontSize: 15 },
     tabBar: {
       flexDirection: "row",
@@ -2208,6 +2227,7 @@ const createStyles = (colors: any) =>
       borderBottomColor: colors.border,
       position: "relative",
     },
+    emptyHaulText: { color: colors.textMuted, fontSize: 15, paddingTop: 60 },
     modalContainer: {
       flex: 1,
       backgroundColor: "rgba(0,0,0,0.5)",

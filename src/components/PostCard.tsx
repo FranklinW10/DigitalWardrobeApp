@@ -884,8 +884,8 @@ const PostActions = ({
                 ]}
               >
                 <Text style={styles.streakBubbleText}>
-                  @{post.profiles.username} has Posted their FitCheck {streak}{" "}
-                  days in a row
+                  @{post.profiles.username} has Posted their Fit {streak} days
+                  in a row
                 </Text>
               </LinearGradient>
             </Animated.View>

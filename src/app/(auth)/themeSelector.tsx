@@ -4,11 +4,11 @@ import { useTheme } from "@/context/ThemeContext";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -16,7 +16,7 @@ export default function ThemeSelectorScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const { updateUser } = useAuth();
   const router = useRouter();
-  const [selectedTheme, setSelectedTheme] = useState<ThemeName>("light");
+  const [selectedTheme, setSelectedTheme] = useState<ThemeName>("dark");
 
   const preview = palettes[selectedTheme];
   const themeNames = Object.keys(palettes) as ThemeName[];

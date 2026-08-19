@@ -9,6 +9,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
+
+import { PostedBanner } from "@/components/postedBanner";
 import {
   ActivityIndicator,
   Animated,
@@ -102,7 +104,7 @@ export default function Index() {
 
     .filter((post) => post.isoutfit_post)
     .reduce((groups: Record<string, Post[]>, post) => {
-      const key = daysAgo(post.created_at);
+      const key = daysAgo(post.post_date);
       if (!groups[key]) groups[key] = [];
       groups[key].push(post);
       return groups;
@@ -311,7 +313,9 @@ export default function Index() {
           >
             <Ionicons name="person-add-outline" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Fit Check</Text>
+          <View style={{ opacity: colors.text === "#1A1A1A" ? 1 : 0.9 }}>
+            <PostedBanner />
+          </View>
           <TouchableOpacity
             onPress={() => router.push("/notifications")}
             style={styles.Noticontainer}

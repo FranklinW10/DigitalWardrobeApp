@@ -158,4 +158,4 @@ export const typography = {
   caption: { fontSize: 12, fontWeight: "400" as const },
 };
 
-export const DEFAULT_THEME: ThemeName = "light";
+export const DEFAULT_THEME: ThemeName = "dark";

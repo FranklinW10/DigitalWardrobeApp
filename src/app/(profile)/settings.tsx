@@ -47,11 +47,11 @@ export default function Settings() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
-  const PRIVACY_POLICY_URL = "https://franklinw10.github.io/FitCheck-Legal/";
+  const PRIVACY_POLICY_URL = "https://franklinw10.github.io/Posted-Legal/";
   const TERMS_OF_SERVICE_URL =
-    "https://franklinw10.github.io/FitCheck-Legal/terms-of-service.html";
+    "https://franklinw10.github.io/Posted-Legal/terms-of-service.html";
   const SUPPORT_URL =
-    "https://franklinw10.github.io/FitCheck-Legal/help-support.html";
+    "https://franklinw10.github.io/Posted-Legal/help-support.html";
 
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [

@@ -57,10 +57,6 @@ export function formatDate(dateInput: string | Date): string {
   });
 }
 export const daysAgo = (postDate: string): string => {
-  // post_date is stored as a plain YYYY-MM-DD calendar date (no time
-  // component), so parse it the same way formatDate does — split and
-  // construct locally — rather than treating it as a timestamp that
-  // needs timezone conversion.
   const parseDateOnly = (dateStr: string): Date => {
     const [y, m, d] = dateStr.split("T")[0].split("-").map(Number);
     return new Date(y, m - 1, d);
@@ -74,7 +70,11 @@ export const daysAgo = (postDate: string): string => {
   );
   const postMidnight = parseDateOnly(postDate);
 
-  const days = Math.round(
+  console.log("postDate string:", postDate);
+  console.log("todayMidnight:", todayMidnight);
+  console.log("postMidnight:", postMidnight);
+  // Calculate days difference directly without milliseconds
+  const days = Math.floor(
     (todayMidnight.getTime() - postMidnight.getTime()) / (1000 * 60 * 60 * 24),
   );
 
