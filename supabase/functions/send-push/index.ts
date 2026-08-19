@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
     const pushMessage = {
       to: recipient.push_token,
       sound: "default",
-      title: "Fit Check",
+      title: "Posted",
       body,
       data: {
         type: notification.type,

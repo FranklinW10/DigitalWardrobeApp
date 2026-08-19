@@ -117,7 +117,7 @@ Deno.serve(async () => {
         messages.push({
           to: profile.push_token,
           sound: "default",
-          title: "Fit Check",
+          title: "Posted",
           body: "Wake Up! Its time to post your fit for today",
           data: { type: "fit_reminder_morning" },
         });
@@ -138,7 +138,7 @@ Deno.serve(async () => {
         messages.push({
           to: profile.push_token,
           sound: "default",
-          title: "Fit Check",
+          title: "Posted",
           body:
             (profile.streak ?? 0) >= 3
               ? `Your ${profile.streak} day streak is in danger! Post your fit before the day ends`
@@ -167,7 +167,7 @@ Deno.serve(async () => {
           messages.push({
             to: profile.push_token,
             sound: "default",
-            title: "Fit Check",
+            title: "Posted",
             body: "We miss you! Come see what your friends have been wearing.",
             data: { type: "inactive_3day" },
           });
@@ -188,7 +188,7 @@ Deno.serve(async () => {
           messages.push({
             to: profile.push_token,
             sound: "default",
-            title: "Fit Check",
+            title: "Posted",
             body: "It's been a week, come check out what's new!",
             data: { type: "inactive_7day" },
           });

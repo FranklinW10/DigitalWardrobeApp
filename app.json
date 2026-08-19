@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "fit check",
+    "name": "Posted",
     "slug": "fit-check",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/IMG_20260713_141034 copy 2.png",
+    "icon": "./assets/images/PostedLogoOfficial.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/images/IMG_20260713_141034 copy 2.png",
+      "icon": "./assets/images/PostedLogoOfficial.png",
       "bundleIdentifier": "com.franklinwohnoutka.fitcheck",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSContactsUsageDescription": "Fit Check uses your contacts to help you find friends who are already using the app."
+        "NSContactsUsageDescription": "Posted uses your contacts to help you find friends who are already using the app."
       }
     },
     "android": {
@@ -34,7 +34,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "image": "./assets/images/PostedLogoSplash.png",
+          "imageWidth": 200,
+          "backgroundColor": "#0E0E0E",
           "android": {
             "image": "./assets/images/splash-icon.png",
             "imageWidth": 76
@@ -44,7 +46,7 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/images/IMG_20260713_141034 copy 2.png",
+          "icon": "./assets/images/PostedLogoOfficial.png",
           "color": "#111111",
           "defaultChannel": "default"
         }

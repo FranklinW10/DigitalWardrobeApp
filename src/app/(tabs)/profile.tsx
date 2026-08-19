@@ -618,10 +618,10 @@ export default function Profile() {
     try {
       await Share.share({
         message:
-          "Check out Fit Check — the app I use to track my outfits and share my style! https://apps.apple.com/app/idYOUR_APP_ID",
+          "Check out Posted — the app I use to track my outfits and share my style! https://apps.apple.com/app/idYOUR_APP_ID",
         // iOS-only: separates the URL for cleaner previews in Messages/iMessage
         url: "https://apps.apple.com/app/idYOUR_APP_ID",
-        title: "Fit Check",
+        title: "Posted",
       });
     } catch (error) {
       console.error("Error sharing:", error);

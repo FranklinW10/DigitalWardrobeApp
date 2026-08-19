@@ -22,9 +22,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 const TERMS_OF_SERVICE_URL =
-  "https://franklinw10.github.io/FitCheck-Legal/terms-of-service.html";
+  "https://franklinw10.github.io/Posted-Legal/terms-of-service.html";
 const PRIVACY_POLICY_URL =
-  "https://franklinw10.github.io/FitCheck-Legal/privacy-policy.html";
+  "https://franklinw10.github.io/Posted-Legal/privacy-policy.html";
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState("");
