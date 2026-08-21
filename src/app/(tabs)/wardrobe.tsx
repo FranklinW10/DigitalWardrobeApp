@@ -13,9 +13,8 @@ import { supabase } from "@/lib/supabase/client";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Animated,
@@ -344,6 +343,14 @@ export default function WardrobeScreen() {
       fetchLikers();
     }
   }, [likerPostId, fetchLikers]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (activeTab === "Tags") {
+        loadUserTags();
+      }
+    }, [activeTab]),
+  );
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -1058,7 +1065,7 @@ export default function WardrobeScreen() {
               onPress={handleCreateTag}
               activeOpacity={0.8}
             >
-              <Ionicons name="add" size={20} color={colors.text} />
+              <Ionicons name="add" size={20} color={colors.background} />
               <Text style={styles.fabText}>Create new tag</Text>
             </TouchableOpacity>
           )}
@@ -1640,7 +1647,7 @@ const createStyles = (colors: any) =>
       paddingHorizontal: 24,
       paddingVertical: 14,
       borderRadius: 28,
-      backgroundColor: colors.surface,
+      backgroundColor: colors.text,
       shadowColor: "#000",
       shadowOffset: { width: 0, height: 4 },
       shadowOpacity: 0.15,
@@ -1668,7 +1675,7 @@ const createStyles = (colors: any) =>
     fabText: {
       fontSize: 16,
       fontWeight: "600",
-      color: colors.text,
+      color: colors.background,
     },
 
     modalContainer1: {

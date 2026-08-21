@@ -7,19 +7,19 @@ import * as ImagePicker from "expo-image-picker";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    InputAccessoryView,
-    Keyboard,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    TouchableWithoutFeedback,
-    View,
+  ActivityIndicator,
+  Alert,
+  InputAccessoryView,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -108,7 +108,7 @@ export default function CreateTag() {
   };
 
   const handleSave = async () => {
-    if (!brand.trim() && !store.trim() && !price.trim()) {
+    if (!brand.trim() && !store.trim() && !price.trim() && !tagImage) {
       Alert.alert("Error", "Please fill in at least one field.");
       return;
     }
@@ -428,7 +428,7 @@ const createStyles = (colors: any) =>
       position: "absolute",
       bottom: -16,
       left: "50%",
-      transform: [{ translateX: -78 }],
+      transform: [{ translateX: -75 }],
       backgroundColor: colors.primary,
       paddingHorizontal: 12,
       paddingVertical: 6,

@@ -150,7 +150,7 @@ export default function EditTag() {
 
   const handleSave = async () => {
     if (!tagId) return;
-    if (!brand.trim() && !store.trim() && !price.trim()) {
+    if (!brand.trim() && !store.trim() && !price.trim() && !tagImage) {
       Alert.alert("Error", "Please fill in at least one field.");
       return;
     }
@@ -164,7 +164,6 @@ export default function EditTag() {
           brand: brand.trim() || null,
           store: store.trim() || null,
           price: price.trim() || null,
-
           tag_image: tagImage,
         })
         .eq("id", tagId);
@@ -435,7 +434,7 @@ const createStyles = (colors: any) =>
       position: "absolute",
       bottom: -16,
       left: "50%",
-      transform: [{ translateX: -78 }],
+      transform: [{ translateX: -75 }],
       backgroundColor: colors.primary,
       paddingHorizontal: 12,
       paddingVertical: 6,
