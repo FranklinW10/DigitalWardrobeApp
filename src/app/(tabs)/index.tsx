@@ -34,8 +34,7 @@ export default function Index() {
   const [description, setDescription] = useState<string>("");
   const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
-  const { posts, refreshPosts, isLoading } = usePosts();
-  const { user } = useAuth();
+const { posts, refreshPosts, isLoading, loadMore } = usePosts();  const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
   const [refreshKey, setRefreshKey] = useState(0);
@@ -59,6 +58,7 @@ export default function Index() {
     outputRange: [0, 0, 1],
   });
 
+
   const userActivePost = (posts ?? []).find(
     (post) =>
       post.user_id === user?.id &&
@@ -67,12 +67,18 @@ export default function Index() {
       post.isoutfit_post,
   );
 
+
   const hasActivePost = !!userActivePost;
 
-  useEffect(() => {
-    loadFollowing();
-    refreshPosts();
-  }, [user?.id]);
+useEffect(() => {
+  const load = async () => {
+    console.log("posts fetch triggered at:", new Date().toISOString());
+    
+    await loadFollowing();  // ← Wait for this
+    await refreshPosts();
+  };
+  load();
+}, [user?.id]);
 
   const followingPosts = posts.filter(
     (post) => following.includes(post.user_id) || post.user_id === user?.id,
@@ -378,6 +384,11 @@ export default function Index() {
               sections.length === 0 ? styles.emptyContent : styles.content
             }
             ListFooterComponent={<View style={styles.whitespace} />}
+              initialNumToRender={10}
+  maxToRenderPerBatch={5}
+  updateCellsBatchingPeriod={50}
+  onEndReached={loadMore}
+  onEndReachedThreshold={0.5}
           />
         ) : (
           <FlatList
@@ -420,6 +431,11 @@ export default function Index() {
                 colors={[colors.primary]}
               />
             }
+              initialNumToRender={10}
+  maxToRenderPerBatch={5}
+  updateCellsBatchingPeriod={50}
+  onEndReached={loadMore}
+  onEndReachedThreshold={0.5}
           />
         )}
 

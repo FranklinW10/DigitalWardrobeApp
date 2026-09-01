@@ -70,9 +70,7 @@ export const daysAgo = (postDate: string): string => {
   );
   const postMidnight = parseDateOnly(postDate);
 
-  console.log("postDate string:", postDate);
-  console.log("todayMidnight:", todayMidnight);
-  console.log("postMidnight:", postMidnight);
+
   // Calculate days difference directly without milliseconds
   const days = Math.floor(
     (todayMidnight.getTime() - postMidnight.getTime()) / (1000 * 60 * 60 * 24),

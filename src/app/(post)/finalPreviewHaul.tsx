@@ -78,7 +78,7 @@ export default function FinalPreviewHaul() {
               <Image
                 source={{ uri: user.profileImage }}
                 style={styles.avatar}
-                cachePolicy="memory"
+                cachePolicy="memory-disk"
               />
             ) : (
               <View style={[styles.avatar, styles.avatarPlaceholder]}>

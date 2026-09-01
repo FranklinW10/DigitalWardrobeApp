@@ -5,6 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useMemo, useState } from "react";
+import { useContext } from "react";
+import { PostContext } from "@/context/PostContext";
 import {
   ActivityIndicator,
   Alert,
@@ -19,11 +21,9 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const POST_WIDTH = SCREEN_WIDTH - 32;
 
 export default function FinalPreviewFit() {
-  const { imageUri, description, tags } = useLocalSearchParams<{
-    imageUri: string;
-    description: string;
-    tags?: string;
-  }>();
+
+    const { imageUri, description } = useContext(PostContext);  // ← From context
+  const { tags } = useLocalSearchParams<{ tags?: string }>();
   const { createPost } = usePosts();
   const { user } = useAuth();
   const router = useRouter();

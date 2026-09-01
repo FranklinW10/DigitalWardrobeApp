@@ -1,7 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase/client";
 import { uploadHaulImages, uploadPostImage } from "@/lib/supabase/storage";
-import { useState } from "react";
+import { useState, useRef } from "react";
 export interface PostUser {
   id: string;
   name: string;
@@ -63,8 +63,11 @@ export interface PostTagInput {
 }
 export const usePosts = () => {
   const [posts, setPosts] = useState<Post[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
+  const [page, setPage] = useState(1);
+  const isLoadingMoreRef = useRef(false);
+const postsPerPage = 20;
   // Add near the top of this file (or import PostTag from useTags.ts if it's already exported there)
   const flattenPostTags = (post: any) => {
     return (post.post_image_tags ?? [])
@@ -98,7 +101,7 @@ export const usePosts = () => {
     return `${y}-${m}-${d}`;
   };
 
-  const loadPosts = async () => {
+    const loadPosts = async (pageNum: number = 1) => {  // ← Add pageNum parameter
     if (!user) return;
     setIsLoading(true);
 
@@ -108,7 +111,6 @@ export const usePosts = () => {
         .select("blocked_id")
         .eq("blocker_id", user.id);
 
-      // Get users who blocked you
       const { data: blockedByData } = await supabase
         .from("blocks")
         .select("blocker_id")
@@ -127,52 +129,66 @@ export const usePosts = () => {
       ];
       const reportedPostIds = reportedData?.map((r) => r.target_id) ?? [];
 
-      const { data: postsData, error: postsError } = await supabase
-        .from("posts")
-        .select(
-          `
-                    *,
-                    profiles(id,name,username,profile_image_url, streak),
-                    images(id,post_id,image_url,order_index),
-                    post_image_tags(
-  image_id,
-  location_x,
-  location_y,
-  tags_new(*)
-)
-                    `,
-        )
-        .eq("is_active", true)
-        .not("user_id", "in", `(${allBlockedIds.join(",")})`)
-        .eq("is_public", true)
-        .order("created_at", { ascending: false });
-      if (postsError) {
-        console.error("Error loading posts:", postsError);
-        throw postsError;
-      }
-      if (postsData && postsData.length > 0) {
-        console.log("First post data:", JSON.stringify(postsData[0]));
-      }
-      if (!postsData || postsData.length === 0) {
-        setPosts([]);
-        return;
-      }
+      const start = (pageNum - 1) * postsPerPage;
+      const end = start + postsPerPage - 1;
+
+const { data: postsData, error: postsError } = await supabase
+  .from("posts")
+  .select(
+    `
+    *,
+    profiles(id, name, username, profile_image_url, isPrivate, streak),
+    images(id, post_id, image_url, order_index),
+    post_image_tags(
+      image_id,
+      location_x,
+      location_y,
+      tags_new(*)
+    )
+  `,
+  )
+  .eq("is_active", true)
+  .not("user_id", "in", `(${allBlockedIds.join(",")})`)
+  .eq("is_public", true)
+  .order("created_at", { ascending: false })
+  .range(start, end);
+      
+      if (postsError) throw postsError;
 
       const filtered =
         postsData?.filter((p) => !reportedPostIds.includes(p.id)) ?? [];
 
-      const postsWithProfiles = filtered.map((post) => ({
-        ...post,
-        profiles: post.profiles || null,
-        tags: flattenPostTags(post),
-      }));
-      setPosts(postsWithProfiles);
+const postsWithProfiles = filtered.map((post: any) => ({
+  ...post,
+  profiles: post.profiles || null,
+  tags: flattenPostTags(post),
+}));
+
+      // Append to existing posts if loading more, otherwise replace
+      setPosts(pageNum === 1 ? postsWithProfiles : [...posts, ...postsWithProfiles]);
+      setPage(pageNum);
     } catch (error) {
       console.error("Error in loadPosts:", error);
       throw error;
     } finally {
       setIsLoading(false);
     }
+  };
+
+
+const loadMore = () => {
+  if (isLoading || isLoadingMoreRef.current) return;
+  if (posts.length === 0) return; // nothing to paginate past yet
+  isLoadingMoreRef.current = true;
+  loadPosts(page + 1).finally(() => {
+    isLoadingMoreRef.current = false;
+  });
+};
+
+  const refreshPosts = async () => {
+    
+    setPage(1);  // ← Reset to page 1
+    await loadPosts(1);
   };
 
   const loadPublicPosts = async () => {
@@ -561,9 +577,7 @@ export const usePosts = () => {
   //     throw error;
   //   }
   // };
-  const refreshPosts = async () => {
-    await loadPosts();
-  };
+
   const refreshExplorePosts = async () => {
     await loadPublicPosts();
   };
@@ -579,5 +593,6 @@ export const usePosts = () => {
     createoldPost,
     refreshExplorePosts,
     isLoading,
+    loadMore
   };
 };

@@ -387,6 +387,7 @@ export default function UserProfileScreen() {
         ListHeaderComponent={
           <View style={styles.header}>
             {/* Avatar */}
+            <View>
             <StreakAvatar
               uri={profileUser?.profile_image_url}
               initial={profileUser?.username?.[0]?.toUpperCase() || "U"}
@@ -400,18 +401,23 @@ export default function UserProfileScreen() {
               <StreakFireBadge
                 streak={profileUser?.streak ?? 0}
                 size={44}
-                offsetY={250}
-                offsetX={140}
+                offsetY={0}
+                offsetX={-8}
               />
             )}
+            </View>
 
             {/* Name + username */}
             <Text style={styles.name}>{profileUser?.name}</Text>
             <Text style={styles.username}>@{profileUser?.username}</Text>
 
             {profileUser?.bio ? (
-              <Text style={styles.bio}>{profileUser.bio}</Text>
+              
+                <Text style={styles.bio}>{profileUser.bio}</Text>
+                
+              
             ) : null}
+            
 
             {profileUser?.link ? (
               <TouchableOpacity
@@ -600,6 +606,7 @@ const createStyles = (colors: any) =>
       marginBottom: 12,
     },
     statsRow: {
+      marginRight: 15,
       flexDirection: "row",
       gap: 32,
       marginBottom: 16,
@@ -650,7 +657,7 @@ const createStyles = (colors: any) =>
       color: colors.text,
       textAlign: "center",
       paddingHorizontal: 32,
-      marginBottom: 6,
+      marginBottom: 10,
       lineHeight: 19,
     },
     bioCharCount: {
@@ -660,10 +667,23 @@ const createStyles = (colors: any) =>
       marginTop: -2,
       marginBottom: -4,
     },
+bioDivider: {
+  width: "60%",
+  height: 1, // or use 1 for a slightly thicker line
+  backgroundColor: colors.border,
+  alignSelf: "center",
+  marginTop: -4,
+},
+bioLine: {
+  width: "100%",
+  alignItems: "center",
+  marginBottom: 10,
+},
     linkRow: {
       flexDirection: "row",
       alignItems: "center",
       gap: 4,
+      marginTop: 6,
       marginBottom: 12,
     },
     linkText: {

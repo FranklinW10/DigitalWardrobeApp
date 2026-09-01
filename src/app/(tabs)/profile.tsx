@@ -71,6 +71,7 @@ export default function Profile() {
   const [username, setUsername] = useState("");
   const { user, updateUser, signOut } = useAuth();
   const [isUpdating, setIsUpdating] = useState(false);
+  
   const router = useRouter();
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -195,10 +196,10 @@ export default function Profile() {
       setIsPrivate(user.isPrivate ?? false);
       setSelectedTheme((user as any).theme ?? "light");
       setBio(profileUser?.bio ?? "");
-      setLink(profileUser?.link ?? "");
+      setLink(profileUser?.link ? String(profileUser.link) : ""); 
       setlinkLabel(profileUser?.linkLabel ?? "");
     }
-  }, [showModal, user]);
+  }, [showModal, user, profileUser]);
 
   const handleUpdateProfileImage = async () => {
     if (!user) return;
@@ -530,9 +531,9 @@ export default function Profile() {
         isPrivate,
         phone: digits.length > 0 ? digits : undefined,
         theme: selectedTheme,
-        bio: bio.trim() || undefined,
-        link: link.trim() || undefined,
-        linkLabel: linkLabel.trim() || undefined, // NEW
+  bio: bio.trim() || "",
+  link: link.trim() || "",
+  linkLabel: linkLabel.trim() || "",
       });
       setProfileUser((prev) =>
         prev
@@ -620,7 +621,7 @@ export default function Profile() {
         message:
           "Check out Posted — the app I use to track my outfits and share my style! https://apps.apple.com/app/idYOUR_APP_ID",
         // iOS-only: separates the URL for cleaner previews in Messages/iMessage
-        url: "https://apps.apple.com/app/idYOUR_APP_ID",
+        url: "https://apps.apple.com/us/app/posted-fits-hauls/id6791696227",
         title: "Posted",
       });
     } catch (error) {
@@ -1027,7 +1028,7 @@ export default function Profile() {
                 <TextInput
                   placeholder="https://..."
                   placeholderTextColor={colors.textMuted}
-                  value={link}
+                  value={link ?? ""} 
                   onChangeText={setLink}
                   style={styles.input}
                   autoCapitalize="none"
@@ -1039,7 +1040,7 @@ export default function Profile() {
                 <TextInput
                   placeholder="e.g. My Website"
                   placeholderTextColor={colors.textMuted}
-                  value={linkLabel}
+                 value={linkLabel ?? ""}
                   onChangeText={setlinkLabel}
                   style={styles.input}
                   autoCapitalize="words"
@@ -1258,7 +1259,7 @@ const createStyles = (colors: any) =>
       color: colors.text,
       textAlign: "center",
       paddingHorizontal: 32,
-      marginBottom: 6,
+      marginBottom: 10,
       lineHeight: 19,
     },
 

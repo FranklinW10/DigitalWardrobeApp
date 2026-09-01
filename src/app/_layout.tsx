@@ -8,6 +8,7 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { useEffect, useState } from "react";
+import { PostContext, PostProvider } from "@/context/PostContext";
 import { ActivityIndicator, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 function RouteGaurd() {
@@ -76,6 +77,7 @@ function RouteGaurd() {
 function AppProviders() {
   const { user } = useAuth();
   return (
+    <PostProvider>
     <FollowsProvider>
       <NotificationsProvider userId={user?.id}>
         <BlocksProvider userId={user?.id}>
@@ -83,6 +85,7 @@ function AppProviders() {
         </BlocksProvider>
       </NotificationsProvider>
     </FollowsProvider>
+    </PostProvider>
   );
 }
 export default function RootLayout() {

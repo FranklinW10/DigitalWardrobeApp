@@ -934,55 +934,89 @@ export const PostCard = ({ post, currentUserId }: PostCardProps) => {
   const styles = createStyles(colors);
   const [showReportModal, setShowReportModal] = useState(false);
   const { blockUser } = useBlocks();
-  const handlePostOptions = (post: Post) => {
-    const options = [
-      {
-        text: post.is_public ? "Switch to archive" : "Switch to Public",
-        onPress: async () => {
-          await supabase
-            .from("posts")
-            .update({ is_public: !post.is_public })
-            .eq("id", post.id);
-        },
-      },
-      {
-        text: "Delete Post",
-        style: "destructive" as const,
-        onPress: async () => {
-          await supabase
-            .from("posts")
-            .update({ is_active: false })
-            .eq("id", post.id);
-        },
-      },
-      {
-        text: "Cancel",
-        style: "cancel" as const,
-      },
-    ];
+const handlePostOptions = (post: Post) => {
+  const options = [
+    {
+      text: post.is_public ? "Switch to archive" : "Switch to Public",
+      onPress: async () => {
+        const { error } = await supabase
+          .from("posts")
+          .update({ is_public: !post.is_public })
+          .eq("id", post.id);
 
-    Alert.alert("Post Options", "", options);
-  };
-  const handleOldPostOptions = (post: Post) => {
-    const options = [
-      {
-        text: "Delete Post",
-        style: "destructive" as const,
-        onPress: async () => {
-          await supabase
-            .from("posts")
-            .update({ is_active: false })
-            .eq("id", post.id);
-        },
-      },
-      {
-        text: "Cancel",
-        style: "cancel" as const,
-      },
-    ];
+        if (error) {
+          Alert.alert("Error", "Failed to update post. Please try again.");
+          return;
+        }
 
-    Alert.alert("Post Options", "", options);
-  };
+        Alert.alert(
+          "Success",
+          post.is_public
+            ? "Your post has been switched to archive."
+            : "Your post has been switched to public.",
+        );
+      },
+    },
+    {
+      text: "Delete Post",
+      style: "destructive" as const,
+      onPress: async () => {
+        const { error } = await supabase
+          .from("posts")
+          .update({ is_active: false })
+          .eq("id", post.id);
+
+        if (error) {
+          Alert.alert("Error", "Failed to delete post. Please try again.");
+          return;
+        }
+
+                setTimeout(() => {
+          Alert.alert(
+            "Success",
+            post.is_public
+              ? "Your post has been switched to archive."
+              : "Your post has been switched to public.",
+          );
+        }, 300);
+      },
+    },
+    {
+      text: "Cancel",
+      style: "cancel" as const,
+    },
+  ];
+
+  Alert.alert("Post Options", "", options);
+};
+
+const handleOldPostOptions = (post: Post) => {
+  const options = [
+    {
+      text: "Delete Post",
+      style: "destructive" as const,
+      onPress: async () => {
+        const { error } = await supabase
+          .from("posts")
+          .update({ is_active: false })
+          .eq("id", post.id);
+
+        if (error) {
+          Alert.alert("Error", "Failed to delete post. Please try again.");
+          return;
+        }
+
+        Alert.alert("Success", "Your post has been deleted. It may take a second to disappear");
+      },
+    },
+    {
+      text: "Cancel",
+      style: "cancel" as const,
+    },
+  ];
+
+  Alert.alert("Post Options", "", options);
+};
 
   const handleOptionsPress = () => {
     isOwnPost

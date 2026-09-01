@@ -3,7 +3,9 @@ import { useTheme } from "@/context/ThemeContext";
 import { usePosts } from "@/hooks/usePosts";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
+import { useContext } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { PostContext, PostProvider } from "@/context/PostContext";
 import {
   InputAccessoryView,
   Keyboard,
@@ -27,7 +29,7 @@ export default function Fit() {
   const { hasActivePost } = useLocalSearchParams();
   const alreadyPosted = hasActivePost === "true";
   const [showPreview, setShowPreview] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | undefined>(undefined);
   const [description, setDescription] = useState<string>("");
   const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
@@ -37,6 +39,7 @@ export default function Fit() {
   const { colors } = useTheme();
   const captionInputRef = useRef<TextInput>(null);
   const INPUT_ACCESSORY_ID = "captionInputDone";
+  const { setPostData } = useContext(PostContext);
 
   // Generate the stylesheet dynamically using the current theme colors
   const styles = createStyles(colors);
@@ -164,16 +167,11 @@ export default function Fit() {
                   styles.postButton,
                   !previewImage && styles.postButtonDisabled,
                 ]}
-                onPress={() => {
-                  router.push({
-                    pathname: "/fitTags",
-                    params: {
-                      imageUri: previewImage,
-                      description: description,
-                      alreadyPosted: alreadyPosted ? "true" : "false",
-                    },
-                  });
-                }}
+onPress={() => {
+    if (!previewImage) return; // guards TS + a real null-safety edge case
+  setPostData(previewImage, description, alreadyPosted);
+  router.push("/fitTags");
+}}
                 disabled={isUploading || !previewImage}
               >
                 {isUploading ? (

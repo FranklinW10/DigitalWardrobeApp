@@ -3,7 +3,9 @@ import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useContext } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { PostContext, PostProvider } from "@/context/PostContext";
 import {
   Animated,
   Keyboard,
@@ -226,17 +228,13 @@ const createPinStyles = (colors: any) =>
   });
 
 export default function TagItems() {
-  const { imageUri, description, alreadyPosted } = useLocalSearchParams<{
-    imageUri: string;
-    description: string;
-    alreadyPosted: string;
-  }>();
+
   const router = useRouter();
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
-
+const { imageUri, description, alreadyPosted } = useContext(PostContext);
   const [tags, setTags] = useState<PostTag[]>([]);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
@@ -367,28 +365,25 @@ export default function TagItems() {
   };
 
   const handleContinue = () => {
-    const payload = tags.map((t) => ({
-      location_x: Number(t.locationX.toFixed(2)),
-      location_y: Number(t.locationY.toFixed(2)),
-      name: t.name,
-      store: t.store,
-      brand: t.brand,
-      price: t.price ? Number(t.price) : null,
-      is_clothing_tag: t.is_clothing_tag,
-      color: t.color,
-      saved: t.saved,
-      saved_tag_id: t.savedTagId ?? null,
-    }));
-    router.push({
-      pathname: "/preview",
-      params: {
-        imageUri,
-        description,
-        alreadyPosted,
-        tags: JSON.stringify(payload),
-      },
-    });
-  };
+  const payload = tags.map((t) => ({
+    location_x: Number(t.locationX.toFixed(2)),
+    location_y: Number(t.locationY.toFixed(2)),
+    name: t.name,
+    store: t.store,
+    brand: t.brand,
+    price: t.price ? Number(t.price) : null,
+    is_clothing_tag: t.is_clothing_tag,
+    color: t.color,
+    saved: t.saved,
+    saved_tag_id: t.savedTagId ?? null,
+  }));
+  router.push({
+    pathname: "/preview",
+    params: {
+      tags: JSON.stringify(payload),  // ← Only pass tags as param
+    },
+  });
+};
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
