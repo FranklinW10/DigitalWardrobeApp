@@ -4,7 +4,10 @@ A social app for sharing daily outfits ("fits") and shopping hauls, with a full 
 
 **Live on the App Store** · Built with React Native (Expo) + Supabase
 
-Link to app store: https://apps.apple.com/us/app/posted-fits-hauls/id6791696227
+**Link to app store:** https://apps.apple.com/us/app/posted-fits-hauls/id6791696227
+
+**This README is not comprehensive!!!** I'm still working on creating an entire write up for this project, this README only goes over some of the functionality.
+
 ---
 
 ## Overview
