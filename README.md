@@ -2,8 +2,9 @@
 
 A social app for sharing daily outfits ("fits") and shopping hauls, with a full social graph — public/private accounts, follow requests, saved collections, and contact-based friend discovery. Built solo, end-to-end, from schema design through App Store submission.
 
-**Live on TestFlight** · Built with React Native (Expo) + Supabase
+**Live on the App Store** · Built with React Native (Expo) + Supabase
 
+Link to app store: https://apps.apple.com/us/app/posted-fits-hauls/id6791696227
 ---
 
 ## Overview
