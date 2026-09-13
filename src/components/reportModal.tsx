@@ -21,6 +21,7 @@ const REASONS = [
   "Murder",
   "Impersonation",
   "Other",
+
 ];
 
 export function ReportModal({

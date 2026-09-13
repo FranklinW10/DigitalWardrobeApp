@@ -24,6 +24,7 @@ export default function FinalPreviewFit() {
 
     const { imageUri, description } = useContext(PostContext);  // ← From context
   const { tags } = useLocalSearchParams<{ tags?: string }>();
+    const { peopleTags } = useLocalSearchParams<{ peopleTags?: string }>();
   const { createPost } = usePosts();
   const { user } = useAuth();
   const router = useRouter();
@@ -40,6 +41,15 @@ export default function FinalPreviewFit() {
       return undefined;
     }
   }, [tags]);
+    const parsedPeopleTags = useMemo(() => {
+    if (!peopleTags) return undefined;
+    try {
+      return JSON.parse(peopleTags);
+    } catch (e) {
+      console.error("Failed to parse peopleTags param:", e);
+      return undefined;
+    }
+  }, [peopleTags]);
 
   const handlePost = async (isPublic: boolean) => {
     setUploading(isPublic ? "public" : "archive");
@@ -51,6 +61,7 @@ export default function FinalPreviewFit() {
         true,
         undefined, // imageUris (haul-only, not used on this fit screen)
         parsedTags,
+        parsedPeopleTags
       );
       router.replace("/(tabs)");
     } catch (error) {

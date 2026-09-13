@@ -5,7 +5,8 @@ import { useTheme } from "@/context/ThemeContext";
 import { useBlocks } from "@/hooks/useBlocks"; // or wherever you end up putting the provider
 import { useComments } from "@/hooks/useComments";
 import { useLikes } from "@/hooks/useLikes";
-import { Post, PostTag } from "@/hooks/usePosts";
+import { Post, PostTag,PeopleTag } from "@/hooks/usePosts";
+
 import { supabase } from "@/lib/supabase/client";
 import { Alert } from "react-native";
 
@@ -47,6 +48,76 @@ interface PostCardProps {
   post: Post;
   currentUserId?: string;
 }
+
+const PeopleTagPin = ({
+  tag,
+  containerSize,
+  colors,
+  currentUserId,
+}: {
+  tag: PeopleTag;
+  containerSize: { width: number; height: number };
+  colors: any;
+  currentUserId?: string;
+
+}) => {
+  if (!containerSize.width || !containerSize.height) return null;
+
+    const handlePress = () => {
+    if (tag.tagged_user_id === currentUserId) {
+      router.push("/profile");
+    } else {
+      router.push(`/(profile)/${tag.tagged_user_id}`);
+    }
+  };
+
+  const left = (tag.location_x / 100) * containerSize.width;
+  const top = (tag.location_y / 100) * containerSize.height;
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={handlePress}
+      style={[
+        tagPinStyles.pinWrap,
+        {
+          left: left - 70,
+          top: top - 40,
+        },
+      ]}
+    >
+      <View
+        style={[
+          tagPinStyles.pinBubble,
+          {
+            backgroundColor: `${colors.surface}CC`,
+            borderColor: `${colors.border}CC`,
+          },
+        ]}
+      >
+        <Text style={[tagPinStyles.pinText, { color: colors.text }]}>
+          @{tag.username}
+        </Text>
+      </View>
+
+      <View
+        style={{
+          width: 0,
+          height: 0,
+          borderLeftWidth: 5,
+          borderRightWidth: 5,
+          borderTopWidth: 6,
+          borderLeftColor: "transparent",
+          borderRightColor: "transparent",
+          borderTopColor: `${colors.surface}99`,
+          marginTop: -1,
+        }}
+      />
+
+
+    </TouchableOpacity>
+  );
+};
 
 const TagPin = ({
   tag,
@@ -168,12 +239,15 @@ const tagPinStyles = StyleSheet.create({
 const TaggableImage = ({
   imageUri,
   tags,
+  peopleTags,
   onDoubleTap,
   imageStyle,
   colors,
 }: {
   imageUri: string;
   tags?: PostTag[];
+    peopleTags?: PeopleTag[];
+
   onDoubleTap: () => void;
   imageStyle: any;
   colors: any;
@@ -181,7 +255,8 @@ const TaggableImage = ({
   const [showTags, setShowTags] = useState(false);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [isZoomed, setIsZoomed] = useState(false);
-  const hasTags = !!tags && tags.length > 0;
+    const hasTags =
+    (!!tags && tags.length > 0) || (!!peopleTags && peopleTags.length > 0);
 
   const scale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -321,9 +396,20 @@ const TaggableImage = ({
 
       {showTags &&
         hasTags &&
-        tags!.map((tag) => (
+        tags?.map((tag) => (
           <TagPin
             key={tag.id}
+            tag={tag}
+            containerSize={containerSize}
+            colors={colors}
+          />
+        ))}
+
+      {showTags &&
+        hasTags &&
+        peopleTags?.map((tag) => (
+          <PeopleTagPin
+            key={tag.tagged_user_id}
             tag={tag}
             containerSize={containerSize}
             colors={colors}
@@ -1102,6 +1188,8 @@ const handleOldPostOptions = (post: Post) => {
 
         <TaggableImage
           imageUri={post.image_url}
+            peopleTags={post.peopleTags}
+
           tags={post.tags}
           onDoubleTap={toggleLike}
           imageStyle={styles.postImage}
@@ -1662,6 +1750,8 @@ export const ModalPostCard = ({
           <TaggableImage
             imageUri={post.image_url}
             tags={post.tags}
+            peopleTags={post.peopleTags}
+
             onDoubleTap={toggleLike}
             imageStyle={styles.postImage}
             colors={colors}

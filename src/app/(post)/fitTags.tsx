@@ -1,4 +1,5 @@
 import { TagPickerModal } from "@/components/tagPickerModal";
+import { FriendPickerModal } from "@/components/friendPickerModal";
 import { useTheme } from "@/context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -23,6 +24,8 @@ import {
   TouchableWithoutFeedback,
   View,
 } from "react-native";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase/client";
 
 // Matches the public.post_tags table:
 // id, created_at, post_id, location_x, location_y, price, store, is_clothing_tag
@@ -38,6 +41,17 @@ type PostTag = {
   color: string;
   saved: boolean;
   savedTagId?: string;
+};
+
+type PeopleTag = {
+  id: string;
+  userId: string; // The tagged friend's user ID
+  username: string;
+  name?: string;
+  profile_image_url?: string;
+  locationX: number; // percentage 0-100, relative to image
+  locationY: number; // percentage 0-100, relative to image
+  color: string;
 };
 
 type Draft = PostTag & { isNew: boolean };
@@ -173,6 +187,131 @@ function DraggablePin({
   );
 }
 
+function DraggablePeopleTag({
+  tag,
+  isSelected,
+  containerSize,
+  onPress,
+  onMove,
+}: {
+  tag: PeopleTag;
+  isSelected: boolean;
+  containerSize: { width: number; height: number };
+  onPress: () => void;
+  onMove: (x: number, y: number) => void;
+}) {
+  const { colors } = useTheme();
+
+  const toPanXY = (
+    locX: number,
+    locY: number,
+    size: { width: number; height: number },
+  ) => ({
+    x: (locX / 100) * size.width - 70,
+    y: (locY / 100) * size.height - 54,
+  });
+
+  const pan = useRef(
+    new Animated.ValueXY(toPanXY(tag.locationX, tag.locationY, containerSize)),
+  ).current;
+  const wasDragged = useRef(false);
+  const measured = useRef(containerSize.width > 0 && containerSize.height > 0);
+
+  useEffect(() => {
+    if (!measured.current && containerSize.width && containerSize.height) {
+      pan.setValue(toPanXY(tag.locationX, tag.locationY, containerSize));
+      measured.current = true;
+    }
+  }, [containerSize.width, containerSize.height]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onPanResponderGrant: () => {
+          wasDragged.current = false;
+          pan.setOffset({ x: (pan.x as any)._value, y: (pan.y as any)._value });
+          pan.setValue({ x: 0, y: 0 });
+        },
+        onPanResponderMove: (_, gesture) => {
+          if (Math.abs(gesture.dx) > 4 || Math.abs(gesture.dy) > 4) {
+            wasDragged.current = true;
+          }
+          pan.setValue({ x: gesture.dx, y: gesture.dy });
+        },
+        onPanResponderRelease: () => {
+          pan.flattenOffset();
+          if (!wasDragged.current) {
+            onPress();
+            return;
+          }
+          if (containerSize.width && containerSize.height) {
+            const xPx = (pan.x as any)._value + 70;
+            const yPx = (pan.y as any)._value + 54;
+            const nextX = Math.max(
+              2,
+              Math.min(98, (xPx / containerSize.width) * 100),
+            );
+            const nextY = Math.max(
+              2,
+              Math.min(98, (yPx / containerSize.height) * 100),
+            );
+            onMove(nextX, nextY);
+          }
+        },
+      }),
+    [onPress, onMove, containerSize.width, containerSize.height],
+  );
+
+  return (
+    <Animated.View
+      {...panResponder.panHandlers}
+      style={[
+        {
+          position: "absolute",
+          height: 80,
+          alignItems: "center",
+          justifyContent: "flex-end",
+        },
+        { transform: pan.getTranslateTransform() },
+      ]}
+    >
+      <View
+        style={[
+          {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 6,
+            backgroundColor: `${colors.surface}CC`,
+            borderRadius: 14,
+            paddingVertical: 6,
+            paddingHorizontal: 10,
+          },
+          isSelected && { borderColor: tag.color, borderWidth: 1.5 },
+        ]}
+      >
+        <Text style={{ color: colors.text, fontSize: 12, fontWeight: "600" }}>
+          @{tag.username}
+        </Text>
+      </View>
+      <View
+        style={{
+          width: 0,
+          height: 0,
+          borderLeftWidth: 5,
+          borderRightWidth: 5,
+          borderTopWidth: 6,
+          borderLeftColor: "transparent",
+          borderRightColor: "transparent",
+          borderTopColor: `${colors.surface}99`,
+          marginTop: -1,
+        }}
+      />
+
+    </Animated.View>
+  );
+}
+
 // Pin chrome (bubble, arrow, anchor) themed off the same `colors` object as
 // the rest of the screen, so it flips light/dark with the app instead of
 // staying a fixed black-glass style.
@@ -240,9 +379,13 @@ const { imageUri, description, alreadyPosted } = useContext(PostContext);
   const [imgSize, setImgSize] = useState({ width: 0, height: 0 });
   const sheetY = useRef(new Animated.Value(40)).current;
   const sheetOpacity = useRef(new Animated.Value(0)).current;
+  const [peopleTags, setPeopleTags] = useState<PeopleTag[]>([]);
   const idCounter = useRef(0);
   const [showTagPicker, setShowTagPicker] = useState(false);
+  const { user } = useAuth();
   const INPUT_ACCESSORY_ID = "editTagInputDone";
+  const [showFriendPicker, setShowFriendPicker] = useState(false);
+const [pendingFriendIds, setPendingFriendIds] = useState<string[]>([]);
   const [pendingLocation, setPendingLocation] = useState<{
     x: number;
     y: number;
@@ -297,6 +440,17 @@ const { imageUri, description, alreadyPosted } = useContext(PostContext);
   const useSavedTag = (x: number, y: number) => {
     setShowTagPicker(true);
   };
+  type TagListItem =
+  | { kind: "clothing"; tag: PostTag }
+  | { kind: "person"; tag: PeopleTag };
+
+const combinedTags: TagListItem[] = useMemo(
+  () => [
+    ...tags.map((tag) => ({ kind: "clothing" as const, tag })),
+    ...peopleTags.map((tag) => ({ kind: "person" as const, tag })),
+  ],
+  [tags, peopleTags],
+);
 
   const closeModal = (onDone?: () => void) => {
     Animated.parallel([
@@ -327,6 +481,37 @@ const { imageUri, description, alreadyPosted } = useContext(PostContext);
     setShowModal(true);
   };
 
+const handleFriendsSelected = async (friendIds: string[]) => {
+  if (!pendingLocation) return;
+  
+  // Fetch friend details from Supabase
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, username, name, profile_image_url")
+      .in("id", friendIds);
+ 
+    if (data) {
+      const newPeopleTags = data.map((friend, index) => ({
+        id: `person_${Date.now()}_${index}`,
+        userId: friend.id,
+        username: friend.username,
+        name: friend.name,
+        profile_image_url: friend.profile_image_url,
+        locationX: pendingLocation.x,
+        locationY: pendingLocation.y,
+        color: PIN_COLORS[(tags.length + index) % PIN_COLORS.length],
+      }));
+      
+      setPeopleTags((prev) => [...prev, ...newPeopleTags]);
+      setPendingLocation(null);
+      console.log("Tagged friends:", friendIds, "at location:", pendingLocation);
+    }
+  } catch (err) {
+    console.error("Error fetching friend details:", err);
+  }
+};
+
   const selectTag = (id: string) => {
     const t = tags.find((t) => t.id === id);
     console.log("Opening:", t);
@@ -338,6 +523,11 @@ const { imageUri, description, alreadyPosted } = useContext(PostContext);
       prev.map((t) => (t.id === id ? { ...t, locationX: x, locationY: y } : t)),
     );
   };
+  const updatePeopleTagPosition = (id: string, x: number, y: number) => {
+  setPeopleTags((prev) =>
+    prev.map((t) => (t.id === id ? { ...t, locationX: x, locationY: y } : t)),
+  );
+};
 
   const confirmDraft = () => {
     if (!draft) return;
@@ -377,10 +567,19 @@ const { imageUri, description, alreadyPosted } = useContext(PostContext);
     saved: t.saved,
     saved_tag_id: t.savedTagId ?? null,
   }));
+  
+  const peoplePayload = peopleTags.map((p) => ({
+    tagged_user_id: p.userId,
+    location_x: Number(p.locationX.toFixed(2)),
+    location_y: Number(p.locationY.toFixed(2)),
+    color: p.color,
+  }));
+
   router.push({
     pathname: "/preview",
     params: {
-      tags: JSON.stringify(payload),  // ← Only pass tags as param
+      tags: JSON.stringify(payload),
+      peopleTags: JSON.stringify(peoplePayload),
     },
   });
 };
@@ -434,55 +633,86 @@ const { imageUri, description, alreadyPosted } = useContext(PostContext);
                   onMove={(x, y) => updateTagPosition(tag.id, x, y)}
                 />
               ))}
+
+              {peopleTags.map((peopleTag) => (
+                <DraggablePeopleTag
+                  key={peopleTag.id}
+                  tag={peopleTag}
+                  isSelected={false}
+                  containerSize={imgSize}
+                  onPress={() => {}}
+                  onMove={(x, y) => updatePeopleTagPosition(peopleTag.id, x, y)}
+                />
+              ))}
             </Pressable>
 
-            {tags.length > 0 && (
-              <ScrollView
-                style={styles.tagListScroll}
-                contentContainerStyle={styles.tagList}
-                showsVerticalScrollIndicator={false}
-              >
-                {tags.map((tag, i) => {
-                  const details = [
-                    tag.brand && `Brand: ${tag.brand}`,
-                    tag.store && `Store: ${tag.store}`,
-                    tag.price && `Price: $${tag.price}`,
-                  ]
-                    .filter(Boolean)
-                    .join("   ");
+{combinedTags.length > 0 && (
+  <ScrollView
+    style={styles.tagListScroll}
+    contentContainerStyle={styles.tagList}
+    showsVerticalScrollIndicator={false}
+  >
+    {combinedTags.map((item, i) => {
+      if (item.kind === "clothing") {
+        const tag = item.tag;
+        const details = [
+          tag.brand && `Brand: ${tag.brand}`,
+          tag.store && `Store: ${tag.store}`,
+          tag.price && `Price: $${tag.price}`,
+        ]
+          .filter(Boolean)
+          .join("   ");
 
-                  return (
-                    <TouchableOpacity
-                      key={tag.id}
-                      style={styles.tagCard}
-                      onPress={() => selectTag(tag.id)}
-                      activeOpacity={0.7}
-                    >
-                      <View
-                        style={[
-                          styles.tagRowDot,
-                          { backgroundColor: tag.color },
-                        ]}
-                      >
-                        <Text style={styles.tagRowDotText}>
-                          {tags.findIndex((t) => t.id === tag.id) + 1}
-                        </Text>
-                      </View>
+        return (
+          <TouchableOpacity
+            key={tag.id}
+            style={styles.tagCard}
+            onPress={() => selectTag(tag.id)}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.tagRowDot, { backgroundColor: tag.color }]}>
+              <Text style={styles.tagRowDotText}>{i + 1}</Text>
+            </View>
+            <Text style={styles.tagRowText} numberOfLines={1}>
+              {details || "No details added"}
+            </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={18}
+              color={colors.textMuted}
+            />
+          </TouchableOpacity>
+        );
+      }
 
-                      <Text style={styles.tagRowText} numberOfLines={1}>
-                        {details || "No details added"}
-                      </Text>
-
-                      <Ionicons
-                        name="chevron-forward"
-                        size={18}
-                        color={colors.textMuted}
-                      />
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            )}
+      const peopleTag = item.tag;
+      return (
+        <View key={peopleTag.id} style={styles.tagCard}>
+          <View
+            style={[styles.tagRowDot, { backgroundColor: peopleTag.color }]}
+          >
+            <Text style={styles.tagRowDotText}>{i + 1}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.tagRowText} numberOfLines={1}>
+              {peopleTag.name || peopleTag.username}
+            </Text>
+            <Text style={styles.tagRowMeta}>Friend tag</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() =>
+              setPeopleTags((prev) =>
+                prev.filter((t) => t.id !== peopleTag.id),
+              )
+            }
+          >
+            <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+      );
+    })}
+  </ScrollView>
+)}
           </View>
 
           <View style={styles.modalButtons}>
@@ -491,7 +721,7 @@ const { imageUri, description, alreadyPosted } = useContext(PostContext);
               onPress={handleContinue}
             >
               <Text style={styles.postButtonText}>
-                {tags.length === 0 ? "Skip tagging" : "Continue"}
+                {combinedTags.length === 0 ? "Skip tagging" : "Continue"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -719,6 +949,40 @@ const { imageUri, description, alreadyPosted } = useContext(PostContext);
                   </TouchableOpacity>
                 </View>
 
+                <View style={styles.cardRow}>
+
+                                    <TouchableOpacity
+                                activeOpacity={0.8}
+                                style={styles.card}
+                                onPress={() =>
+                                  closeModal(() => {
+                                    setShowFriendPicker(true);
+                                  })
+                                }
+                              >
+                    <View
+                      style={[
+                        styles.iconBadge,
+                        { backgroundColor: colors.primary + "1F" },
+                      ]}
+                    >
+                      <Ionicons
+                        name="people-outline"
+                        size={26}
+                        color={colors.primary}
+                      />
+                    </View>
+                    <Text style={styles.cardTitle}>Tag a Friend</Text>
+                    <Text style={styles.cardSubtitle}>
+                      Add a friend to this post
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                
+
+                
+
+
                 <TouchableOpacity
                   style={styles.cancelButton}
                   onPress={() => closeModal()}
@@ -755,6 +1019,13 @@ const { imageUri, description, alreadyPosted } = useContext(PostContext);
             setPendingLocation(null);
           }}
         />
+<FriendPickerModal
+  visible={showFriendPicker}
+  onClose={() => setShowFriendPicker(false)}
+  onSelectFriends={handleFriendsSelected}
+  currentUserId={user?.id}  // ← Add this line
+  excludeUserIds={peopleTags.map((p) => p.userId)}
+/>
       </KeyboardAvoidingView>
     </TouchableWithoutFeedback>
   );

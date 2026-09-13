@@ -38,7 +38,7 @@ export default function SearchScreen() {
     useFollows();
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
-  const { posts, refreshExplorePosts } = usePosts();
+  const { posts, refreshExplorePosts, loadMoreExplorePosts, } = usePosts();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -382,6 +382,11 @@ export default function SearchScreen() {
               colors={[colors.primary]}
             />
           }
+          initialNumToRender={12}
+  maxToRenderPerBatch={6}
+  updateCellsBatchingPeriod={50}
+  onEndReached={loadMoreExplorePosts}
+  onEndReachedThreshold={0.5}
         />
       )}
     </SafeAreaView>
