@@ -6,6 +6,8 @@ import * as ImagePicker from "expo-image-picker";
 import { useContext } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { PostContext, PostProvider } from "@/context/PostContext";
+  import * as ImageManipulator from "expo-image-manipulator";
+
 import {
   InputAccessoryView,
   Keyboard,
@@ -44,48 +46,54 @@ export default function Fit() {
   // Generate the stylesheet dynamically using the current theme colors
   const styles = createStyles(colors);
 
-  const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(
-        "Permission needed",
-        "We need camera roll permissions to select an Image.",
-      );
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
 
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPreviewImage(result.assets[0].uri);
-      setShowPreview(true);
-      setDescription("");
-    }
-  };
+const MAX_DIMENSION = 1080; // plenty for a full-screen post image
 
-  const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert(
-        "Permission needed",
-        "We need camera permissions to take a photo.",
-      );
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      setPreviewImage(result.assets[0].uri);
-      setShowPreview(true);
-      setDescription("");
-    }
-  };
+const resizeImage = async (uri: string) => {
+  const result = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: MAX_DIMENSION } }], // height auto-scales to preserve aspect ratio
+    { compress: 0.7, format: ImageManipulator.SaveFormat.JPEG },
+  );
+  return result.uri;
+};
+const pickImage = async () => {
+  const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (status !== "granted") {
+    Alert.alert("Permission needed", "We need camera roll permissions to select an Image.");
+    return;
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ["images"],
+    allowsEditing: true,
+    quality: 0.6,
+  });
+  if (!result.canceled && result.assets[0]) {
+    const resizedUri = await resizeImage(result.assets[0].uri);
+    setPreviewImage(resizedUri);
+    setShowPreview(true);
+    setDescription("");
+  }
+};
+
+const takePhoto = async () => {
+  const { status } = await ImagePicker.requestCameraPermissionsAsync();
+  if (status !== "granted") {
+    Alert.alert("Permission needed", "We need camera permissions to take a photo.");
+    return;
+  }
+  const result = await ImagePicker.launchCameraAsync({
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.6,
+  });
+  if (!result.canceled && result.assets[0]) {
+    const resizedUri = await resizeImage(result.assets[0].uri);
+    setPreviewImage(resizedUri);
+    setShowPreview(true);
+    setDescription("");
+  }
+};
 
   const showImagePicker = () => {
     Alert.alert("Select Profile Image", "Choose an option", [

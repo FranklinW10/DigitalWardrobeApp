@@ -9,6 +9,7 @@ import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 import {
+  RefreshControl,
   FlatList,
   StyleSheet,
   Text,
@@ -23,6 +24,9 @@ export default function NotificationsScreen() {
   const { notifications, markAllRead } = useNotifications();
   const { loadIncomingRequests } = useFollows();
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
+    const [refreshing, setRefreshing] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -39,6 +43,18 @@ export default function NotificationsScreen() {
     };
     load();
   }, [user?.id]);
+
+    const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+    const data = await loadIncomingRequests();
+    setPendingRequests(data);
+    } catch (error) {
+      console.error("Error refreshing posts:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const getNotificationText = (type: string, username: string) => {
     switch (type) {
@@ -164,6 +180,7 @@ export default function NotificationsScreen() {
       </View>
 
       <FlatList
+      style={{ flex: 1 }}
         data={notifications}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={requestsPreview || null}
@@ -215,6 +232,14 @@ export default function NotificationsScreen() {
             </TouchableOpacity>
           );
         }}
+                  refreshControl={
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={onRefresh}
+                      tintColor={colors.primary} // iOS spinner color
+                      colors={[colors.primary]}
+                    />
+                  }
         ListEmptyComponent={
           <Text style={styles.empty}>No notifications yet.</Text>
         }

@@ -65,7 +65,7 @@ export default function Fit() {
       mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.6,
     });
     if (!result.canceled && result.assets[0]) {
       setPreviewImage(result.assets[0].uri);
@@ -86,7 +86,7 @@ export default function Fit() {
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.6,
     });
     if (!result.canceled && result.assets[0]) {
       setPreviewImage(result.assets[0].uri);

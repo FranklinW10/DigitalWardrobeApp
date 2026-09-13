@@ -5,6 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { NotificationPermissionModal } from "@/components/NotificationPermissionModal";
+import { PostedGodModal } from "@/components/PostedGodModal";
 import {
   Animated,
   AppState,
@@ -101,6 +103,7 @@ export default function TabsLayout() {
 
   return (
     <View style={{ flex: 1 }}>
+      <NotificationPermissionModal />
       <NativeTabs backgroundColor={colors.background}>
         <NativeTabs.Trigger name="index">
           <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>

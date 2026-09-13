@@ -23,6 +23,7 @@ export interface User {
   streak?: number;
   bio?: string;
   link?: string;
+  referred_by?: string;
   linkLabel?: string;
 }
 
@@ -106,6 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         streak: data.streak,
         bio: data.bio,
         link: data.link,
+        referred_by: data.referred_by,
         linkLabel: data.link,
       };
     } catch (error) {
@@ -231,6 +233,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (userData.theme !== undefined) updateData.Theme = userData.theme;
       if (userData.bio !== undefined) updateData.bio = userData.bio;
       if (userData.link !== undefined) updateData.link = userData.link;
+      if (userData.referred_by !== undefined) updateData.referred_by = userData.referred_by;
       if (userData.linkLabel !== undefined)
         updateData.linkLabel = userData.linkLabel;
       const { error, data } = await supabase

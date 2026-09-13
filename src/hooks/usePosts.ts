@@ -16,6 +16,20 @@ export interface PostImage {
   order_index: number;
 }
 
+export interface PeopleTagInput {
+  tagged_user_id: string;
+  location_x: number;
+  location_y: number;
+}
+export interface PeopleTag {
+  tagged_user_id: string;
+  location_x: number;
+  location_y: number;
+  username: string;
+  name?: string;
+  profile_image_url?: string;
+}
+
 export interface PostTag {
   id: string;
   post_id: string;
@@ -43,6 +57,7 @@ export interface Post {
   profiles?: PostUser;
   images?: PostImage[];
   tags?: PostTag[]; // ← new
+  peopleTags?: PeopleTag[]; // ← new
   post_date: string;
   ispostedontime: boolean;
   streak: number;
@@ -92,6 +107,21 @@ const postsPerPage = 20;
       })
       .filter(Boolean);
   };
+  const flattenPeopleTags = (post: any) => {
+  return (post.people_tags ?? [])
+    .map((row: any) => {
+      if (!row.profiles) return null;
+      return {
+        tagged_user_id: row.tagged_user_id,
+        location_x: row.location_x,
+        location_y: row.location_y,
+        username: row.profiles.username,
+        name: row.profiles.name,
+        profile_image_url: row.profiles.profile_image_url,
+      };
+    })
+    .filter(Boolean);
+};
 
   const getLocalDateString = () => {
     const now = new Date();
@@ -144,6 +174,12 @@ const { data: postsData, error: postsError } = await supabase
       location_x,
       location_y,
       tags_new(*)
+    ),
+    people_tags(
+      tagged_user_id,
+      location_x,
+      location_y,
+      profiles!people_tags_tagged_user_id_profiles_fkey(id, username, name, profile_image_url)
     )
   `,
   )
@@ -162,6 +198,7 @@ const postsWithProfiles = filtered.map((post: any) => ({
   ...post,
   profiles: post.profiles || null,
   tags: flattenPostTags(post),
+  peopleTags: flattenPeopleTags(post),
 }));
 
       // Append to existing posts if loading more, otherwise replace
@@ -191,99 +228,132 @@ const loadMore = () => {
     await loadPosts(1);
   };
 
-  const loadPublicPosts = async () => {
-    if (!user) return;
-    setIsLoading(true);
+  const loadPublicPosts = async (pageNum: number = 1) => {
+  if (!user) return;
+  setIsLoading(true);
 
-    try {
-      const { data: blockedData } = await supabase
-        .from("blocks")
-        .select("blocked_id")
-        .eq("blocker_id", user.id);
+  try {
+    const { data: blockedData } = await supabase
+      .from("blocks")
+      .select("blocked_id")
+      .eq("blocker_id", user.id);
 
-      // Get users who blocked you
-      const { data: blockedByData } = await supabase
-        .from("blocks")
-        .select("blocker_id")
-        .eq("blocked_id", user.id);
+    const { data: blockedByData } = await supabase
+      .from("blocks")
+      .select("blocker_id")
+      .eq("blocked_id", user.id);
 
-      const { data: reportedData } = await supabase
-        .from("reports")
-        .select("target_id")
-        .eq("reporter_id", user.id)
-        .eq("target_type", "post");
+    const { data: reportedData } = await supabase
+      .from("reports")
+      .select("target_id")
+      .eq("reporter_id", user.id)
+      .eq("target_type", "post");
 
-      const blockedUserIds = blockedData?.map((b) => b.blocked_id) ?? [];
-      const blockedByUserIds = blockedByData?.map((b) => b.blocker_id) ?? [];
-      const allBlockedIds = [
-        ...new Set([...blockedUserIds, ...blockedByUserIds]),
-      ];
-      const reportedPostIds = reportedData?.map((r) => r.target_id) ?? [];
+    const blockedUserIds = blockedData?.map((b) => b.blocked_id) ?? [];
+    const blockedByUserIds = blockedByData?.map((b) => b.blocker_id) ?? [];
+    const allBlockedIds = [
+      ...new Set([...blockedUserIds, ...blockedByUserIds]),
+    ];
+    const reportedPostIds = reportedData?.map((r) => r.target_id) ?? [];
 
-      const { data: postsData, error: postsError } = await supabase
-        .from("posts")
-        .select(
-          `
-        *,
-        profiles(id, name, username, profile_image_url, isPrivate, streak),
-        images(id, post_id, image_url, order_index),
-        post_image_tags(
-  image_id,
-  location_x,
-  location_y,
-  tags_new(*)
-)
-      `,
-        )
-        .eq("is_active", true)
-        .not("user_id", "in", `(${allBlockedIds.join(",")})`)
+    const start = (pageNum - 1) * postsPerPage;
+    const end = start + postsPerPage - 1;
 
-        .eq("is_public", true)
-        .order("created_at", { ascending: false });
+const { data: postsData, error: postsError } = await supabase
+  .from("posts")
+  .select(
+    `
+    *,
+    profiles(id, name, username, profile_image_url, isPrivate, streak),
+    images(id, post_id, image_url, order_index),
+    post_image_tags(
+      image_id,
+      location_x,
+      location_y,
+      tags_new(*)
+    ),
+    people_tags(
+      tagged_user_id,
+      location_x,
+      location_y,
+      profiles!people_tags_tagged_user_id_profiles_fkey(id, username, name, profile_image_url)
+    )
+  `,
+  )
+      .eq("is_active", true)
+      .not("user_id", "in", `(${allBlockedIds.join(",")})`)
+      .eq("is_public", true)
+      .order("created_at", { ascending: false })
+      .range(start, end);  // ← Add pagination
 
-      if (postsError) throw postsError;
+    if (postsError) throw postsError;
 
-      const filtered = (postsData ?? []).filter(
-        (post) => !post.profiles?.isPrivate,
-      );
+    const filtered = (postsData ?? []).filter(
+      (post) => !post.profiles?.isPrivate,
+    );
 
-      const filteredBlocked =
-        filtered?.filter((p) => !reportedPostIds.includes(p.id)) ?? [];
+    const filteredBlocked =
+      filtered?.filter((p) => !reportedPostIds.includes(p.id)) ?? [];
 
-      const postsWithTags = filteredBlocked.map((post) => ({
-        ...post,
-        tags: flattenPostTags(post),
-      }));
+    const postsWithTags = filteredBlocked.map((post) => ({
+      ...post,
+      tags: flattenPostTags(post),
+      peopleTags: flattenPeopleTags(post),
+    }));
 
-      setPosts(postsWithTags);
-    } catch (error) {
-      console.error("Error in loadPublicPosts:", error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    // Append or replace based on page
+    setPosts(pageNum === 1 ? postsWithTags : [...posts, ...postsWithTags]);
+    setPage(pageNum);
+  } catch (error) {
+    console.error("Error in loadPublicPosts:", error);
+    throw error;
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+const loadMoreExplorePosts = () => {
+  if (isLoading || isLoadingMoreRef.current) return;
+  if (posts.length === 0) return;
+  isLoadingMoreRef.current = true;
+  loadPublicPosts(page + 1).finally(() => {
+    isLoadingMoreRef.current = false;
+  });
+};
+
+const refreshExplorePosts = async () => {
+  setPage(1);
+  await loadPublicPosts(1);
+};
+
+
 
   const loadOwnPosts = async () => {
     if (!user) return;
     setIsLoading(true);
 
     try {
-      const { data: postsData, error: postsError } = await supabase
-        .from("posts")
-        .select(
-          `
-                  *,
-                  profiles(id,name,username,profile_image_url, streak),
-                  images(id,post_id,image_url,order_index),
-                  post_image_tags(
-  image_id,
-  location_x,
-  location_y,
-  tags_new(*)
-)
-                  `,
-        )
+const { data: postsData, error: postsError } = await supabase
+  .from("posts")
+  .select(
+    `
+    *,
+    profiles(id,name,username,profile_image_url, streak),
+    images(id,post_id,image_url,order_index),
+    post_image_tags(
+      image_id,
+      location_x,
+      location_y,
+      tags_new(*)
+    ),
+    people_tags(
+      tagged_user_id,
+      location_x,
+      location_y,
+      profiles!people_tags_tagged_user_id_profiles_fkey(id, username, name, profile_image_url)
+    )
+    `,
+  )
         .eq("user_id", user.id)
         .eq("is_active", true)
         .eq("is_public", true)
@@ -303,6 +373,7 @@ const loadMore = () => {
         ...post,
         profiles: post.profiles || null,
         tags: flattenPostTags(post),
+        peopleTags: flattenPeopleTags(post),
       }));
       setPosts(postsWithProfiles);
     } catch (error) {
@@ -322,6 +393,8 @@ const loadMore = () => {
     isOutfitPost?: boolean,
     imageUris?: string[],
     tags?: PostTagInput[],
+    peopleTags?: PeopleTagInput[],
+    
   ) => {
     if (!user) {
       throw new Error("User Not Authenticated");
@@ -479,6 +552,25 @@ const loadMore = () => {
           console.error("Error linking tags to post:", linkError);
         }
       }
+             if (peopleTags && peopleTags.length > 0) {
+        const peopleLinkRows = peopleTags
+          .map((p) => ({
+            post_id: post.id,
+            tagged_by_user_id: user.id,
+            tagged_user_id: p.tagged_user_id,
+            location_x: p.location_x,
+            location_y: p.location_y,
+          }))
+          .filter((row) => row.tagged_user_id != null);
+
+        const { error: peopleLinkError } = await supabase
+          .from("people_tags")
+          .insert(peopleLinkRows);
+
+        if (peopleLinkError) {
+          console.error("Error linking people tags to post:", peopleLinkError);
+        }
+      }
 
       return post;
     } catch (error) {
@@ -578,14 +670,13 @@ const loadMore = () => {
   //   }
   // };
 
-  const refreshExplorePosts = async () => {
-    await loadPublicPosts();
-  };
+
   const refreshOwnPosts = async () => {
     await loadOwnPosts();
   };
 
   return {
+    loadMoreExplorePosts,
     createPost,
     refreshPosts,
     posts,

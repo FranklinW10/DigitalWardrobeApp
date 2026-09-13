@@ -100,7 +100,7 @@ export default function EditTag() {
       mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.6,
     });
     if (!result.canceled && result.assets[0]) {
       await handleImageUpload(result.assets[0].uri);
@@ -119,7 +119,7 @@ export default function EditTag() {
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.6,
     });
     if (!result.canceled && result.assets[0]) {
       await handleImageUpload(result.assets[0].uri);

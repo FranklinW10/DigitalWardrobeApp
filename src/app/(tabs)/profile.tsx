@@ -111,6 +111,21 @@ export default function Profile() {
 
   // Get likers from hook, not local state
   const { fetchLikers, isLoadingLikers, likers } = useLikes(likerPostId || "");
+    const flattenPeopleTags = (post: any) => {
+  return (post.people_tags ?? [])
+    .map((row: any) => {
+      if (!row.profiles) return null;
+      return {
+        tagged_user_id: row.tagged_user_id,
+        location_x: row.location_x,
+        location_y: row.location_y,
+        username: row.profiles.username,
+        name: row.profiles.name,
+        profile_image_url: row.profiles.profile_image_url,
+      };
+    })
+    .filter(Boolean);
+};
 
   // Use fetchLikers from hook
 
@@ -215,7 +230,7 @@ export default function Profile() {
       mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.6,
     });
     if (!result.canceled && result.assets[0]) {
       setIsUpdating(true);
@@ -284,7 +299,7 @@ export default function Profile() {
       const { data: postsData, error: postsError } = await supabase
         .from("posts")
         .select(
-          "*, profiles(*), images(*),post_image_tags(image_id,location_x,location_y,tags_new(*))",
+          "*, profiles(*), images(*),post_image_tags(image_id,location_x,location_y,tags_new(*)),    people_tags(tagged_user_id,location_x,location_y,profiles!people_tags_tagged_user_id_profiles_fkey(id, username, name, profile_image_url))",
         )
         .eq("user_id", user?.id)
         .eq("is_active", true)
@@ -294,6 +309,7 @@ export default function Profile() {
         (postsData ?? []).map((post) => ({
           ...post,
           tags: flattenPostTags(post),
+          peopleTags: flattenPeopleTags(post),
         })),
       );
 
@@ -619,7 +635,7 @@ export default function Profile() {
     try {
       await Share.share({
         message:
-          "Check out Posted — the app I use to track my outfits and share my style! https://apps.apple.com/app/idYOUR_APP_ID",
+          "Check out Posted — this app will change your life and make all your dreams come true! https://apps.apple.com/app/idYOUR_APP_ID",
         // iOS-only: separates the URL for cleaner previews in Messages/iMessage
         url: "https://apps.apple.com/us/app/posted-fits-hauls/id6791696227",
         title: "Posted",

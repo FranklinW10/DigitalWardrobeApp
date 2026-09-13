@@ -2,7 +2,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
 import { supabase } from "@/lib/supabase/client";
 import { uploadProfileImage } from "@/lib/supabase/storage";
-import { Keyboard, TouchableWithoutFeedback } from "react-native";
+import { Keyboard, ScrollView, TouchableWithoutFeedback } from "react-native";
 
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -32,6 +32,8 @@ export default function SignUpScreen() {
   const { user, updateUser } = useAuth();
   const router = useRouter();
   const { colors } = useTheme();
+    const [referredBy, setReferredBy] = useState("");   // add
+
   const styles = createStyles(colors);
 
   const pickImage = async () => {
@@ -133,6 +135,7 @@ export default function SignUpScreen() {
         bio,
         link,
         linkLabel,
+        referred_by: referredBy.trim() || undefined,
       });
       router.replace("/(tabs)");
     } catch (error) {
@@ -148,7 +151,10 @@ export default function SignUpScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <SafeAreaView edges={["top", "bottom"]} style={styles.container}>
-        <View style={styles.content}>
+              <ScrollView
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
           <View style={styles.header}>
             <Text style={styles.title}>Complete Your Profile</Text>
             <Text style={styles.subtitle}>
@@ -192,6 +198,7 @@ export default function SignUpScreen() {
               onChangeText={setUsername}
               style={styles.input}
             />
+
             <TextInput
               placeholder="Bio (optional)"
               placeholderTextColor={colors.textMuted}
@@ -205,6 +212,15 @@ export default function SignUpScreen() {
               maxLength={150}
             />
             <Text style={styles.bioCharCount}>{bio.length}/150</Text>
+                        <TextInput
+              placeholder="Referred by (optional)"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              value={referredBy}
+              onChangeText={setReferredBy}
+              style={styles.input}
+            />
+
             <View style={styles.privacyRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.privacyLabel}>Private Account</Text>
@@ -227,7 +243,7 @@ export default function SignUpScreen() {
               )}
             </TouchableOpacity>
           </View>
-        </View>
+        </ScrollView>
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );
@@ -349,7 +365,7 @@ const createStyles = (colors: any) =>
       fontSize: 11,
       color: colors.textMuted,
       alignSelf: "flex-end",
-      marginTop: -2,
-      marginBottom: 4,
+      marginTop: -10,
+      marginBottom: 8,
     },
   });

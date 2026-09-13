@@ -65,7 +65,7 @@ export default function CreateTag() {
       mediaTypes: ["images"],
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.6,
     });
     if (!result.canceled && result.assets[0]) {
       handleImageSelect(result.assets[0].uri);
@@ -84,7 +84,7 @@ export default function CreateTag() {
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 0.6,
     });
     if (!result.canceled && result.assets[0]) {
       handleImageSelect(result.assets[0].uri);
